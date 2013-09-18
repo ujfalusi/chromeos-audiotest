@@ -402,6 +402,7 @@ bool AlsaCaptureClient::Init(int sample_rate, SampleFormat format,
   sample_rate_ = sample_rate;
   format_ = format;
   num_channels_ = num_channels;
+  hwparams_ = NULL;
   /* Create cpature device handle */
   if (pcm_capture_handle_)
     snd_pcm_close(pcm_capture_handle_);
