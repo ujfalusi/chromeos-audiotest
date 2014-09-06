@@ -13,10 +13,11 @@ FFTW_LIBS := $(shell $(PKG_CONFIG) --libs fftw3)
 CRAS_CFLAGS := $(shell $(PKG_CONFIG) --cflags libcras)
 CRAS_LIBS := $(shell $(PKG_CONFIG) --libs libcras)
 
-CXX_BINARY(audiofuntest): \
+CXX_BINARY(audiofuntest): $(filter \
 	alsa_client.o \
 	audiofuntest.o \
-	tone_generators.o
+	tone_generators.o \
+	,$(CXX_OBJECTS))
 CXX_BINARY(audiofuntest): \
 	CPPFLAGS += $(ALSA_CFLAGS) $(FFTW_CFLAGS)
 CXX_BINARY(audiofuntest): \
@@ -24,10 +25,11 @@ CXX_BINARY(audiofuntest): \
 clean: CLEAN(audiofuntest)
 all: CXX_BINARY(audiofuntest)
 
-CXX_BINARY(test_tones): \
+CXX_BINARY(test_tones): $(filter \
 	alsa_client.o \
 	test_tones.o \
-	tone_generators.o
+	tone_generators.o \
+	,$(CXX_OBJECTS))
 CXX_BINARY(test_tones): \
 	CPPFLAGS += $(ALSA_CFLAGS)
 CXX_BINARY(test_tones): \
@@ -35,9 +37,10 @@ CXX_BINARY(test_tones): \
 clean: CLEAN(test_tones)
 all: CXX_BINARY(test_tones)
 
-CC_BINARY(looptest): \
+CC_BINARY(looptest): $(filter \
 	libaudiodev.o  \
-	looptest.o
+	looptest.o \
+	,$(C_OBJECTS))
 CC_BINARY(looptest): \
 	CFLAGS += $(ALSA_CFLAGS)
 CC_BINARY(looptest): \
@@ -45,8 +48,9 @@ CC_BINARY(looptest): \
 clean: CLEAN(looptest)
 all: CC_BINARY(looptest)
 
-CC_BINARY(loopback_latency): \
-	loopback_latency.o
+CC_BINARY(loopback_latency): $(filter \
+	loopback_latency.o \
+	,$(C_OBJECTS))
 CC_BINARY(loopback_latency): \
 	CFLAGS += $(ALSA_CFLAGS) $(CRAS_CFLAGS)
 CC_BINARY(loopback_latency): \
