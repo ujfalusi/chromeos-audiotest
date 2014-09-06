@@ -44,7 +44,7 @@ CC_BINARY(looptest): $(filter \
 CC_BINARY(looptest): \
 	CFLAGS += $(ALSA_CFLAGS)
 CC_BINARY(looptest): \
-	LDLIBS += $(ALSA_LIBS) -lrt
+	LDLIBS += $(ALSA_LIBS)
 clean: CLEAN(looptest)
 all: CC_BINARY(looptest)
 
@@ -54,6 +54,6 @@ CC_BINARY(loopback_latency): $(filter \
 CC_BINARY(loopback_latency): \
 	CFLAGS += $(ALSA_CFLAGS) $(CRAS_CFLAGS)
 CC_BINARY(loopback_latency): \
-	LDLIBS += $(ALSA_LIBS) $(CRAS_LIBS) -lrt
+	LDLIBS += $(ALSA_LIBS) $(CRAS_LIBS)
 clean: CC_BINARY(loopback_latency)
 all: CC_BINARY(loopback_latency)
