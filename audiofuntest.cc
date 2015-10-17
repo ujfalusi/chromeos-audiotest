@@ -298,8 +298,8 @@ struct LoopParam {
     num_frames = NumFrames(*capture_client.Buffer(), capture_client.Format(),
                            capture_client.NumChannel());
     num_freq   = num_frames / 2 + 1;
-    num_bin    = num_frames / 4;
-    freq_resol = 2.0 * capture_client.SampRate() / num_frames;
+    num_bin    = num_frames / 2;
+    freq_resol = (double) capture_client.SampRate() / num_frames;
     bin_start  = ceil(low_cutoff/ freq_resol);
     bin_end    = ceil(hi_cutoff / freq_resol);
     if (bin_end > num_bin) bin_end = num_bin;

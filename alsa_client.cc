@@ -73,7 +73,7 @@ void SampleCellToDoubleCell(void *sample_cell,
     for (int n = 0; n < num_frames; n++) {
       double_cell[n] = 0.0;
       for (int c = 0; c < num_channels; c++) {
-        double_cell[n] += SampleToMagnitude<unsigned char>(ptr[n]);
+        double_cell[n] += SampleToMagnitude<unsigned char>(*(ptr++));
       }
       if (num_channels > 1) double_cell[n] /= num_channels;
     }
@@ -83,7 +83,7 @@ void SampleCellToDoubleCell(void *sample_cell,
     for (int n = 0; n < num_frames; n++) {
       double_cell[n] = 0.0;
       for (int c = 0; c < num_channels; c++) {
-        double_cell[n] += SampleToMagnitude<int16_t>(ptr[n]);
+        double_cell[n] += SampleToMagnitude<int16_t>(*(ptr++));
       }
       if (num_channels > 1) double_cell[n] /= num_channels;
     }
@@ -95,8 +95,7 @@ void SampleCellToDoubleCell(void *sample_cell,
       for (int c = 0; c < num_channels; c++) {
         int32_t value = 0;
         for (int i = 0; i < 3; i++) {
-          value <<= 8;
-          value |= ptr[3 * n + 2 - i];
+          value |= ((int) *(ptr++)) << (8 * i);
         }
         double_cell[n] += static_cast<double>(value) / (1 << 23);
       }
@@ -108,7 +107,7 @@ void SampleCellToDoubleCell(void *sample_cell,
     for (int n = 0; n < num_frames; n++) {
       double_cell[n] = 0.0;
       for (int c = 0; c < num_channels; c++) {
-        double_cell[n] += SampleToMagnitude<int32_t>(ptr[n]);
+        double_cell[n] += SampleToMagnitude<int32_t>(*(ptr++));
       }
       if (num_channels > 1) double_cell[n] /= num_channels;
     }
