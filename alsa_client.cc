@@ -64,52 +64,44 @@ double SampleToMagnitude(T sample) {
 }
 
 void SampleCellToDoubleCell(void *sample_cell,
-                            double *double_cell,
+                            vector<vector<double> >& double_cell,
                             int num_frames,
                             SampleFormat format,
                             int num_channels) {
   if (format.type() == SampleFormat::kPcmU8) {
     unsigned char *ptr = static_cast<unsigned char*>(sample_cell);
     for (int n = 0; n < num_frames; n++) {
-      double_cell[n] = 0.0;
       for (int c = 0; c < num_channels; c++) {
-        double_cell[n] += SampleToMagnitude<unsigned char>(*(ptr++));
+        double_cell[c][n] = SampleToMagnitude<unsigned char>(*(ptr++));
       }
-      if (num_channels > 1) double_cell[n] /= num_channels;
     }
 
   } else if (format.type() == SampleFormat::kPcmS16) {
     int16_t *ptr = static_cast<int16_t*>(sample_cell);
     for (int n = 0; n < num_frames; n++) {
-      double_cell[n] = 0.0;
       for (int c = 0; c < num_channels; c++) {
-        double_cell[n] += SampleToMagnitude<int16_t>(*(ptr++));
+        double_cell[c][n] = SampleToMagnitude<int16_t>(*(ptr++));
       }
-      if (num_channels > 1) double_cell[n] /= num_channels;
     }
 
   } else if (format.type() == SampleFormat::kPcmS24) {
     unsigned char *ptr = static_cast<unsigned char*>(sample_cell);
     for (int n = 0; n < num_frames; n++) {
-      double_cell[n] = 0.0;
       for (int c = 0; c < num_channels; c++) {
         int32_t value = 0;
         for (int i = 0; i < 3; i++) {
           value |= ((int) *(ptr++)) << (8 * i);
         }
-        double_cell[n] += static_cast<double>(value) / (1 << 23);
+        double_cell[c][n] = static_cast<double>(value) / (1 << 23);
       }
-      if (num_channels > 1) double_cell[n] /= num_channels;
     }
 
   } else if (format.type() == SampleFormat::kPcmS32) {
     int32_t *ptr = static_cast<int32_t*>(sample_cell);
     for (int n = 0; n < num_frames; n++) {
-      double_cell[n] = 0.0;
       for (int c = 0; c < num_channels; c++) {
-        double_cell[n] += SampleToMagnitude<int32_t>(*(ptr++));
+        double_cell[c][n] = SampleToMagnitude<int32_t>(*(ptr++));
       }
-      if (num_channels > 1) double_cell[n] /= num_channels;
     }
 
   }

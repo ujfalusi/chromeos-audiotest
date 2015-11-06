@@ -401,79 +401,6 @@ void EstimateFilter(struct LoopParam* parm) {
   delete [] double_cell;
 }
 
-/*
- * Meausre matched filter by playing tone and capturing the
- * response in frequency domain. Only apply it in very silent
- * evironment or in the presence of static noise.
- */
-void MeasureFilter(struct LoopParam* parm,
-                   AlsaPlaybackClient* play_cli,
-                   AlsaCaptureClient* cap_cli,
-                   MultiToneGenerator* gen) {
-
-  vector<struct Carrier>& carriers = parm->carriers;
-
-  /* Spectrum analyzer */
-  CircularBuffer<double> double_buffer(carriers.size(), parm->num_frames);
-  fftw_plan plan;
-  fftw_complex *spectrum = static_cast<double(*)[2]>(
-      fftw_malloc(sizeof(fftw_complex) * (parm->num_freq)));
-
-  /* Start playback and capture threads */
-  pthread_t capture_thread;
-  pthread_create(&capture_thread, NULL, CaptureThreadEntry, cap_cli);
-  pthread_t playback_thread;
-  pthread_create(&playback_thread, NULL, PlayToneThreadEntry, play_cli);
-
-  for (unsigned c = 0; c < carriers.size(); ++c) {
-    parm->frequencies.clear();
-    gen->Reset(parm->frequencies);
-    parm->SetTargetCarrier(c);
-    gen->Reset(parm->frequencies);
-    usleep(300000);  // Wait 300ms for playback to capture delay
-
-    char *sample_cell = cap_cli->Buffer()->LockCellToRead();
-    double *double_cell = double_buffer.LockCellToWrite();
-
-    // save frequency response in double_buffer
-    SampleCellToDoubleCell(static_cast<void *>(sample_cell),
-                           double_cell,
-                           parm->num_frames,
-                           cap_cli->Format(),
-                           cap_cli->NumChannel());
-
-    cap_cli->Buffer()->UnlockCellToRead();
-
-    plan = fftw_plan_dft_r2c_1d(parm->num_frames, double_cell, spectrum,
-                                FFTW_ESTIMATE);
-    fftw_execute(plan);
-
-    for (int b = 0; b < parm->num_bin; ++b) {
-      double_cell[b] = sqmag(spectrum[b]) / parm->num_frames;
-    }
-
-    double_buffer.UnlockCellToWrite();
-
-  }
-  play_cli->set_state(AlsaPlaybackClient::kTerminated);
-  cap_cli->set_state(AlsaCaptureClient::kTerminated);
-  void *status;
-  pthread_join(playback_thread, &status);
-  pthread_join(capture_thread, &status);
-
-  /* Create matched filter for each carrier */
-  for (unsigned c = 0; c < carriers.size(); ++c) {
-    double *double_cell = double_buffer.LockCellToWrite();
-    int low = max(carriers[c].center_bin - lo_bandwidth, 0);
-    int hi  = min(carriers[c].center_bin + hi_bandwidth, parm->num_bin - 1);
-    carriers[c].InitMatchedFilter(low, hi, double_cell);
-    double_buffer.UnlockCellToWrite();
-  }
-  parm->Print(stderr);
-
-}
-
-
 int LoopControl(AudioFunTestConfig& config) {
   srand(time(NULL) + getpid());
   /* AlsaCaptureClient */
@@ -512,15 +439,9 @@ int LoopControl(AudioFunTestConfig& config) {
   /* Loop parameter */
   struct LoopParam loop_parm(capture_client);
 
-  /*
-  MeasureFilter(&loop_parm, &playback_client, &capture_client,
-                &tone_generator);
-                */
   EstimateFilter(&loop_parm);
   if (config.verbose) loop_parm.Print(stderr);
 
-  /* Spectrum analyzer */
-  CircularBuffer<double> double_buffer(1, loop_parm.num_frames);
   fftw_plan plan;
   fftw_complex *spectrum = static_cast<double(*)[2]>(
       fftw_malloc(sizeof(fftw_complex) * (loop_parm.num_freq)));
@@ -537,15 +458,20 @@ int LoopControl(AudioFunTestConfig& config) {
   tone_generator.Reset(loop_parm.frequencies);
 
   /* Start feedback */
-  int success = 0, fail = 0;
   int delay = 0;
-  double accum_confidence = 0.0;
+  vector<int> success(config.channels, 0);
+  vector<int> fail(config.channels, 0);
+  vector<double> accum_confidence(config.channels, 0.0);
+
+  /* tmp flag the indicate channels already passed test */
+  vector<bool> success_flag(config.channels, false);
+  vector<vector<double> > double_cell(config.channels,
+      vector<double>(loop_parm.num_frames));
   /* Analyze cell by cell */
   while(playback_client.state() ==
         autotest_client::audio::AlsaPlaybackClient::kReady) {
 
     char *sample_cell = capture_client.Buffer()->LockCellToRead();
-    double *double_cell = double_buffer.LockCellToWrite();
 
     SampleCellToDoubleCell(static_cast<void *>(sample_cell),
                            double_cell,
@@ -555,36 +481,61 @@ int LoopControl(AudioFunTestConfig& config) {
 
     capture_client.Buffer()->UnlockCellToRead();
 
-    plan = fftw_plan_dft_r2c_1d(loop_parm.num_frames, double_cell, spectrum,
-                                FFTW_ESTIMATE);
-    fftw_execute(plan);
-    // Calculate spectrum energy
-    for (int i = 0; i < loop_parm.num_bin; ++i) {
-      double_cell[i] = sqmag(spectrum[i]) / loop_parm.num_frames;
-    }
-    double confidence = loop_parm.TargetCarrierConfidence(double_cell);
-    if (confidence > 0.0) accum_confidence += confidence;
-    double_buffer.UnlockCellToWrite();
+    bool all_channel_pass = true;
+    for (int c = 0; c < config.channels; ++c) {
+      /* For channels that already pass, bypass calculating fft and following
+       * logic. */
+      if (success_flag[c]) continue;
 
+      plan = fftw_plan_dft_r2c_1d(loop_parm.num_frames,
+                                  double_cell[c].data(),
+                                  spectrum,
+                                  FFTW_ESTIMATE);
+      fftw_execute(plan);
+      for (int i = 0; i < loop_parm.num_bin; ++i) {
+        double_cell[c][i] = sqmag(spectrum[i]) / loop_parm.num_frames;
+      }
+      // Calculate spectrum energy
+      double confidence = loop_parm.TargetCarrierConfidence(
+          double_cell[c].data());
+
+      if (confidence > 0.0) accum_confidence[c] += confidence;
+      if (accum_confidence[c] >= 3.0) {
+        success_flag[c] = true;
+      } else {
+        all_channel_pass = false;
+      }
+    }
 
     ++delay;
-    if (accum_confidence >= 3.0) { // success
-      ++success;
-      fprintf(stderr, "O");
-    } else if (delay < 15) { // accum_confidence < 3.0, delaying
+    if (!all_channel_pass && delay < 15) {
       continue;
-    } else { // accum_confidence < 3.0 and time out
-      ++fail;
-      fprintf(stderr, "X");
     }
 
-    fprintf(stderr, ": carrier = %2d, delay = %2d, "
-            "success = %3d, fail = %3d, rate = %.1f\n",
-            loop_parm.target_carrier, delay, success, fail,
-            100.0 * success / (success + fail));
     /* Either success or fail */
+    fprintf(stderr, "carrier = %2d, delay = %2d\n",
+            loop_parm.target_carrier, delay);
+
+    for (int c = 0; c < config.channels; ++c) {
+      if (success_flag[c]) {
+        success[c]++;
+      } else {
+        fail[c]++;
+      }
+
+      fprintf(stderr,
+              "%s: channel = %2d, success = %3d, fail = %3d, rate = %.1f\n",
+              success_flag[c] ? "O" : "X",
+              c,
+              success[c],
+              fail[c],
+              100.0 * success[c] / (success[c] + fail[c]));
+
+      accum_confidence[c] = 0.0;
+      success_flag[c] = false;
+    }
+
     delay = 0;
-    accum_confidence = 0.0;
     int new_target_carrier;
     do {
       new_target_carrier = rand() % loop_parm.carriers.size();

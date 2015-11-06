@@ -5,15 +5,17 @@
 #ifndef AUTOTEST_CLIENT_SITE_TESTS_AUDIO_ALSA_CLIENT_H_
 #define AUTOTEST_CLIENT_SITE_TESTS_AUDIO_ALSA_CLIENT_H_
 
+#include <alsa/asoundlib.h>
+#include <cstdio>
 #include <set>
 #include <string>
-#include <cstdio>
 #include <tr1/memory>
-#include <alsa/asoundlib.h>
+#include <vector>
 
 #include "common.h"
 
 using std::tr1::shared_ptr;
+using std::vector;
 
 // Alsa API forward declares.
 struct _snd_pcm;
@@ -32,7 +34,8 @@ int SampleFormatToFrameBytes(SampleFormat format, int channels);
  * Convert a sample cell (size = num_frames) into double cell.
  * If there are two channels, the sample will be averaged
  */
-void SampleCellToDoubleCell(void *sample_cell, double *double_cell,
+void SampleCellToDoubleCell(void *sample_cell,
+                            vector<vector<double> >& double_cell,
                             int num_frames, SampleFormat format,
                             int num_channels);
 
