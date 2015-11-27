@@ -40,75 +40,80 @@ void SampleCellToDoubleCell(void *sample_cell,
                             int num_channels);
 
 /*
- * Store captured sample data
- * Store converted double data for FFT
- * cell_[][] is a 2-D array (buffer_count_ * buffer_size_)
+ * Maintain a circular buffer of type T, which has a vector of <count> cells.
+ * Each cell contains a vector of T with size <size>. Whenever LockCellToWrite()
+ * is called, the corresponding cell is locked and the pointer to T is returned.
+ * After the data was written to the cell, UnlockCellToWrite() should be called
+ * which will release the mutex and signal pthread_cond_t so any blocking
+ * LockCellToRead() can proceed.
+ * At anytime the internal <write_index_> is strictly less than <read_index_>
+ * indicating there is data to read. Otherwise LockCellToRead() will block until
+ * write_index_ is increased and UnlockCellToWrite() is called.
  */
 template<typename T>
-struct CircularBuffer {
+class CircularBuffer {
  public:
   CircularBuffer(int count, int size)
-      : buffer_count_(count), buffer_size_(size), write_ptr_(0), read_ptr_(0) {
-    cell_ = new T*[count];
-    cell_[0] = new T[count * size];
-    for (int i = 1; i < count; ++i) {
-      cell_[i] = cell_[i - 1] + size;
-    }
-    mutexes = new pthread_mutex_t[count];
-    has_data = new pthread_cond_t[count];
+      : buffer_count_(count),
+        buffer_size_(size),
+        write_index_(0),
+        read_index_(0) {
+    cell_.resize(count);
+    data_.resize(count * size);
     for (int i = 0; i < count; ++i) {
-      pthread_mutex_init(&mutexes[i], NULL);
-      pthread_cond_init(&has_data[i], NULL);
+      cell_[i] = data_.data() + i * size;
+    }
+    mutexes_.resize(count);
+    has_data_.resize(count);
+    for (int i = 0; i < count; ++i) {
+      pthread_mutex_init(&mutexes_[i], NULL);
+      pthread_cond_init(&has_data_[i], NULL);
     }
   }
 
-  ~CircularBuffer() {
-    delete [] cell_[0];
-    delete [] cell_;
-    delete [] mutexes;
-    delete [] has_data;
-  }
+  ~CircularBuffer() {}
 
   /* Lock mutex, return cell pointer
    * MUST call UnlockCellToWrite(); after work is done.
    */
   T* LockCellToWrite(int *index = NULL) {
-    if (index) *index = write_ptr_;
-    pthread_mutex_lock(&mutexes[write_ptr_]);
-    return cell_[write_ptr_];
+    if (index) *index = write_index_;
+    pthread_mutex_lock(&mutexes_[write_index_]);
+    return cell_[write_index_];
   }
 
+  /* Unlock mutex, release mutex and signal for has_data_ */
   void UnlockCellToWrite() {
-    int last = write_ptr_;
-    write_ptr_ = (write_ptr_ + 1) % buffer_count_;
-    pthread_cond_signal(&has_data[last]);
-    pthread_mutex_unlock(&mutexes[last]);
+    int last = write_index_;
+    write_index_ = (write_index_ + 1) % buffer_count_;
+    pthread_cond_signal(&has_data_[last]);
+    pthread_mutex_unlock(&mutexes_[last]);
   }
 
-  /* Lock mutex and increment read_ptr_, return cell pointer
+  /* Lock mutex and return cell pointer.
    * MUST call UnlockCellToRead(); after work is done.
    */
   T* LockCellToRead(int *index = NULL) {
-    if (index) *index = read_ptr_;
-    pthread_mutex_lock(&mutexes[read_ptr_]);
-    while (read_ptr_ == write_ptr_) {
-      pthread_cond_wait(&has_data[read_ptr_], &mutexes[read_ptr_]);
+    if (index) *index = read_index_;
+    pthread_mutex_lock(&mutexes_[read_index_]);
+    while (read_index_ == write_index_) {
+      pthread_cond_wait(&has_data_[read_index_], &mutexes_[read_index_]);
     }
-    return cell_[read_ptr_];
+    return cell_[read_index_];
   }
 
+  /* Unlock mutex and increment read_index_. */
   void UnlockCellToRead() {
-    pthread_mutex_unlock(&mutexes[read_ptr_]);
-    read_ptr_ = (read_ptr_ + 1) % buffer_count_;
+    int last = read_index_;
+    read_index_ = (read_index_ + 1) % buffer_count_;
+    pthread_mutex_unlock(&mutexes_[last]);
   }
 
-  void SyncReadPtrToWrite() { read_ptr_ = write_ptr_; }
-  bool MoreToRead() { return read_ptr_ != write_ptr_; }
   void Print(FILE *fp) {
     fprintf(fp, "    buffer_count_ = %d\n", buffer_count_);
     fprintf(fp, "    buffer_size_ = %d\n", buffer_size_);
-    fprintf(fp, "    write_ptr_ = %d\n", write_ptr_);
-    fprintf(fp, "    read_ptr_ = %d\n", read_ptr_);
+    fprintf(fp, "    write_index_ = %d\n", write_index_);
+    fprintf(fp, "    read_index_ = %d\n", read_index_);
   }
   int Count() { return buffer_count_; }
   int Size() { return buffer_size_; }
@@ -116,10 +121,11 @@ struct CircularBuffer {
  private:
   int buffer_count_;
   int buffer_size_;
-  int write_ptr_, read_ptr_;
-  T** cell_;
-  pthread_mutex_t *mutexes;
-  pthread_cond_t *has_data;
+  int write_index_, read_index_;
+  vector<T*> cell_;
+  vector<T> data_;
+  vector<pthread_mutex_t> mutexes_;
+  vector<pthread_cond_t> has_data_;
 };
 
 inline size_t NumFrames(CircularBuffer<char> &buffers,

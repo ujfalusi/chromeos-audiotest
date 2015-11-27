@@ -282,7 +282,7 @@ void AlsaPlaybackClient::Play(shared_ptr<CircularBuffer<char> > buffers) {
     buffers->UnlockCellToRead();
     if (last_error_ < 0)
       break;
-  } while (state() == kReady /*&& buffers->MoreToRead()*/);
+  } while (state() == kReady);
 
   // Sending latency_ms_ of silence to ensure above audio is heard.  The
   // snd_pcm_drain() call takes a second or more to exit for some reason.
