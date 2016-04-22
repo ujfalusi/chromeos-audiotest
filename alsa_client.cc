@@ -234,7 +234,7 @@ bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
             rate_set,
             sample_rate);
 
-  snd_pcm_hw_params_set_periods(pcm_out_handle_, hwparams_, 3, 0);
+  snd_pcm_hw_params_set_periods(pcm_out_handle_, hwparams_, 2, 0);
   snd_pcm_hw_params_set_period_size(pcm_out_handle_,
                                     hwparams_,
                                     period_size * num_channels,
@@ -467,7 +467,7 @@ bool AlsaCaptureClient::Init(int sample_rate, SampleFormat format,
             rate_set,
             sample_rate);
 
-  snd_pcm_hw_params_set_periods(pcm_capture_handle_, hwparams_, 2, 0);
+  snd_pcm_hw_params_set_periods(pcm_capture_handle_, hwparams_, 3, 0);
   snd_pcm_hw_params_set_period_size(pcm_capture_handle_,
                                     hwparams_,
                                     period_size * num_channels,
