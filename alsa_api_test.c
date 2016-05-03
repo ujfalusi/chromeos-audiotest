@@ -22,14 +22,18 @@ static snd_pcm_uframes_t buffer_frames;
 static snd_pcm_uframes_t period_size = 240;
 
 /* Fill frames of zeros. */
-static void pcm_fill_zeros(snd_pcm_t *handle, snd_pcm_uframes_t frames) {
-    short *play_buf;
-    int err;
+static void pcm_fill(snd_pcm_t *handle, snd_pcm_uframes_t frames,
+                     int16_t value) {
+    int16_t *play_buf;
+    int err, i;
 
     play_buf = calloc(frames * channels, sizeof(play_buf[0]));
-    printf("Write %d into device\n", (int)frames);
+    for (i = 0; i < frames * channels; i++)
+        play_buf[i] = value;
 
-    if ((err = snd_pcm_writei(handle, play_buf, frames))
+    printf("Write %d of value %d into device\n", (int)frames, (int)value);
+
+    if ((err = snd_pcm_mmap_writei(handle, play_buf, frames))
          != frames) {
         fprintf(stderr, "write to audio interface failed (%s)\n",
                 snd_strerror(err));
@@ -55,7 +59,7 @@ static void pcm_hw_param(snd_pcm_t *handle) {
     }
 
     if ((err = snd_pcm_hw_params_set_access(handle, hw_params,
-            SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+            SND_PCM_ACCESS_MMAP_INTERLEAVED)) < 0) {
         fprintf(stderr, "cannot set access type (%s)\n",
                 snd_strerror(err));
         exit(1);
@@ -223,7 +227,7 @@ void alsa_move_test()
 
     pcm_init(handle);
 
-    pcm_fill_zeros(handle, buffer_frames);
+    pcm_fill(handle, buffer_frames, 0);
 
     wait_for_periods(handle, wait_periods);
 
@@ -255,7 +259,7 @@ void alsa_move_test()
     check_hw_level_in_range(hw_level, 0, fuzz);
 
     /* Fills some zeros after moving to make sure PCM still plays fine. */
-    pcm_fill_zeros(handle, period_size * periods_after_move);
+    pcm_fill(handle, period_size * periods_after_move, 0);
     hw_level = buffer_frames - snd_pcm_avail(handle);
     printf("hw_level after filling %d period is %d\n",
            periods_after_move, (int)hw_level);
@@ -289,7 +293,7 @@ void alsa_drop_test()
 
     pcm_init(handle);
 
-    pcm_fill_zeros(handle, buffer_frames);
+    pcm_fill(handle, buffer_frames, 0);
 
     wait_for_periods(handle, wait_periods);
 
@@ -339,9 +343,70 @@ void alsa_drop_test()
     }
 }
 
+void alsa_fill_test()
+{
+    int err;
+    snd_pcm_t *handle;
+    unsigned int wait_periods = 10;
+    const snd_pcm_channel_area_t *my_areas;
+    snd_pcm_uframes_t offset, frames;
+    int16_t *dst, *zeros;
+    int n_bytes;
+
+    if ((err = snd_pcm_open(&handle, play_dev,
+                SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
+        fprintf(stderr, "cannot open audio device %s (%s)\n",
+                play_dev, snd_strerror(err));
+        exit(1);
+    }
+
+    pcm_init(handle);
+
+    /* Write nonzero values into buffer. */
+    pcm_fill(handle, buffer_frames, 1);
+
+    /* Play for some periods. */
+    wait_for_periods(handle, wait_periods);
+
+    /* Get the mmap area. */
+    err = snd_pcm_mmap_begin(handle, &my_areas, &offset, &frames);
+    if (err < 0) {
+        fprintf(stderr, "cannot mmap begin (%s)\n", snd_strerror(err));
+        exit(1);
+    }
+
+    /* Fill whole buffer with zeros without committing it.
+     * The number of bytes is buffer_frames * channel * 2 (16 bit sample) */
+    n_bytes = buffer_frames * channels * 2;
+    memset((int8_t *)my_areas[0].addr, 0, n_bytes);
+    printf("Filled mmap buffer with zeros\n");
+
+    /* Play for some periods. */
+    wait_for_periods(handle, wait_periods);
+
+    /* Check the samples in buffer are all zeros. */
+    err = snd_pcm_mmap_begin(handle, &my_areas, &offset, &frames);
+    if (err < 0) {
+        fprintf(stderr, "cannot mmap begin the second time (%s)\n",
+                snd_strerror(err));
+        exit(1);
+    }
+    dst = (int16_t *)my_areas[0].addr;
+
+    zeros = calloc(buffer_frames * channels, sizeof(zeros[0]));
+
+    if (memcmp(zeros, dst, n_bytes)) {
+        fprintf(stderr, "buffer is not all zeros\n");
+        free(zeros);
+        exit(1);
+    }
+    free(zeros);
+    printf("Buffer is filled with zeros\n");
+}
+
 int main(int argc, char *argv[])
 {
-    int c, drop_test = 0, move_test = 0;
+    int c, drop_test = 0, move_test = 0, fill_test = 0;
     const char *short_opt = "hd:rm";
     struct option long_opt[] =
     {
@@ -349,6 +414,7 @@ int main(int argc, char *argv[])
        {"device",        required_argument, NULL, 'd'},
        {"drop",          no_argument,       NULL, 'r'},
        {"move",          no_argument,       NULL, 'm'},
+       {"fill",          no_argument,       NULL, 'f'},
        {NULL,            0,                 NULL, 0  }
     };
 
@@ -372,12 +438,18 @@ int main(int argc, char *argv[])
            printf("Test snd_pcm_forward\n");
            break;
 
+       case 'f':
+           fill_test = 1;
+           printf("Test snd_pcm_mmap_begin and filling buffer.\n");
+           break;
+
        case 'h':
            printf("Usage: %s [OPTIONS]\n", argv[0]);
            printf("  --device <Device>       Device, default to hw:0,0\n");
            printf("  -h, --help              Print this help and exit\n");
            printf("  --drop                  Test snd_pcm_drop\n");
            printf("  --move                  Test snd_pcm_forward\n");
+           printf("  --fill                  Test snd_pcm_mmap_begin\n");
            printf("\n");
            return(0);
            break;
@@ -403,6 +475,11 @@ int main(int argc, char *argv[])
 
     if (move_test) {
         alsa_move_test();
+        exit(0);
+    }
+
+    if (fill_test) {
+        alsa_fill_test();
         exit(0);
     }
 
