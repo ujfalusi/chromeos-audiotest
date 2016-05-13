@@ -31,7 +31,7 @@ static void pcm_fill(snd_pcm_t *handle, snd_pcm_uframes_t frames,
     for (i = 0; i < frames * channels; i++)
         play_buf[i] = value;
 
-    printf("Write %d of value %d into device\n", (int)frames, (int)value);
+    printf("Write %ld of value %d into device\n", frames, (int)value);
 
     if ((err = snd_pcm_mmap_writei(handle, play_buf, frames))
          != frames) {
@@ -129,6 +129,7 @@ static void pcm_sw_param(snd_pcm_t *handle) {
         fprintf(stderr, "get_boundary: %s\n", snd_strerror(err));
         exit(1);
     }
+    printf("boundary = %lu\n", boundary);
 
     err = snd_pcm_sw_params_set_stop_threshold(handle, swparams, boundary);
     if (err < 0) {
@@ -189,16 +190,19 @@ static void wait_for_periods(snd_pcm_t *handle, unsigned int target_periods)
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         printf("time: %ld.%09ld", (long)now.tv_sec, (long)now.tv_nsec);
         avail_frames = snd_pcm_avail(handle);
-        printf(" state: %d, avail frames: %d, hw_level: %d\n",
-               (int)snd_pcm_state(handle), (int)avail_frames,
-               (int)(buffer_frames - avail_frames));
+        printf(" state: %d, avail frames: %ld, hw_level: %ld\n",
+               (int)snd_pcm_state(handle), avail_frames,
+               buffer_frames - avail_frames);
         num_periods++;
         usleep(wake_period_us);
     }
 }
 
-void check_hw_level_in_range(snd_pcm_sframes_t hw_level, int min, int max){
-    printf("Expected range: %d - %d\n", min, max);
+void check_hw_level_in_range(snd_pcm_sframes_t hw_level,
+                             snd_pcm_sframes_t min,
+                             snd_pcm_sframes_t max)
+{
+    printf("Expected range: %ld - %ld\n", min, max);
     if (hw_level <= max && hw_level >= min) {
         printf("hw_level is in the expected range\n");
     } else {
@@ -208,15 +212,85 @@ void check_hw_level_in_range(snd_pcm_sframes_t hw_level, int min, int max){
     }
 }
 
+void move_appl_ptr(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
+{
+    int err = 0;
+    snd_pcm_sframes_t to_move, hw_level, avail_frames;
 
-void alsa_move_test()
+    avail_frames = snd_pcm_avail(handle);
+    printf("Available frames: %ld\n", avail_frames);
+    hw_level = buffer_frames - avail_frames;
+    printf("hw_level frames: %ld\n", hw_level);
+
+    /* We want to move appl_ptr to hw_ptr plus fuzz such that hardware can
+     * play the new samples as quick as possible.
+     * The difference between hw_ptr and app can be inferred from snd_pcm_avail.
+     *    avail = buffer_frames - appl_ptr + hw_ptr
+     * => hw_ptr - appl_ptr = avail - buffer_frames.
+     * The amount to forward is fuzz - hw_level = fuzz - appl_ptr - hw_ptr.
+     * Depending on the sign of this value, we need to forward or rewind
+     * appl_ptr. Check go/cros-low-latency for detailed explanation.
+     */
+    to_move = fuzz + avail_frames - buffer_frames;
+    if (to_move > 0) {
+        printf("forward by %ld\n", to_move);
+        err = snd_pcm_forward(handle, to_move);
+    } else if (to_move < 0) {
+        printf("rewind by %ld\n", -to_move);
+        err = snd_pcm_rewind(handle, -to_move);
+    } else {
+        printf("no need to move\n");
+        return;
+    }
+
+    if (err < 0) {
+        fprintf(stderr, "cannot move appl ptr (%s)\n",
+                snd_strerror(err));
+        exit(1);
+    }
+}
+
+void check_appl_ptr(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
+{
+    snd_pcm_sframes_t hw_level, avail_frames;
+    int periods_after_move = 10;
+
+    /* Checks the result after moving. The hw_level should be in the range
+     * 0 - fuzz. */
+    avail_frames = snd_pcm_avail(handle);
+    printf("Available frames after move: %ld\n", avail_frames);
+    hw_level = buffer_frames - avail_frames;
+    printf("hw_level after moving: %ld\n", hw_level);
+
+    check_hw_level_in_range(hw_level, 0, fuzz);
+
+    /* Fills some zeros after moving to make sure PCM still plays fine. */
+    pcm_fill(handle, period_size * periods_after_move, 0);
+    hw_level = buffer_frames - snd_pcm_avail(handle);
+    printf("hw_level after filling %d period is %ld\n",
+           periods_after_move, hw_level);
+
+    wait_for_periods(handle, periods_after_move - 1);
+    hw_level = buffer_frames - snd_pcm_avail(handle);
+    printf("hw_level after playing %d period is %ld\n",
+           periods_after_move - 1, hw_level);
+
+    /* After playing for periods_after_move - 1 periods, the hw_level
+     * should be less than one period + fuzz. */
+    check_hw_level_in_range(hw_level, 0, period_size + fuzz);
+}
+
+void move_and_check(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
+{
+    move_appl_ptr(handle, fuzz);
+    check_appl_ptr(handle, fuzz);
+}
+
+void alsa_move_test(unsigned int wait_periods)
 {
     int err;
     snd_pcm_t *handle;
-    snd_pcm_sframes_t to_move, hw_level, avail_frames;
-    unsigned int wait_periods = 1000;
     snd_pcm_sframes_t fuzz = 50;
-    int periods_after_move = 10;
 
     if ((err = snd_pcm_open(&handle, play_dev,
                 SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
@@ -231,47 +305,12 @@ void alsa_move_test()
 
     wait_for_periods(handle, wait_periods);
 
-    /* We want to move appl_ptr to hw_ptr plus fuzz such that hardware can
-     * play the new samples as quick as possible.
-     *    avail = buffer_frames - appl_ptr + hw_ptr
-     * => hw_ptr - appl_ptr = avail - buffer_frames.
-     * The difference between hw_ptr and app can be inferred from snd_pcm_avail.
-     * So the amount of frames to forward appl_ptr is
-     * avail - buffer_frames + fuzz.
-     */
-    to_move = snd_pcm_avail(handle) - buffer_frames + fuzz;
-    printf("Frames to move appl_ptr forward: %d\n", (int)to_move);
+    move_and_check(handle, fuzz);
 
-    /* Move appl_ptr forward so it becomes leading hw_ptr by fuzz. */
-    if ((err = snd_pcm_forward(handle, to_move)) < 0) {
-        fprintf(stderr, "cannot move appl ptr forward (%s)\n",
-                snd_strerror(err));
+    if ((err = snd_pcm_close(handle)) < 0) {
+        fprintf(stderr, "cannot close device (%s)\n", snd_strerror(err));
         exit(1);
     }
-
-    /* Checks the result after moving. The hw_level should be in the range
-     * 0 - fuzz. */
-    avail_frames = snd_pcm_avail(handle);
-    printf("Available frames after move: %d\n", (int)avail_frames);
-    hw_level = buffer_frames - avail_frames;
-    printf("hw_level after moving: %d\n", (int)hw_level);
-
-    check_hw_level_in_range(hw_level, 0, fuzz);
-
-    /* Fills some zeros after moving to make sure PCM still plays fine. */
-    pcm_fill(handle, period_size * periods_after_move, 0);
-    hw_level = buffer_frames - snd_pcm_avail(handle);
-    printf("hw_level after filling %d period is %d\n",
-           periods_after_move, (int)hw_level);
-
-    wait_for_periods(handle, periods_after_move - 1);
-    hw_level = buffer_frames - snd_pcm_avail(handle);
-    printf("hw_level after playing %d period is %d\n",
-           periods_after_move, (int)hw_level);
-
-    /* After playing for periods_after_move - 1 periods, the hw_level
-     * should be less than one period. */
-    check_hw_level_in_range(hw_level, 0, period_size);
 }
 
 /* Checks if snd_pcm_drop resets the hw_ptr to 0. See bug crosbug.com/p/51882.
@@ -474,7 +513,14 @@ int main(int argc, char *argv[])
     }
 
     if (move_test) {
-        alsa_move_test();
+        /* Test rewind and forward.
+         * - Waiting 10 periods: appl_ptr is still ahead of hw_ptr, test
+         *                       snd_pcm_rewind call.
+         * - Waiting 1000 periods: hw_ptr is ahead of appl_ptr, test
+         *                         snd_pcm_forward call.
+         */
+        alsa_move_test(10);
+        alsa_move_test(1000);
         exit(0);
     }
 
