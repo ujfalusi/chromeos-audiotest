@@ -186,13 +186,16 @@ static void wait_for_periods(snd_pcm_t *handle, unsigned int target_periods)
     unsigned int wake_period_us = period_size * 1E6 / rate;
     struct timespec now;
     snd_pcm_sframes_t avail_frames;
-    while (num_periods < target_periods) {
+    while (1) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         printf("time: %ld.%09ld", (long)now.tv_sec, (long)now.tv_nsec);
         avail_frames = snd_pcm_avail(handle);
         printf(" state: %d, avail frames: %ld, hw_level: %ld\n",
                (int)snd_pcm_state(handle), avail_frames,
                buffer_frames - avail_frames);
+        /* Breaks here so we can print the last timestamp and frames. */
+        if (num_periods == target_periods)
+          break;
         num_periods++;
         usleep(wake_period_us);
     }
@@ -276,8 +279,11 @@ void check_appl_ptr(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
            periods_after_move - 1, hw_level);
 
     /* After playing for periods_after_move - 1 periods, the hw_level
-     * should be less than one period + fuzz. */
-    check_hw_level_in_range(hw_level, 0, period_size + fuzz);
+     * should be less than one period + fuzz. Set criteria to
+     * -periods + fuzz to two period + fuzz to tolerate some fluctuation.
+     */
+    check_hw_level_in_range(hw_level,
+                            -period_size + fuzz, period_size * 2 + fuzz);
 }
 
 void move_and_check(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
