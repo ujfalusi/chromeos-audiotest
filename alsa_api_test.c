@@ -257,6 +257,9 @@ void check_appl_ptr(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
 {
     snd_pcm_sframes_t hw_level, avail_frames;
     int periods_after_move = 10;
+    struct timespec time_1, time_2;
+    snd_pcm_sframes_t level_1, level_2;
+    float time_diff, measure_rate;
 
     /* Checks the result after moving. The hw_level should be in the range
      * 0 - fuzz. */
@@ -269,21 +272,33 @@ void check_appl_ptr(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
 
     /* Fills some zeros after moving to make sure PCM still plays fine. */
     pcm_fill(handle, period_size * periods_after_move, 0);
-    hw_level = buffer_frames - snd_pcm_avail(handle);
-    printf("hw_level after filling %d period is %ld\n",
-           periods_after_move, hw_level);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &time_1);
+    printf("time: %ld.%09ld", (long)time_1.tv_sec, (long)time_1.tv_nsec);
+    level_1 = buffer_frames - snd_pcm_avail(handle);
+    printf(" hw_level after filling %d period is %ld\n",
+           periods_after_move, level_1);
 
     wait_for_periods(handle, periods_after_move - 1);
-    hw_level = buffer_frames - snd_pcm_avail(handle);
-    printf("hw_level after playing %d period is %ld\n",
-           periods_after_move - 1, hw_level);
 
-    /* After playing for periods_after_move - 1 periods, the hw_level
-     * should be less than one period + fuzz. Set criteria to
-     * -periods + fuzz to two period + fuzz to tolerate some fluctuation.
-     */
-    check_hw_level_in_range(hw_level,
-                            -period_size + fuzz, period_size * 2 + fuzz);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &time_2);
+    printf("time: %ld.%09ld", (long)time_2.tv_sec, (long)time_2.tv_nsec);
+    level_2 = buffer_frames - snd_pcm_avail(handle);
+    printf(" hw_level after playing %d period is %ld\n",
+           periods_after_move - 1, level_2);
+
+    /* Checks the device consumption rate in this duration is reasonable. */
+    time_diff = (time_2.tv_sec - time_1.tv_sec) +
+                (float)(time_2.tv_nsec - time_1.tv_nsec) * 1E-9;
+    measure_rate = (level_1 - level_2) / time_diff;
+
+    if (fabsf(measure_rate - rate) <= 1000) {
+        printf("rate %f is in the expected range near %u\n",
+               measure_rate, rate);
+    } else {
+        fprintf(stderr, "rate %f is not in the expected range near %u\n",
+                measure_rate, rate);
+        exit(1);
+    }
 }
 
 void move_and_check(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
