@@ -58,6 +58,16 @@ CC_BINARY(loopback_latency): \
 clean: CC_BINARY(loopback_latency)
 all: CC_BINARY(loopback_latency)
 
+CC_BINARY(cras_api_test): $(filter \
+	cras_api_test.o \
+	,$(C_OBJECTS))
+CC_BINARY(cras_api_test): \
+	CFLAGS += $(ALSA_CFLAGS) $(CRAS_CFLAGS)
+CC_BINARY(cras_api_test): \
+	LDLIBS += $(ALSA_LIBS) $(CRAS_LIBS)
+clean: CC_BINARY(cras_api_test)
+all: CC_BINARY(cras_api_test)
+
 CC_BINARY(alsa_api_test): $(filter \
 	alsa_api_test.o \
 	,$(C_OBJECTS))
