@@ -256,7 +256,7 @@ void move_appl_ptr(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
 void check_appl_ptr(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
 {
     snd_pcm_sframes_t hw_level, avail_frames;
-    int periods_after_move = 10;
+    int periods_after_move;
     struct timespec time_1, time_2;
     snd_pcm_sframes_t level_1, level_2;
     float time_diff, measure_rate;
@@ -270,7 +270,11 @@ void check_appl_ptr(snd_pcm_t *handle, snd_pcm_sframes_t fuzz)
 
     check_hw_level_in_range(hw_level, 0, fuzz);
 
-    /* Fills some zeros after moving to make sure PCM still plays fine. */
+    /* Fills some zeros after moving to make sure PCM still plays fine.
+     * Sets periods_after_move so device will play half of buffer size.
+     * This would result in an accurate estimated sampling rate. */
+    periods_after_move = (buffer_frames >> 1) / period_size;
+    printf("Test playback for %d periods after move\n", periods_after_move);
     pcm_fill(handle, period_size * periods_after_move, 0);
     clock_gettime(CLOCK_MONOTONIC_RAW, &time_1);
     printf("time: %ld.%09ld", (long)time_1.tv_sec, (long)time_1.tv_nsec);
@@ -508,7 +512,8 @@ int main(int argc, char *argv[])
            printf("  --device <Device>       Device, default to hw:0,0\n");
            printf("  -h, --help              Print this help and exit\n");
            printf("  --drop                  Test snd_pcm_drop\n");
-           printf("  --move                  Test snd_pcm_forward\n");
+           printf("  --move                  Test snd_pcm_rewind and "
+                                             "snd_pcm_forward\n");
            printf("  --fill                  Test snd_pcm_mmap_begin\n");
            printf("\n");
            return(0);
