@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AUTOTEST_CLIENT_SITE_TESTS_AUDIO_COMMON_H_
-#define AUTOTEST_CLIENT_SITE_TESTS_AUDIO_COMMON_H_
+#ifndef AUDIOTEST_COMMON_H_
+#define AUDIOTEST_COMMON_H_
 
 #include <assert.h>
 
@@ -16,11 +16,11 @@ namespace audio {
 class SampleFormat {
  public:
   enum Type {
-    kPcmInvalid,
     kPcmU8,
     kPcmS16,
     kPcmS24,
     kPcmS32,
+    kPcmInvalid,
   };
 
   SampleFormat()
@@ -62,9 +62,14 @@ class SampleFormat {
     }
   }
 
+  inline bool operator==(const SampleFormat &format) const {
+    return type_ == format.type();
+  }
+
  private:
   Type type_;
 };
+
 
 struct TestConfig {
   enum TestType {
@@ -98,7 +103,6 @@ struct TestConfig {
 };
 // All samples are linear, and little-endian.
 struct AudioFunTestConfig {
-
   AudioFunTestConfig()
       : capture_alsa_device("default"),
       playback_alsa_device("default"),
@@ -109,7 +113,7 @@ struct AudioFunTestConfig {
       end_volume(1.0f),
       channels(2),
       fftsize(1024u),
-      verbose(false){}
+      verbose(false) {}
 
   std::string capture_alsa_device;
   std::string playback_alsa_device;
@@ -127,4 +131,4 @@ struct AudioFunTestConfig {
 }  // namespace audio
 }  // namespace autotest_client
 
-#endif  // AUTOTEST_CLIENT_SITE_TESTS_AUDIO_COMMON_H_
+#endif  // AUDIOTEST_COMMON_H_

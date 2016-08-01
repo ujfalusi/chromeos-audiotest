@@ -77,3 +77,15 @@ CC_BINARY(alsa_api_test): \
 	LDLIBS += $(ALSA_LIBS)
 clean: CC_BINARY(alsa_api_test)
 all: CC_BINARY(alsa_api_test)
+
+CXX_BINARY(audiofuntest_v2): $(filter \
+	audiofuntest_v2.o \
+	frame_generator.o \
+	connector.o \
+	param_config.o \
+	evaluator.o \
+	,$(CXX_OBJECTS))
+CXX_BINARY(audiofuntest_v2): \
+	CPPFLAGS += -std=c++11
+clean: CLEAN(audiofuntest_v2)
+all: CXX_BINARY(audiofuntest_v2)
