@@ -11,11 +11,11 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_CPP_EXTENSION := .cc
 
 LOCAL_SRC_FILES := \
-		audiofuntest_v2.cc \
-		connector.cc \
-		frame_generator.cc \
-		evaluator.cc \
-		param_config.cc
+		src/audiofuntest_v2.cc \
+		src/connector.cc \
+		src/frame_generator.cc \
+		src/evaluator.cc \
+		src/param_config.cc
 
 LOCAL_MODULE := audiofuntest_v2
 
