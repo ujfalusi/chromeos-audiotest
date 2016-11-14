@@ -57,6 +57,8 @@ void PlayClient::InitProcess(bool log_to_file) {
       play_fd_ = pipe_fd[1];
       close(pipe_fd[0]);
     }
+    // Set pipe buffer size to the smallest value to reduce latency.
+    assert(fcntl(play_fd_, F_SETPIPE_SZ, 1));
   }
 }
 
