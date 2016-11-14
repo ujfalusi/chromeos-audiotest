@@ -53,7 +53,7 @@ void ControlLoop(const ParamConfig &config,
     // Sets the frequency to be generated.
     generator->SetFrequency(frequency);
 
-    int trial = evaluator->Evaluate(recorder, bin, &single_round_pass);
+    evaluator->Evaluate(recorder, bin, &single_round_pass);
     for (int chn = 0; chn < config.num_mic_channels; ++chn) {
       if (single_round_pass[chn]) {
         ++passes[chn];
@@ -61,21 +61,17 @@ void ControlLoop(const ParamConfig &config,
     }
     generator->SetStopPlayTone();
 
-    if (config.verbose) {
-      std::cout << "Frequency: " << frequency
-                << " trial: " << trial << endl;
-    }
+    std::cout << "carrier = " << bin << endl;
     for (auto c : config.active_mic_channels) {
-      const char *res = single_round_pass[c] ? "[O]" : "[X]";
+      const char *res = single_round_pass[c] ? "O" : "X";
       std::cout << (res)
-                << " channel = " << c
+                << ": channel = " << c
                 << ", success = " << passes[c]
                 << ", fail = " << round - passes[c]
                 << std::setprecision(4)
                 << ", rate = "
-                << 100.0 * passes[c] / round << "%\n";
+                << 100.0 * passes[c] / round << endl;
     }
-    std::cout << std::endl;
   }
 }
 
