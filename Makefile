@@ -4,7 +4,9 @@
 
 include common.mk
 
-all: CC_BINARY(src/loopback_latency) \
-     CC_BINARY(src/alsa_api_test) \
+all: CC_BINARY(src/alsa_api_test) \
+     CXX_BINARY(src/audiofuntest) \
      CC_BINARY(src/cras_api_test) \
-     CXX_BINARY(src/audiofuntest)
+     CC_BINARY(src/looptest) \
+     CC_BINARY(src/loopback_latency) \
+     CXX_BINARY(src/test_tones)
