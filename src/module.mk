@@ -12,6 +12,38 @@ ALSA_LIBS := $(shell $(PKG_CONFIG) --libs alsa)
 CRAS_CFLAGS := $(shell $(PKG_CONFIG) --cflags libcras)
 CRAS_LIBS := $(shell $(PKG_CONFIG) --libs libcras)
 
+CXX_BINARY(src/audiofuntest): \
+	src/audiofuntest.o \
+	src/frame_generator.o \
+	src/connector.o \
+	src/param_config.o \
+	src/evaluator.o
+CXX_BINARY(src/audiofuntest): \
+	CPPFLAGS += -std=c++11 -I$(SRC)
+clean: CLEAN(src/audiofuntest)
+all: CXX_BINARY(src/audiofuntest)
+
+CXX_BINARY(src/test_tones): \
+	src/alsa_client.o \
+	src/test_tones.o \
+	src/tone_generators.o
+CXX_BINARY(src/test_tones): \
+	CPPFLAGS += $(ALSA_CFLAGS)
+CXX_BINARY(src/test_tones): \
+	LDLIBS += $(ALSA_LIBS)
+clean: CLEAN(src/test_tones)
+all: CXX_BINARY(src/test_tones)
+
+CC_BINARY(src/looptest): \
+	src/libaudiodev.o  \
+	src/looptest.o
+CC_BINARY(src/looptest): \
+	CFLAGS += $(ALSA_CFLAGS)
+CC_BINARY(src/looptest): \
+	LDLIBS += $(ALSA_LIBS)
+clean: CLEAN(src/looptest)
+all: CC_BINARY(src/looptest)
+
 CC_BINARY(src/loopback_latency): \
 	src/loopback_latency.o
 CC_BINARY(src/loopback_latency): \
@@ -38,15 +70,3 @@ CC_BINARY(src/cras_api_test): \
 	LDLIBS += $(ALSA_LIBS) $(CRAS_LIBS)
 clean: CC_BINARY(src/cras_api_test)
 all: CC_BINARY(src/cras_api_test)
-
-
-CXX_BINARY(src/audiofuntest): \
-	src/audiofuntest.o \
-	src/frame_generator.o \
-	src/connector.o \
-	src/param_config.o \
-	src/evaluator.o
-CXX_BINARY(src/audiofuntest): \
-	CPPFLAGS += -std=c++11 -I$(SRC)
-clean: CLEAN(src/audiofuntest)
-all: CXX_BINARY(src/audiofuntest)
