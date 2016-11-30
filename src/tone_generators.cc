@@ -2,31 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "tone_generators.h"
+#include "include/tone_generators.h"
 
 #include <assert.h>
-#include <cstdio>
-#include <limits>
+#include <stdio.h>
 
-namespace autotest_client {
-namespace audio {
+#include <limits>
 
 namespace {
 
 template <typename T>
-void* WriteSample(void* data, double magnitude) {
+void *WriteSample(void *data, double magnitude) {
   // Handle unsigned.
   if (std::numeric_limits<T>::min() == 0) {
     magnitude += 1.0;
     magnitude /= 2.0;
   }
 
-  T* sample_data = reinterpret_cast<T*>(data);
+  T *sample_data = reinterpret_cast<T *>(data);
   *sample_data = magnitude * std::numeric_limits<T>::max();
   return sample_data + 1;
 }
 
-void* WriteSampleForFormat(void* data, double magnitude, SampleFormat format) {
+void *WriteSampleForFormat(void *data, double magnitude, SampleFormat format) {
   if (format.type() == SampleFormat::kPcmU8) {
     return WriteSample<unsigned char>(data, magnitude);
 
@@ -34,7 +32,7 @@ void* WriteSampleForFormat(void* data, double magnitude, SampleFormat format) {
     return WriteSample<int16_t>(data, magnitude);
 
   } else if (format.type() == SampleFormat::kPcmS24) {
-    unsigned char* sample_data = reinterpret_cast<unsigned char*>(data);
+    unsigned char *sample_data = reinterpret_cast<unsigned char *>(data);
     int32_t value = magnitude * (1 << 23);  // 1 << 23 24-bit singed max().
     sample_data[0] = value & 0xff;
     sample_data[1] = (value >> 8) & 0xff;
@@ -123,11 +121,11 @@ void MultiToneGenerator::Reset(double frequency, bool reset_timer) {
 
 size_t MultiToneGenerator::GetFrames(SampleFormat format,
                                    int channels,
-                                   const std::set<int>& active_channels,
-                                   void* data,
+                                   const std::set<int> &active_channels,
+                                   void *data,
                                    size_t buf_size) {
   const size_t kBytesPerFrame = channels * format.bytes();
-  void* cur = data;
+  void *cur = data;
   size_t frames = buf_size / kBytesPerFrame;
   size_t frames_written;
   pthread_mutex_lock(&param_mutex);
@@ -145,7 +143,6 @@ size_t MultiToneGenerator::GetFrames(SampleFormat format,
     if (frequencies_.size() > 1) {
       frame_magnitude /= static_cast<double>(frequencies_.size());
     }
-    //printf("%f\n", frame_magnitude);
     cur_vol_ += inc_vol_;
     for (int c = 0; c < channels; ++c) {
       if (active_channels.find(c) != active_channels.end()) {
@@ -168,9 +165,9 @@ bool MultiToneGenerator::HasMoreFrames() const {
 
 double MultiToneGenerator::GetFadeMagnitude() const {
   int frames_left = frames_wanted_ - frames_generated_;
-  if (frames_generated_ < fade_frames_) { // Fade in.
+  if (frames_generated_ < fade_frames_) {  // Fade in.
     return sin(kHalfPi * frames_generated_ / fade_frames_);
-  } else if (frames_left < fade_frames_) { // Fade out.
+  } else if (frames_left < fade_frames_) {  // Fade out.
     return sin(kHalfPi * frames_left / fade_frames_);
   } else {
     return 1.0f;
@@ -204,8 +201,8 @@ void ASharpMinorGenerator::Reset() {
 
 size_t ASharpMinorGenerator::GetFrames(SampleFormat format,
                                      int channels,
-                                     const std::set<int>& active_channels,
-                                     void* data,
+                                     const std::set<int> &active_channels,
+                                     void *data,
                                      size_t buf_size) {
   if (!HasMoreFrames()) {
     return 0;
@@ -226,6 +223,3 @@ size_t ASharpMinorGenerator::GetFrames(SampleFormat format,
 bool ASharpMinorGenerator::HasMoreFrames() const {
   return cur_note_ < kNumNotes - 1 || tone_generator_.HasMoreFrames();
 }
-
-}  // namespace audio
-}  // namespace autotest_client

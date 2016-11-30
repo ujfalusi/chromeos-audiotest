@@ -11,19 +11,16 @@
 //    Why choose A# Harmonic Minor?  Cause I can. (and because double-sharps
 //    are cool :) )
 
-#ifndef AUTOTEST_CLIENT_SITE_TESTS_AUDIO_TONE_GENERATORS_H_
-#define AUTOTEST_CLIENT_SITE_TESTS_AUDIO_TONE_GENERATORS_H_
+#ifndef INCLUDE_TONE_GENERATORS_H_
+#define INCLUDE_TONE_GENERATORS_H_
 
-#include <cmath>
-#include <cstdlib>
+#include <math.h>
+#include <stdlib.h>
 
 #include <set>
 #include <vector>
 
-#include "common.h"
-
-namespace autotest_client {
-namespace audio {
+#include "include/common.h"
 
 static const double kPi = 3.14159265358979323846264338327l;
 static const double kHalfPi = kPi / 2.0f;
@@ -45,10 +42,10 @@ class FrameGenerator {
   // want to play on all of them, make sure |active_channels| contains 0, and
   // 1.
   virtual size_t GetFrames(SampleFormat format,
-                         int channels,
-                         const std::set<int>& active_channels,
-                         void* data,
-                         size_t buf_size) = 0;
+                           int channels,
+                           const std::set<int> &active_channels,
+                           void *data,
+                           size_t buf_size) = 0;
 
   // Returns whether or not the FrameGenerator is able to produce more frames.
   // This is used to signal when one should stop calling GetFrames().
@@ -92,10 +89,10 @@ class MultiToneGenerator : public FrameGenerator {
                      bool reset_timer = false);
   virtual void Reset(double frequency, bool reset_timer = false);
   virtual size_t GetFrames(SampleFormat format,
-                         int channels,
-                         const std::set<int>& active_channels,
-                         void* data,
-                         size_t buf_size);
+                           int channels,
+                           const std::set<int> &active_channels,
+                           void *data,
+                           size_t buf_size);
   virtual bool HasMoreFrames() const;
 
  private:
@@ -123,10 +120,10 @@ class ASharpMinorGenerator : public FrameGenerator {
   void SetVolumes(double start_vol, double end_vol);
   virtual void Reset();
   virtual size_t GetFrames(SampleFormat format,
-                         int channels,
-                         const std::set<int>& active_channels,
-                         void* data,
-                         size_t buf_size);
+                           int channels,
+                           const std::set<int> &active_channels,
+                           void *data,
+                           size_t buf_size);
   virtual bool HasMoreFrames() const;
 
  private:
@@ -137,7 +134,4 @@ class ASharpMinorGenerator : public FrameGenerator {
   int cur_note_;
 };
 
-}  // namespace audio
-}  // namespace autotest_client
-
-#endif  // AUTOTEST_CLIENT_SITE_TESTS_AUDIO_TONE_GENERATORS_H_
+#endif  // INCLUDE_TONE_GENERATORS_H_

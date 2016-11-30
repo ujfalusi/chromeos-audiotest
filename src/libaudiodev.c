@@ -4,11 +4,12 @@
  * found in the LICENSE file.
  */
 
-#include <alsa/asoundlib.h>
+#include "include/libaudiodev.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "libaudiodev.h"
+#include <alsa/asoundlib.h>
 
 #define CHANNELS 2
 #define SAMPLE_RATE 44100

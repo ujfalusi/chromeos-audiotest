@@ -7,15 +7,41 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
-#include <iostream>
+Command::Command(const std::string &cmd) {
+  char *token;
+  char *ptr;
+  char *buf = new char[cmd.size() + 1];
+  strncpy(buf, cmd.c_str(), cmd.size());
+  buf[cmd.size()] = 0;
+  ptr = buf;
+  while ((token = strtok_r(ptr, " ", &ptr)) != NULL) {
+    exe_.push_back(token);
+  }
+}
 
-namespace autotest_client {
-namespace audio {
+int Command::Exec() {
+  exe_.push_back(NULL);
+  return execvp(exe_[0], (char * const *)&exe_[0]);
+}
 
-void PlayClient::InitProcess(bool log_to_file) {
+// Two function of Command class.
+void Command::Print(FILE *fd) {
+  bool first = true;
+  for (auto it : exe_) {
+    if (!first)
+      fprintf(fd, " ");
+    fprintf(fd, "%s", it);
+  }
+  fprintf(fd, "\n");
+}
+
+void PlayClient::InitProcess() {
   int pipe_fd[2];
 
   bool fifo_mode = false;
@@ -37,14 +63,6 @@ void PlayClient::InitProcess(bool log_to_file) {
       close(pipe_fd[1]);
     }
 
-    // Writes log to file if set.
-    if (log_to_file) {
-      int file_err = open("recorder.err",
-                          O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU);
-      assert(file_err > 0);
-      dup2(file_err, STDERR_FILENO);
-    }
-
     if (player_.Exec() < 0) {
       perror("Exec player");
       kill(getppid(), SIGKILL);
@@ -62,13 +80,13 @@ void PlayClient::InitProcess(bool log_to_file) {
   }
 }
 
-int PlayClient::Play(const vector< vector<double> > &block,
+int PlayClient::Play(const std::vector<std::vector<double> > &block,
                      unsigned num_frames) {
   size_t buf_size = num_frames * num_channels_ * format_.bytes();
   char *buf = new char[buf_size];
   if (num_frames > max_num_frames_) {
-    cerr << "Request value: " << num_frames
-         << " > Maximum frames capability: " << max_num_frames_ << endl;
+    fprintf(stderr, "Request value: %u > Maximum frames capability: %u\n",
+            num_frames, max_num_frames_);
     num_frames = max_num_frames_;
   }
   void *cur = buf;
@@ -90,13 +108,12 @@ int PlayClient::Play(const vector< vector<double> > &block,
   return num_frames;
 }
 
-
 void PlayClient::Terminate() {
   kill(child_pid_, SIGINT);
   close(play_fd_);
 }
 
-void RecordClient::InitProcess(bool log_to_file) {
+void RecordClient::InitProcess() {
   int pipe_fd[2];
   /* fifo OR pipe */
   bool fifo_mode = false;
@@ -118,14 +135,6 @@ void RecordClient::InitProcess(bool log_to_file) {
       close(pipe_fd[0]);
     }
 
-    // Writes log to file if set.
-    if (log_to_file) {
-      int file_err = open("recorder.err",
-                          O_WRONLY | O_TRUNC | O_CREAT, S_IRWXU);
-      assert(file_err > 0);
-      dup2(file_err, STDERR_FILENO);
-    }
-
     if (recorder_.Exec() < 0) {
       perror("Failed to exec recorder");
       kill(getppid(), SIGKILL);
@@ -141,7 +150,7 @@ void RecordClient::InitProcess(bool log_to_file) {
   }
 }
 
-int RecordClient::Record(vector< vector<double> > *sample_ptr,
+int RecordClient::Record(std::vector<std::vector<double> > *sample_ptr,
                          unsigned num_frames) {
   size_t bufsize = num_frames * num_channels_ * format_.bytes();
   char *buf = new char[bufsize];
@@ -159,6 +168,3 @@ void RecordClient::Terminate() {
   kill(child_pid_, SIGINT);
   close(record_fd_);
 }
-
-}  // namespace audio
-}  // namespace autotest_client

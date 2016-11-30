@@ -2,20 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AUDIOTEST_UTIL_H_
-#define AUDIOTEST_UTIL_H_
+#ifndef INCLUDE_UTIL_H_
+#define INCLUDE_UTIL_H_
+
+#include <stdio.h>
 
 #include <limits>
-#include <iostream>
 #include <vector>
 
-#include "common.h"
+#include "include/common.h"
 
-#define BYTE(X, i) ((reinterpret_cast<unsigned char *>(&X))[i])
-using std::vector;
-
-namespace autotest_client {
-namespace audio {
+#define BYTE(X, i) (reinterpret_cast<uint8_t *>(&(X))[(i)])
 
 // Returns the square of absolute value of complex number.
 inline double SquareAbs(const double real, const double imaginary) {
@@ -40,7 +37,7 @@ void *WriteSample(double sample, void *buf) {
     sample /= 2.0;
   }
 
-  T* sample_data = reinterpret_cast<T*>(buf);
+  T *sample_data = reinterpret_cast<T *>(buf);
   *sample_data = sample * std::numeric_limits<T>::max();
   return sample_data + 1;
 }
@@ -65,7 +62,7 @@ inline void *WriteSample(double sample, void *buf, SampleFormat format) {
     return WriteSample<int16_t>(sample, buf);
 
   } else if (format.type() == SampleFormat::kPcmS24) {
-    unsigned char* sample_data = reinterpret_cast<unsigned char*>(buf);
+    unsigned char *sample_data = reinterpret_cast<unsigned char *>(buf);
     int32_t value = sample * (1 << 23);  // 1 << 23 24-bit signed max().
     if (IsBigEndian()) {
       for (int i = 0; i < 3; i++) {
@@ -82,8 +79,8 @@ inline void *WriteSample(double sample, void *buf, SampleFormat format) {
     return WriteSample<int32_t>(sample, buf);
   }
 
-  // Returns NULL, which should crash the caller.
-  std::cerr << "Unknown format when doing conversion." << std::endl;
+  // Crash the caller.
+  fprintf(stderr, "Unknown format when doing conversion.\n");
   assert(false);
   return NULL;
 }
@@ -100,12 +97,12 @@ inline double ReadSample(T data) {
 
 // Reads from raw data and converts them to samples with double type.
 template<typename T>
-inline void FramesToSamples(void* data,
+inline void FramesToSamples(void *data,
                             int num_frames,
                             int num_channels,
-                            vector< vector<double> > *sample_ptr) {
-  vector< vector<double> >& mag = *sample_ptr;
-  T *ptr = static_cast<T*>(data);
+                            std::vector<std::vector<double> > *sample_ptr) {
+  std::vector<std::vector<double> > &mag = *sample_ptr;
+  T *ptr = static_cast<T *>(data);
 
   for (int n = 0; n < num_frames; n++) {
     for (int c = 0; c < num_channels; c++) {
@@ -115,10 +112,10 @@ inline void FramesToSamples(void* data,
 }
 
 // Reads from raw data and converts them to samples with double type.
-inline void FramesToSamples(void* data,
+inline void FramesToSamples(void *data,
                             int bufsize,
                             int num_channels,
-                            vector< vector<double> > *sample_ptr,
+                            std::vector<std::vector<double> > *sample_ptr,
                             SampleFormat format) {
   unsigned num_frames = bufsize / (format.bytes() * num_channels);
 
@@ -131,8 +128,8 @@ inline void FramesToSamples(void* data,
         (data, num_frames, num_channels, sample_ptr);
 
   } else if (format.type() == SampleFormat::kPcmS24) {
-    auto& mag = *sample_ptr;
-    unsigned char *ptr = static_cast<unsigned char*>(data);
+    auto &mag = *sample_ptr;
+    unsigned char *ptr = static_cast<unsigned char *>(data);
 
     for (unsigned n = 0; n < num_frames; n++) {
       for (int c = 0; c < num_channels; c++) {
@@ -153,7 +150,4 @@ inline void FramesToSamples(void* data,
   }
 }
 
-}  // namespace audio
-}  // namespace autotest_client
-
-#endif  // AUDIOTEST_UTIL_H_
+#endif  // INCLUDE_UTIL_H_

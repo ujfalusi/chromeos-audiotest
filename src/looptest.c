@@ -10,7 +10,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "libaudiodev.h"
+#include "include/libaudiodev.h"
 
 typedef struct {
   unsigned char *data;

@@ -9,19 +9,15 @@
 
 #include "include/util.h"
 
-namespace autotest_client {
-namespace audio {
-
-Evaluator::Evaluator(const ParamConfig& config, int range)
+Evaluator::Evaluator(const AudioFunTestConfig &config, int range)
     : filter_(2 * range + 1),
       bin_range_(range),
-      active_channels_(config.active_mic_channels),
       num_channels_(config.num_mic_channels),
       buffer_size_(config.fft_size),
-      format_(config.format),
+      format_(config.sample_format),
       sample_rate_(config.sample_rate),
       bin_(range * 2 + 1),
-      pass_threshold_(config.pass_threshold),
+      confidence_threshold_(config.confidence_threshold),
       is_debug_(config.verbose) {
   // Initializes original expected filter.
   filter_[bin_range_] = 1;  // center
@@ -31,7 +27,7 @@ Evaluator::Evaluator(const ParamConfig& config, int range)
   // Normalization.
   mean /= filter_.size();
   sigma = sqrt(sigma / filter_.size() - mean * mean);
-  for (auto& x : filter_) {
+  for (auto &x : filter_) {
     x = (x - mean) / sigma;
   }
 
@@ -39,8 +35,8 @@ Evaluator::Evaluator(const ParamConfig& config, int range)
   // max_trial_ is the reverse of allowed delay plus the threshold to pass.
   // And +2 is for the acceptable variation.
   max_trial_ =
-      config.allowed_delay_millisecs / 1000 * sample_rate_ / buffer_size_
-      + pass_threshold_ + 2;
+      config.allowed_delay_sec * sample_rate_ / buffer_size_
+      + confidence_threshold_ + 2;
 }
 
 
@@ -49,13 +45,13 @@ Evaluator::Evaluator(const ParamConfig& config, int range)
 // for the set frequency.
 int Evaluator::Evaluate(RecordClient *recorder,
                         int center_bin,
-                        vector<bool> *single_output) {
+                        std::vector<bool> *single_output) {
   bool freq_pass_all;
-  auto& single_round = *single_output;
-  vector< vector<double> > buffer(
-      num_channels_, vector<double>(buffer_size_));
+  auto &single_round = *single_output;
+  std::vector< std::vector<double> > buffer(
+      num_channels_, std::vector<double>(buffer_size_));
 
-  vector<double> accum_confidence(num_channels_);
+  std::vector<double> accum_confidence(num_channels_);
 
   int trial;
   for (trial = 1;
@@ -63,13 +59,13 @@ int Evaluator::Evaluate(RecordClient *recorder,
        ++trial) {
     freq_pass_all = true;
     if (recorder->Record(&buffer, buffer_size_) <= 0) {
-      cerr << "Retrieve recorded data error.\n";
+      fprintf(stderr, "Retrieve recorded data error.\n");
       assert(false);
     }
 
     // Extends samples to complex samples.
-    vector< vector<double> > complex_sample(
-        num_channels_, vector<double>(buffer_size_ * 2));
+    std::vector< std::vector<double> > complex_sample(
+        num_channels_, std::vector<double>(buffer_size_ * 2));
     for (int ch = 0; ch < num_channels_; ++ch) {
       auto ptr = complex_sample[ch].begin();
       for (double s : buffer[ch]) {
@@ -79,12 +75,12 @@ int Evaluator::Evaluate(RecordClient *recorder,
     }
 
     // Evaluates all channels.
-    for (auto channel : active_channels_) {
-      if (accum_confidence[channel] >= pass_threshold_) continue;
+    for (int channel = 0; channel < num_channels_; ++channel) {
+      if (accum_confidence[channel] >= confidence_threshold_) continue;
 
       accum_confidence[channel] += std::max(
           EstimateChannel(&(complex_sample[channel]), center_bin), 0.0);
-      if (accum_confidence[channel] < pass_threshold_) {
+      if (accum_confidence[channel] < confidence_threshold_) {
         freq_pass_all = false;
       } else {
         single_round[channel] = true;
@@ -95,23 +91,25 @@ int Evaluator::Evaluate(RecordClient *recorder,
   return trial;
 }
 
-double Evaluator::EstimateChannel(vector<double> *cell_ptr, int center_bin) {
+double Evaluator::EstimateChannel(
+    std::vector<double> *cell_ptr, int center_bin) {
   FFT(cell_ptr);
-  auto& cell = *cell_ptr;
+  auto &cell = *cell_ptr;
 
   double confidence = 0.0, mean = 0.0, sigma = 0.0;
 
-  for (int bin = (center_bin-bin_range_);
-       bin <= (center_bin+bin_range_);
+  for (int bin = (center_bin - bin_range_);
+       bin <= (center_bin + static_cast<int>(bin_range_));
        ++bin) {
     int index = bin - (center_bin - bin_range_);
     bin_[index] = SquareAbs(cell[2 * bin], cell[2 * bin + 1]) / cell.size();
-    if (is_debug_) std::cerr << bin_[index] << " ";
+    if (is_debug_)
+      printf("%e ", bin_[index]);
     confidence += bin_[index] * filter_[index];
     mean += bin_[index];
     sigma += bin_[index] * bin_[index];
   }
-  if (is_debug_) std::cerr << endl;
+  if (is_debug_) printf("\n");
   // Avoids divide by zero.
   if (std::abs(sigma) < 1e-9) {
     return 0.0;
@@ -121,13 +119,12 @@ double Evaluator::EstimateChannel(vector<double> *cell_ptr, int center_bin) {
   sigma = sqrt(sigma / filter_.size() - mean * mean);
   confidence /= (sigma * filter_.size());
   if (is_debug_)
-    std::cerr << "power: " << power_ratio
-              << " conf: " << confidence << std::endl;
+    printf("power: %0.4f, conf: %0.4f\n", power_ratio, confidence);
   return power_ratio * confidence;
 }
 
-void Evaluator::FFT(vector<double> *data_ptr) const {
-  auto& data = *data_ptr;
+void Evaluator::FFT(std::vector<double> *data_ptr) const {
+  auto &data = *data_ptr;
   unsigned order, pos = 1, size = data.size();
 
   // Reverses binary reindexing.
@@ -178,6 +175,3 @@ void Evaluator::FFT(vector<double> *data_ptr) const {
     mmax = step;
   }
 }
-
-}  // namespace audio
-}  // namespace autotest_client

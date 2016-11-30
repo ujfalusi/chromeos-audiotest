@@ -7,7 +7,6 @@
 // etc.  See the output of PrintUsage() for instructions on how to use.
 
 #include <getopt.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,15 +14,9 @@
 #include <set>
 #include <string>
 
-#include "common.h"
-#include "alsa_client.h"
-#include "tone_generators.h"
-
-using autotest_client::audio::ASharpMinorGenerator;
-using autotest_client::audio::AlsaPlaybackClient;
-using autotest_client::audio::SampleFormat;
-using autotest_client::audio::MultiToneGenerator;
-using autotest_client::audio::TestConfig;
+#include "include/alsa_client.h"
+#include "include/common.h"
+#include "include/tone_generators.h"
 
 static struct option long_options[] = {
   {"test-type", 1, NULL, 't'},
@@ -38,7 +31,7 @@ static struct option long_options[] = {
   {"active-channels", 1, NULL, 'a'},
 };
 
-TestConfig::TestType ParseTestType(const char* option) {
+TestConfig::TestType ParseTestType(const char *option) {
   if (strcmp(option, "scale") == 0) {
     return TestConfig::kASharpMinorScale;
   } else if (strcmp(option, "tone") == 0) {
@@ -47,14 +40,7 @@ TestConfig::TestType ParseTestType(const char* option) {
   return TestConfig::kInvalid;
 }
 
-void ParseActiveChannels(char* arg, std::set<int>* channel_list) {
-  char* tok = strtok(arg, ",");
-  do {
-    channel_list->insert(atoi(tok));
-  } while ((tok = strtok(NULL, ",")) != NULL);
-}
-
-SampleFormat ParseFormat(const char* arg) {
+SampleFormat ParseFormat(const char *arg) {
   if (strcmp(arg, "u8") == 0) {
     return SampleFormat(SampleFormat::kPcmU8);
   } else if (strcmp(arg, "s16") == 0) {
@@ -68,7 +54,7 @@ SampleFormat ParseFormat(const char* arg) {
   }
 }
 
-bool ParseOptions(int argc, char* argv[], TestConfig* config) {
+bool ParseOptions(int argc, char *argv[], TestConfig *config) {
   int opt = 0;
   int optindex = -1;
   while ((opt = getopt_long(argc, argv, "t:d:l:f:h:r:s:e:c:a:",
@@ -117,7 +103,7 @@ bool ParseOptions(int argc, char* argv[], TestConfig* config) {
 
       default:
         assert(false);
-    };
+    }
   }
 
   if (config->type == TestConfig::kInvalid) {
@@ -141,7 +127,7 @@ bool ParseOptions(int argc, char* argv[], TestConfig* config) {
   return true;
 }
 
-void PrintUsage(FILE* out, const char* name) {
+void PrintUsage(FILE *out, const char *name) {
   TestConfig default_config;
 
   fprintf(out, "Usage: %s [options]\n", name);
@@ -185,7 +171,7 @@ void PrintUsage(FILE* out, const char* name) {
           "length of each individual tone in the scale.\n\n");
 }
 
-void PrintConfig(FILE* out, const TestConfig& config) {
+void PrintConfig(FILE *out, const TestConfig &config) {
   fprintf(out, "Config Values:\n");
   if (config.type == TestConfig::kASharpMinorScale) {
     fprintf(out, "\tType: A#Minor Scale\n");
@@ -211,7 +197,7 @@ void PrintConfig(FILE* out, const TestConfig& config) {
   fprintf(out, "\n");
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   TestConfig config;
 
   if (!ParseOptions(argc, argv, &config)) {

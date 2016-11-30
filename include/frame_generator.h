@@ -2,25 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef AUDIOTEST_FRAME_GENERATOR_H_
-#define AUDIOTEST_FRAME_GENERATOR_H_
+#ifndef INCLUDE_FRAME_GENERATOR_H_
+#define INCLUDE_FRAME_GENERATOR_H_
+
+#include <math.h>
 
 #include <atomic>
-#include <cmath>
 #include <condition_variable>
 #include <mutex>
 #include <set>
 #include <thread>
-#include <vector>
 
-#include "connector.h"
-#include "param_config.h"
-
-using std::vector;
-using std::set;
-
-namespace autotest_client {
-namespace audio {
+#include "include/common.h"
+#include "include/connector.h"
 
 // Sine wave is a object recording
 // the current amplitude of the specific frequency
@@ -56,7 +50,7 @@ class SineWave {
 // and write to player process.
 class FrameGenerator {
  public:
-  explicit FrameGenerator(const ParamConfig& config);
+  explicit FrameGenerator(const AudioFunTestConfig &config);
 
   // Start generating thread and play.
   inline void PlayTo(PlayClient *player) {
@@ -113,9 +107,8 @@ class FrameGenerator {
   int fft_size_;
   int sample_rate_;
   double tone_length_;
-  double cur_volume_, volume_gap_;
   int num_channels_;
-  set<int> active_channels_;
+  std::set<int> active_channels_;
 
   SampleFormat format_;
 
@@ -126,6 +119,4 @@ class FrameGenerator {
   bool is_debug_;
 };
 
-}  // namespace audio
-}  // namespace autotest_client
-#endif  // AUDIOTEST_FRAME_GENERATOR_H_
+#endif  // INCLUDE_FRAME_GENERATOR_H_

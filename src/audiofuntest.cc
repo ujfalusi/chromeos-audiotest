@@ -2,27 +2,252 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <getopt.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-#include <iostream>
-
+#include "include/common.h"
 #include "include/connector.h"
 #include "include/evaluator.h"
-#include "include/param_config.h"
 #include "include/frame_generator.h"
 
-using autotest_client::audio::Connector;
-using autotest_client::audio::Evaluator;
-using autotest_client::audio::FrameGenerator;
-using autotest_client::audio::ParamConfig;
-using autotest_client::audio::PlayClient;
-using autotest_client::audio::RecordClient;
+constexpr static const char *short_options = "a:d:n:o:P:f:R:F:r:t:c:C:T:l:hv";
+
+constexpr static const struct option long_options[] = {
+  {"active-speaker-channels", 1, NULL, 'a'},
+  {"allowed-delay", 1, NULL, 'd'},
+  {"fft-size", 1, NULL, 'n'},
+  {"confidence-threshold", 1, NULL, 'o'},
+  {"player-command", 1, NULL, 'P'},
+  {"player-fifo", 1, NULL, 'f'},
+  {"recorder-command", 1, NULL, 'R'},
+  {"recorder-fifo", 1, NULL, 'F'},
+  {"sample-rate", 1, NULL, 'r'},
+  {"sample-format", 1, NULL, 't'},
+  {"num-mic-channels", 1, NULL, 'c'},
+  {"num-speaker-channels", 1, NULL, 'C'},
+  {"test-rounds", 1, NULL, 'T'},
+  {"tone-length", 1, NULL, 'l'},
+
+  // Other helper args.
+  {"help", 0, NULL, 'h'},
+  {"verbose", 0, NULL, 'v'},
+};
+
+// Parse the sample format. The input should be one of the string in
+// SampleFormat:Type.
+SampleFormat ParseSampleFormat(const char *arg) {
+  SampleFormat sample_format;
+  for (int format = SampleFormat::kPcmU8;
+       format != SampleFormat::kPcmInvalid;
+       format++) {
+    sample_format = SampleFormat(SampleFormat::Type(format));
+    if (strcmp(sample_format.to_string(), optarg) == 0) {
+      return sample_format;
+    }
+  }
+  fprintf(stderr, "Unknown sample format %s, using S16 instead.", arg);
+  return SampleFormat(SampleFormat::kPcmS16);
+}
+
+bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
+  int opt = 0;
+  int optindex = -1;
+
+  while ((opt = getopt_long(argc, argv, short_options,
+                            long_options,
+                            &optindex)) != -1) {
+    switch (opt) {
+      case 'a':
+        ParseActiveChannels(optarg, &(config->active_speaker_channels));
+        break;
+      case 'd':
+        config->allowed_delay_sec = atof(optarg);
+        break;
+      case 'n':
+        config->fft_size = atoi(optarg);
+        if ((config->fft_size == 0) ||
+            (config->fft_size & (config->fft_size - 1))) {
+          fprintf(stderr, "FFT size needs to be positive & power of 2\n");
+          return false;
+        }
+        break;
+      case 'o':
+        config->confidence_threshold = atof(optarg);
+        break;
+      case 'P':
+        config->player_command = std::string(optarg);
+        break;
+      case 'f':
+        config->player_fifo = std::string(optarg);
+        break;
+      case 'R':
+        config->recorder_command = std::string(optarg);
+        break;
+      case 'F':
+        config->recorder_fifo = std::string(optarg);
+        break;
+      case 'r':
+        config->sample_rate = atoi(optarg);
+        break;
+      case 't':
+        config->sample_format = ParseSampleFormat(optarg);
+        break;
+      case 'c':
+        config->num_mic_channels = atoi(optarg);
+        break;
+      case 'C':
+        config->num_speaker_channels = atoi(optarg);
+        break;
+      case 'T':
+        config->test_rounds = atoi(optarg);
+        break;
+      case 'l':
+        config->tone_length_sec = atof(optarg);
+        // Avoid overly short tones.
+        if (config->tone_length_sec < 0.01) {
+          fprintf(stderr,
+                  "Tone length too short. Must be 0.01s or greater.\n");
+          return false;
+        }
+        break;
+      case 'v':
+        config->verbose = true;
+        break;
+      case 'h':
+        return false;
+      default:
+        fprintf(stderr, "Unknown arguments %c\n", opt);
+        assert(false);
+    }
+  }
+
+  if (config->player_command.empty()) {
+    fprintf(stderr, "player-command is not set.\n");
+    return false;
+  }
+
+  if (config->recorder_command.empty()) {
+    fprintf(stderr, "recorder-command is not set.\n");
+    return false;
+  }
+
+  if (config->active_speaker_channels.empty()) {
+    for (int i = 0; i < config->num_speaker_channels; ++i) {
+      config->active_speaker_channels.insert(i);
+    }
+  }
+  return true;
+}
+
+void PrintUsage(const char *name, FILE *fd = stderr) {
+  AudioFunTestConfig default_config;
+
+  fprintf(fd,
+          "Usage %s -P <player_command> -R <recorder_command> [options]\n",
+          name);
+  fprintf(fd,
+          "\t-a, --active-speaker-channels:\n"
+          "\t\tComma-separated list of speaker channels to play on. "
+          "(def all channels)\n");
+  fprintf(fd,
+          "\t-d, --allowed-delay:\n"
+          "\t\tAllowed latency between player & recorder "
+          "(def %.4f).\n", default_config.allowed_delay_sec);
+  fprintf(fd,
+          "\t-n, --fftsize:\n"
+          "\t\tLonger fftsize has more carriers but longer latency."
+          " Also, fftsize needs to be power of 2"
+          "(def %d)\n", default_config.fft_size);
+  fprintf(fd,
+          "\t-o, --confidence-threshold:\n"
+          "\t\tThreshold of accumulated confidence to pass evaluation "
+          "(def %.4f)\n", default_config.confidence_threshold);
+  fprintf(fd,
+          "\t-P, --player-command:\n"
+          "\t\tThe command used to play sound.\n");
+  fprintf(fd,
+          "\t-f, --player-fifo:\n"
+          "\t\tThe named pipe used to send wave to the player. If not set, "
+          "wave is send to player program via its stdin.\n");
+  fprintf(fd,
+          "\t-R, --recorder-command:\n"
+          "\t\tThe command used to record sound.\n");
+  fprintf(fd,
+          "\t-F, --recorder-fifo:\n"
+          "\t\tThe named pipe used to read recorded wave from the recorder "
+          "program. If not set, wave is read from recorder program via "
+          "its stdout.\n");
+  fprintf(fd,
+          "\t-r, --sample-rate:\n"
+          "\t\tSample rate of generated wave in HZ "
+          "(def %d)\n", default_config.sample_rate);
+  fprintf(fd,
+          "\t-t, --sample-format:\n"
+          "\t\tFormat of recording & playing samples, should be one of u8, "
+          "s16, s24, s32."
+          "(def %s).", default_config.sample_format.to_string());
+  fprintf(fd,
+          "\t-c, --num-mic-channels:\n"
+          "\t\tThe number of microphone channels "
+          "(def %d)\n", default_config.num_mic_channels);
+  fprintf(fd,
+          "\t-C, --num-speaker-channels:\n"
+          "\t\tThe number of speaker channels "
+          "(def %d)\n", default_config.num_speaker_channels);
+  fprintf(fd,
+          "\t-T, --test-rounds:\n"
+          "\t\tNumber of test rounds "
+          "(def %d)\n", default_config.test_rounds);
+  fprintf(fd,
+          "\t-l, --tone-length:\n"
+          "\t\tDecimal value of tone length in secs "
+          "(def %.4f)\n", default_config.tone_length_sec);
+  fprintf(fd,
+          "\t-v, --verbose: Show debugging information.\n");
+  fprintf(fd,
+          "\t-h, --help: Show this page.\n");
+}
+
+void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
+  fprintf(fd, "Config values.\n");
+
+  fprintf(fd, "\tSpeaker active channels: ");
+  bool first = true;
+  for (auto it : config.active_speaker_channels) {
+    if (!first)
+      fprintf(fd, ", ");
+    fprintf(fd, "%d", it);
+    first = false;
+  }
+  fprintf(fd, "\n");
+  fprintf(fd, "\tAllowed delay: %.4f(s)\n", config.allowed_delay_sec);
+  fprintf(fd, "\tFFT size: %d\n", config.fft_size);
+  fprintf(fd, "\tConfidence threshold: %.4f\n", config.confidence_threshold);
+  fprintf(fd, "\tPlayer parameter: %s\n", config.player_command.c_str());
+  fprintf(fd, "\tPlayer FIFO name: %s\n", config.player_fifo.c_str());
+  fprintf(fd, "\tRecorder parameter: %s\n", config.recorder_command.c_str());
+  fprintf(fd, "\tRecorder FIFO name: %s\n", config.recorder_fifo.c_str());
+  fprintf(fd, "\tSample format: %s\n", config.sample_format.to_string());
+  fprintf(fd, "\tSample rate: %d\n", config.sample_rate);
+  fprintf(fd,
+          "\tNumber of Microphone channels: %d\n", config.num_mic_channels);
+  fprintf(fd, "\tNumber of Speaker channels: %d\n",
+          config.num_speaker_channels);
+  fprintf(fd, "\tNumber of test rounds: %d\n", config.test_rounds);
+  fprintf(fd, "\tTone length: %.4f(s)\n", config.tone_length_sec);
+
+  if (config.verbose)
+    fprintf(fd, "\t** Verbose **.\n");
+}
 
 // Randomly picks an integer from the given range [min, max],
 // including both end points.
 inline int RandomPick(int min, int max) {
   if (min > max) {
-    std::cerr << "Range error: min > max" << std::endl;
+    fprintf(stderr, "Range error: min > max\n");
     assert(false);
   }
 
@@ -31,7 +256,7 @@ inline int RandomPick(int min, int max) {
 }
 
 // Controls the main process of audiofuntest.
-void ControlLoop(const ParamConfig &config,
+void ControlLoop(const AudioFunTestConfig &config,
                  Evaluator *evaluator,
                  RecordClient *recorder,
                  FrameGenerator *generator,
@@ -42,8 +267,8 @@ void ControlLoop(const ParamConfig &config,
   const int min_bin = min_frequency / frequency_resolution;
   const int max_bin = max_frequency / frequency_resolution;
 
-  vector<int> passes(config.num_mic_channels);
-  vector<bool> single_round_pass(config.num_mic_channels);
+  std::vector<int> passes(config.num_mic_channels);
+  std::vector<bool> single_round_pass(config.num_mic_channels);
 
   for (int round = 1; round <= config.test_rounds; ++round) {
     std::fill(single_round_pass.begin(), single_round_pass.end(), false);
@@ -61,37 +286,33 @@ void ControlLoop(const ParamConfig &config,
     }
     generator->SetStopPlayTone();
 
-    std::cout << "carrier = " << bin << endl;
-    for (auto c : config.active_mic_channels) {
+    printf("carrier = %d\n", bin);
+    for (int c = 0; c < config.num_mic_channels; ++c) {
       const char *res = single_round_pass[c] ? "O" : "X";
-      std::cout << (res)
-                << ": channel = " << c
-                << ", success = " << passes[c]
-                << ", fail = " << round - passes[c]
-                << std::setprecision(4)
-                << ", rate = "
-                << 100.0 * passes[c] / round << endl;
+      printf("%s: channel = %d, success = %d, fail = %d, rate = %.4f\n",
+             res, c, passes[c], round - passes[c], 100.0 * passes[c] / round);
     }
   }
 }
 
 int main(int argc, char *argv[]) {
-  // Parses configuration.
-  ParamConfig config;
-  if (!config.ParseOptions(argc, argv)) {
-    config.PrintUsage(&std::cout, argv[0]);
-    return 0;
+  // Parses configuration.ParamConfig
+  AudioFunTestConfig config;
+  if (!ParseOptions(argc, argv, &config)) {
+    PrintUsage(argv[0]);
+    return 1;
   }
-  config.Print(&std::cout);
+
+  PrintConfig(config);
 
   // Main role initialization.
   FrameGenerator generator(config);
 
   PlayClient player(config);
-  player.InitProcess(config.is_logging);
+  player.InitProcess();
 
   RecordClient recorder(config);
-  recorder.InitProcess(config.is_logging);
+  recorder.InitProcess();
 
   Evaluator evaluator(config);
 
