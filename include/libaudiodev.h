@@ -4,8 +4,8 @@
  * found in the LICENSE file.
  */
 
-#ifndef LIBAUDIODEV_H_
-#define LIBAUDIODEV_H_
+#ifndef INCLUDE_LIBAUDIODEV_H_
+#define INCLUDE_LIBAUDIODEV_H_
 
 #include <alsa/asoundlib.h>
 
@@ -37,7 +37,7 @@ extern unsigned int chunk_size;
 /*
  * Get the list of devices in the direction specified by |direction|
  */
-audio_device_info_list_t* get_device_list(snd_pcm_stream_t direction);
+audio_device_info_list_t *get_device_list(snd_pcm_stream_t direction);
 
 /*
  * Free the list of audio devices. Avoiding memory leaks is good.
@@ -70,4 +70,4 @@ void close_sound_handle(audio_device_t *device);
  */
 ssize_t pcm_io(audio_device_t *device, unsigned char *data, size_t count);
 
-#endif
+#endif  // INCLUDE_LIBAUDIODEV_H_

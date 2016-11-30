@@ -4,7 +4,7 @@
 
 include common.mk
 
-CPPFLAGS += -I$(SRC)/include
+CPPFLAGS += -I$(SRC)
 LDLIBS += -lm -lpthread
 
 ALSA_CFLAGS := $(shell $(PKG_CONFIG) --cflags alsa)
@@ -14,21 +14,22 @@ CRAS_LIBS := $(shell $(PKG_CONFIG) --libs libcras)
 
 CXX_BINARY(src/audiofuntest): \
 	src/audiofuntest.o \
+	src/common.o \
 	src/frame_generator.o \
 	src/connector.o \
-	src/param_config.o \
 	src/evaluator.o
 CXX_BINARY(src/audiofuntest): \
-	CPPFLAGS += -std=c++11 -I$(SRC)
+	CPPFLAGS += -std=c++11
 clean: CLEAN(src/audiofuntest)
 all: CXX_BINARY(src/audiofuntest)
 
 CXX_BINARY(src/test_tones): \
 	src/alsa_client.o \
+	src/common.o \
 	src/test_tones.o \
 	src/tone_generators.o
 CXX_BINARY(src/test_tones): \
-	CPPFLAGS += $(ALSA_CFLAGS)
+	CPPFLAGS += $(ALSA_CFLAGS) -std=c++11
 CXX_BINARY(src/test_tones): \
 	LDLIBS += $(ALSA_LIBS)
 clean: CLEAN(src/test_tones)

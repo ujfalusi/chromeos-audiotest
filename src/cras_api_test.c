@@ -21,8 +21,8 @@ struct stream_in {
     uint32_t                    sample_rate;
     uint32_t                    channels;
     uint32_t                    period_size;
-    struct cras_audio_format*   cras_format;
-    struct cras_stream_params*  cras_params;
+    struct cras_audio_format    *cras_format;
+    struct cras_stream_params   *cras_params;
     cras_stream_id_t            stream_id;
 
     uint32_t                    frames_to_capture;

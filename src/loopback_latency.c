@@ -18,12 +18,13 @@
  *
  */
 
+#include <math.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
-#include <alsa/asoundlib.h>
 #include <sys/time.h>
-#include <math.h>
+
+#include <alsa/asoundlib.h>
 
 #include "cras_client.h"
 
@@ -279,8 +280,8 @@ static int cras_capture_tone(struct cras_client *client,
             shifted_time.tv_sec++;
             shifted_time.tv_nsec -= 1000000000L;
         }
-        cras_client_calc_capture_latency(&shifted_time, (struct timespec*)arg);
-        cras_cap_time = (struct timeval*)malloc(sizeof(*cras_cap_time));
+        cras_client_calc_capture_latency(&shifted_time, (struct timespec *)arg);
+        cras_cap_time = (struct timeval *)malloc(sizeof(*cras_cap_time));
         gettimeofday(cras_cap_time, NULL);
 
         // Terminate the test since noise got captured.
@@ -334,9 +335,9 @@ static int cras_play_tone(struct cras_client *client,
              * and latency at first played frame. */
             sine_started = 1;
             cras_client_calc_playback_latency(sample_time,
-                    (struct timespec*)arg);
+                    (struct timespec *)arg);
             cras_play_time =
-                    (struct timeval*)malloc(sizeof(*cras_play_time));
+                    (struct timeval *)malloc(sizeof(*cras_play_time));
             gettimeofday(cras_play_time, NULL);
         }
     }
@@ -596,7 +597,7 @@ void cras_test_latency()
         free(cras_cap_time);
 }
 
-void alsa_test_latency(char *play_dev, char* cap_dev)
+void alsa_test_latency(char *play_dev, char *cap_dev)
 {
     int err;
     snd_pcm_t *playback_handle;

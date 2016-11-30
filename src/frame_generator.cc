@@ -8,30 +8,21 @@
 
 typedef std::unique_lock<std::mutex> ulock;
 
-namespace autotest_client {
-namespace audio {
-
-FrameGenerator::FrameGenerator(const ParamConfig& config)
+FrameGenerator::FrameGenerator(const AudioFunTestConfig &config)
     : terminate_test_(false),
       new_freq_(false),
       stop_play_tone_(false),
       fft_size_(config.fft_size),
       sample_rate_(config.sample_rate),
-      tone_length_(config.tone_length),
-      cur_volume_(config.start_volume),
+      tone_length_(config.tone_length_sec),
       num_channels_(config.num_speaker_channels),
       active_channels_(config.active_speaker_channels),
-      format_(config.format),
+      format_(config.sample_format),
       wave_(config.sample_rate),
       num_fade_frames_(0),
       is_debug_(config.verbose) {
   frames_needed_ = sample_rate_ * tone_length_;
   frames_generated_ = 0;
-
-  cur_volume_ = config.start_volume;
-  volume_gap_ =
-    (config.start_volume - config.end_volume)
-      / static_cast<double>(frames_needed_);
 
   const double FadingLengthSec = 0.005;
   if (tone_length_ > FadingLengthSec * 4) {
@@ -51,25 +42,26 @@ void FrameGenerator::Run(PlayClient *player) {
 
     if (terminate_test_) break;
 
-    if (is_debug_) cerr << "[Generator] Got new frequency to play.\n";
+    if (is_debug_) printf("[Generator] Got new frequency to play.\n");
 
     while (!stop_play_tone_ && HasMoreFrames()) {
       int written = GetFrames(buffer, fft_size_);
-      vector< vector<double> > chn_buf;
+      std::vector< std::vector<double> > chn_buf;
       for (int ch = 0; ch < num_channels_; ++ch) {
         if (active_channels_.count(ch) > 0)
-          chn_buf.push_back(vector<double>(buffer, buffer + fft_size_));
+          chn_buf.push_back(std::vector<double>(buffer, buffer + fft_size_));
         else
-          chn_buf.push_back(vector<double>(fft_size_, 0.0));
+          chn_buf.push_back(std::vector<double>(fft_size_, 0.0));
       }
       if (player->Play(chn_buf, written) < 0) {
-        cerr << "Play frames error.\n";
+        printf("Play frames error.\n");
         assert(false);
       }
     }
 
     stop_play_tone_ = false;
-    if (is_debug_) cerr << "[Player] Done play the tone.\n";
+    if (is_debug_)
+      printf("[Player] Done play the tone.\n");
   }
 
   delete [] buffer;
@@ -119,10 +111,7 @@ double FrameGenerator::GetSample() {
   magn += wave_.GetNext();
 
   // Effected by fading & volume.
-  magn *= FadingMagnitude() * cur_volume_;
-
-  cur_volume_ += volume_gap_;
-
+  magn *= FadingMagnitude();
   return magn;
 }
 
@@ -135,6 +124,3 @@ double FrameGenerator::FadingMagnitude() const {
   }
   return 1.0;
 }
-
-}  // namespace audio
-}  // namespace autotest_client

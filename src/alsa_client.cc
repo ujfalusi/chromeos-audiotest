@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/alsa_client.h"
 
-#include <set>
 #include <limits>
+#include <set>
 
-#include "alsa_client.h"
-#include "tone_generators.h"
-
-
-namespace autotest_client {
-namespace audio {
+#include "include/tone_generators.h"
 
 // Translates our SampleFormat type into a Alsa friendly format.
 // This is a file-local function to avoid leaking the pa_sample_format type
@@ -32,7 +28,7 @@ _snd_pcm_format SampleFormatToAlsaFormat(SampleFormat format) {
 
     default:
       return SND_PCM_FORMAT_UNKNOWN;
-  };
+  }
 }
 
 int SampleFormatToFrameBytes(SampleFormat format, int channels) {
@@ -51,7 +47,7 @@ int SampleFormatToFrameBytes(SampleFormat format, int channels) {
 
     default:
       return SND_PCM_FORMAT_UNKNOWN;
-  };
+  }
 }
 
 template<typename T>
@@ -64,50 +60,49 @@ double SampleToMagnitude(T sample) {
 }
 
 void SampleCellToDoubleCell(void *sample_cell,
-                            vector<vector<double> >& double_cell,
+                            std::vector<std::vector<double> > *double_cell,
                             int num_frames,
                             SampleFormat format,
                             int num_channels) {
   if (format.type() == SampleFormat::kPcmU8) {
-    unsigned char *ptr = static_cast<unsigned char*>(sample_cell);
+    unsigned char *ptr = static_cast<unsigned char *>(sample_cell);
     for (int n = 0; n < num_frames; n++) {
       for (int c = 0; c < num_channels; c++) {
-        double_cell[c][n] = SampleToMagnitude<unsigned char>(*(ptr++));
+        (*double_cell)[c][n] = SampleToMagnitude<unsigned char>(*(ptr++));
       }
     }
 
   } else if (format.type() == SampleFormat::kPcmS16) {
-    int16_t *ptr = static_cast<int16_t*>(sample_cell);
+    int16_t *ptr = static_cast<int16_t *>(sample_cell);
     for (int n = 0; n < num_frames; n++) {
       for (int c = 0; c < num_channels; c++) {
-        double_cell[c][n] = SampleToMagnitude<int16_t>(*(ptr++));
+        (*double_cell)[c][n] = SampleToMagnitude<int16_t>(*(ptr++));
       }
     }
 
   } else if (format.type() == SampleFormat::kPcmS24) {
-    unsigned char *ptr = static_cast<unsigned char*>(sample_cell);
+    unsigned char *ptr = static_cast<unsigned char *>(sample_cell);
     for (int n = 0; n < num_frames; n++) {
       for (int c = 0; c < num_channels; c++) {
         int32_t value = 0;
         for (int i = 0; i < 3; i++) {
-          value |= ((int) *(ptr++)) << (8 * i);
+          value |= (static_cast<int>(*(ptr++))) << (8 * i);
         }
-        double_cell[c][n] = static_cast<double>(value) / (1 << 23);
+        (*double_cell)[c][n] = static_cast<double>(value) / (1 << 23);
       }
     }
 
   } else if (format.type() == SampleFormat::kPcmS32) {
-    int32_t *ptr = static_cast<int32_t*>(sample_cell);
+    int32_t *ptr = static_cast<int32_t *>(sample_cell);
     for (int n = 0; n < num_frames; n++) {
       for (int c = 0; c < num_channels; c++) {
-        double_cell[c][n] = SampleToMagnitude<int32_t>(*(ptr++));
+        (*double_cell)[c][n] = SampleToMagnitude<int32_t>(*(ptr++));
       }
     }
-
   }
 }
 
-int AlsaPlaybackClient::PlaybackParam::Init(_snd_pcm* handle,
+int AlsaPlaybackClient::PlaybackParam::Init(_snd_pcm *handle,
                                             SampleFormat format,
                                             int num_channels) {
   int last_error;
@@ -130,26 +125,24 @@ void AlsaPlaybackClient::PlaybackParam::Print(FILE *fp) {
 }
 
 AlsaPlaybackClient::AlsaPlaybackClient()
-  : pcm_out_handle_(NULL),
-  sample_rate_(64000),
-  num_channels_(2),
-  format_(SampleFormat::kPcmS32),
-  latency_ms_(kDefaultLatencyMs),
-  state_(kCreated),
-  last_error_(0),
-  playback_device_("default") {
-}
+    : pcm_out_handle_(NULL),
+      sample_rate_(64000),
+      num_channels_(2),
+      format_(SampleFormat::kPcmS32),
+      latency_ms_(kDefaultLatencyMs),
+      state_(kCreated),
+      last_error_(0),
+      playback_device_("default") {}
 
 AlsaPlaybackClient::AlsaPlaybackClient(const std::string &playback_device)
-  : pcm_out_handle_(NULL),
-  sample_rate_(64000),
-  num_channels_(2),
-  format_(SampleFormat::kPcmS32),
-  latency_ms_(kDefaultLatencyMs),
-  state_(kCreated),
-  last_error_(0),
-  playback_device_(playback_device) {
-}
+    : pcm_out_handle_(NULL),
+      sample_rate_(64000),
+      num_channels_(2),
+      format_(SampleFormat::kPcmS32),
+      latency_ms_(kDefaultLatencyMs),
+      state_(kCreated),
+      last_error_(0),
+      playback_device_(playback_device) {}
 
 AlsaPlaybackClient::~AlsaPlaybackClient() {
   if (pcm_out_handle_)
@@ -157,7 +150,7 @@ AlsaPlaybackClient::~AlsaPlaybackClient() {
 }
 
 bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
-                              int num_channels, std::set<int>* act_chs,
+                              int num_channels, std::set<int> *act_chs,
                               int period_size) {
   sample_rate_ = sample_rate;
   format_ = format;
@@ -181,7 +174,7 @@ bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
   }
 
   /* Set format, access, num_channels, sample rate */
-  char const* hwdevname = playback_device_.c_str();
+  char const *hwdevname = playback_device_.c_str();
   unsigned int rate_set;
   int soft_resample = 1;
   snd_pcm_hw_params_t *hwparams_;
@@ -195,27 +188,27 @@ bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
   }
 
   if ((last_error_ = snd_pcm_hw_params_set_rate_resample(pcm_out_handle_,
-      hwparams_, soft_resample)) < 0) {
+       hwparams_, soft_resample)) < 0) {
     fprintf(stderr, "Resampling not available on PCM device %s\n",
             hwdevname);
     goto set_hw_err;
   }
 
   if ((last_error_ = snd_pcm_hw_params_set_access(pcm_out_handle_, hwparams_,
-      SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+       SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
     fprintf(stderr, "Access type not available on PCM device %s\n",
             hwdevname);
     goto set_hw_err;
   }
 
   if ((last_error_ = snd_pcm_hw_params_set_format(pcm_out_handle_, hwparams_,
-      SampleFormatToAlsaFormat(format))) < 0) {
+       SampleFormatToAlsaFormat(format))) < 0) {
     fprintf(stderr, "Could not set format for device %s\n", hwdevname);
     goto set_hw_err;
   }
 
   if ((last_error_ = snd_pcm_hw_params_set_channels(pcm_out_handle_, hwparams_,
-      num_channels)) < 0) {
+       num_channels)) < 0) {
     fprintf(stderr, "Could not set channel count for device %s\n",
             hwdevname);
     goto set_hw_err;
@@ -223,7 +216,7 @@ bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
 
   rate_set = static_cast<unsigned int>(sample_rate);
   if ((last_error_ = snd_pcm_hw_params_set_rate_near(pcm_out_handle_,
-      hwparams_, &rate_set, 0)) < 0) {
+       hwparams_, &rate_set, 0)) < 0) {
     fprintf(stderr, "Could not set bitrate near %u for PCM device %s\n",
             sample_rate, hwdevname);
     goto set_hw_err;
@@ -259,19 +252,19 @@ set_hw_err:
   return last_error_ == 0;
 }
 
-void AlsaPlaybackClient::Play(shared_ptr<CircularBuffer<char> > buffers) {
+void AlsaPlaybackClient::Play(
+    std::shared_ptr<CircularBuffer<char> > buffers) {
   if (state() != kReady)
     return;
 
-  if ((last_error_ = snd_pcm_prepare(pcm_out_handle_)) < 0) {
+  if ((last_error_ = snd_pcm_prepare(pcm_out_handle_)) < 0)
     return;
-  }
 
   fprintf(stderr, "Start playback recorded data\n");
 
   int num_frames = NumFrames(*buffers, format_, num_channels_);
 
-  char* cell_to_read;
+  char *cell_to_read;
 
   do {
     cell_to_read = buffers->LockCellToRead();
@@ -304,10 +297,8 @@ void AlsaPlaybackClient::PlayTones() {
   if (state() != kReady)
     return;
 
-
-  if ((last_error_ = snd_pcm_prepare(pcm_out_handle_)) < 0) {
+  if ((last_error_ = snd_pcm_prepare(pcm_out_handle_)) < 0)
     return;
-  }
 
   fprintf(stderr, "Start play tone\n");
   // Run main loop until we are out of frames to generate.
@@ -358,26 +349,24 @@ void AlsaPlaybackClient::Print(FILE *fp) {
 }
 
 AlsaCaptureClient::AlsaCaptureClient()
-  : pcm_capture_handle_(NULL),
-    sample_rate_(64000),
-    num_channels_(2),
-    format_(SampleFormat::kPcmS32),
-    latency_ms_(kDefaultLatencyMs),
-    state_(kCreated),
-    last_error_(0),
-    capture_device_("default") {
-}
+    : pcm_capture_handle_(NULL),
+      sample_rate_(64000),
+      num_channels_(2),
+      format_(SampleFormat::kPcmS32),
+      latency_ms_(kDefaultLatencyMs),
+      state_(kCreated),
+      last_error_(0),
+      capture_device_("default") {}
 
 AlsaCaptureClient::AlsaCaptureClient(const std::string &capture_device)
-  : pcm_capture_handle_(NULL),
-    sample_rate_(64000),
-    num_channels_(2),
-    format_(SampleFormat::kPcmS32),
-    latency_ms_(kDefaultLatencyMs),
-    state_(kCreated),
-    last_error_(0),
-    capture_device_(capture_device) {
-}
+    : pcm_capture_handle_(NULL),
+      sample_rate_(64000),
+      num_channels_(2),
+      format_(SampleFormat::kPcmS32),
+      latency_ms_(kDefaultLatencyMs),
+      state_(kCreated),
+      last_error_(0),
+      capture_device_(capture_device) {}
 
 AlsaCaptureClient::~AlsaCaptureClient() {
   if (pcm_capture_handle_)
@@ -389,7 +378,6 @@ AlsaCaptureClient::~AlsaCaptureClient() {
 bool AlsaCaptureClient::Init(int sample_rate, SampleFormat format,
                              int num_channels, int buffer_count,
                              int period_size) {
-
   sample_rate_ = sample_rate;
   format_ = format;
   num_channels_ = num_channels;
@@ -412,7 +400,7 @@ bool AlsaCaptureClient::Init(int sample_rate, SampleFormat format,
   }
 
   /* Set format, access, num_channels, sample rate, period, resample */
-  char const* hwdevname = capture_device_.c_str();
+  char const *hwdevname = capture_device_.c_str();
 
   unsigned int rate_set;
 
@@ -512,7 +500,7 @@ int AlsaCaptureClient::Capture() {
     fprintf(stderr, "Prepare error: %s", snd_strerror(res));
     return 3;
   }
-  char* cell_to_write;
+  char *cell_to_write;
   while (state() == kReady) {
     snd_pcm_wait(pcm_capture_handle_, 100);
 
@@ -523,10 +511,10 @@ int AlsaCaptureClient::Capture() {
     circular_buffer_->UnlockCellToWrite();
 
     if (completed < 0) {
-      fprintf(stderr, "I/O error in %s: %s, %lu\n",
+      fprintf(stderr, "I/O error in %s: %s, %zu\n",
               snd_pcm_stream_name(SND_PCM_STREAM_CAPTURE),
               snd_strerror(completed),
-              (long unsigned int)completed);
+              completed);
       return 4;
     }
   }
@@ -545,6 +533,3 @@ void AlsaCaptureClient::Print(FILE *fp) {
   circular_buffer_->Print(fp);
   fprintf(fp, "  }\n");
 }
-
-}  // namespace audio
-}  // namespace autotest_client
