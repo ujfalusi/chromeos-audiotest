@@ -5,47 +5,41 @@
 #ifndef INCLUDE_EVALUATOR_H_
 #define INCLUDE_EVALUATOR_H_
 
-#include <math.h>
-
-#include <set>
 #include <vector>
 
 #include "include/binary_client.h"
 #include "include/common.h"
+#include "include/sample_format.h"
 
-// Evaluates the frames coming from recorder process
-// and keep tracking of accumulated evaluating confidence of correctness.
 class Evaluator {
  public:
-  // bin_range: The range of bins neighboring to expected frequency bin
-  //            going to perform zero-mean & unit variance normalization.
-  explicit Evaluator(const AudioFunTestConfig &, int bin_range = 3);
+  explicit Evaluator(const AudioFunTestConfig &);
+  ~Evaluator();
 
-  // Evaluates the sampled frames.
-  int Evaluate(RecordClient *recorder,
-               int center_bin,
-               std::vector<bool> *single_output);
+  // Evaluates the recorded wave and compared with the expected bin.
+  // Saves the result in the vector that indicates the successness of each mic
+  // channels.
+  void Evaluate(int center_bin,
+                RecordClient *recorder,
+                std::vector<bool> *result);
 
  private:
-  // One dimension fast fourier transform
-  // using Danielson-Lanczos lemma.
-  void FFT(std::vector<double> *data_ptr) const;
-
   // Returns the matched filter confidence the single channel.
-  double EstimateChannel(std::vector<double> *cell_ptr, int center_bin);
+  double EstimateChannel(std::vector<double> *data, int center_bin);
 
   std::vector<double> filter_;
-  int bin_range_;
+  int half_window_size_;
   int num_channels_;
-  int buffer_size_;
   SampleFormat format_;
   int sample_rate_;
   std::vector<double> bin_;
+  uint8_t* buffer_;
+  size_t buf_size_;
 
   double confidence_threshold_;
   int max_trial_;
 
-  bool is_debug_;
+  bool verbose_;
 };
 
 #endif  // INCLUDE_EVALUATOR_H_

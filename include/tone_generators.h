@@ -14,25 +14,21 @@
 #ifndef INCLUDE_TONE_GENERATORS_H_
 #define INCLUDE_TONE_GENERATORS_H_
 
-#include <math.h>
-#include <stdlib.h>
-
 #include <set>
 #include <vector>
 
 #include "include/common.h"
+#include "include/sample_format.h"
 
-static const double kPi = 3.14159265358979323846264338327l;
-static const double kHalfPi = kPi / 2.0f;
-
-class FrameGenerator {
+class ToneGenerator {
  public:
+  virtual ~ToneGenerator() {}
   // Fills data with up to |buf_size| bytes with of audio frames.  Only
   // complete frames are written into data (ie., the number of samples written
-  // is a  multiple of the number of channels), and |buf_size| is adjusted to
+  // is a multiple of the number of channels), and |buf_size| is adjusted to
   // reflect the number of bytes written into data.
   //
-  // The |format|, and |channels|, parameters affet the size of a frame, and
+  // The |format|, and |num_channels| parameters affet the size of a frame, and
   // the type of sample written.  The |active_channels| parameter is used to
   // select which channels have samples written into them.  If a channel is
   // not listed in |active_channels|, then it is filled with silence.  This is
@@ -42,7 +38,7 @@ class FrameGenerator {
   // want to play on all of them, make sure |active_channels| contains 0, and
   // 1.
   virtual size_t GetFrames(SampleFormat format,
-                           int channels,
+                           int num_channels,
                            const std::set<int> &active_channels,
                            void *data,
                            size_t buf_size) = 0;
@@ -52,32 +48,33 @@ class FrameGenerator {
   virtual bool HasMoreFrames() const = 0;
 };
 
-class SineWaveGenerator {
+class SineWaveGenerator : public ToneGenerator {
  public:
-  SineWaveGenerator()
-      : cur_x_(0.0f) {
-  }
+  explicit SineWaveGenerator(int sample_rate, double length_sec = -1.0);
 
   // Generates a sampled sine wave, where the sine wave period is determined
   // by |frequency| and the sine wave sampling rate is determined by
   // |sample_rate| (in HZ).
-  //
-  // It's probably not advisable to change |sample_rate| from call to call, but
-  // the API is simpler.
-  double Next(int sample_rate, double frequency) {
-    cur_x_ += (kPi * 2 * frequency) / sample_rate;
-    return sin(cur_x_);
-  }
-  void Reset(double cur_x = 0.0) {
-    cur_x_ = cur_x;
-  }
+  double Next();
+  void Reset(double frequency);
+  virtual size_t GetFrames(SampleFormat format,
+                           int num_channels,
+                           const std::set<int> &active_channels,
+                           void *data,
+                           size_t buf_size);
+  virtual bool HasMoreFrames() const;
 
  private:
   double cur_x_;
+  int cur_frame_;
+  int total_frame_;
+  int sample_rate_;
+  double length_sec;
+  double frequency_;
 };
 
 
-class MultiToneGenerator : public FrameGenerator {
+class MultiToneGenerator : public ToneGenerator {
  public:
   MultiToneGenerator(int sample_rate, double length_sec);
   virtual ~MultiToneGenerator();
@@ -85,11 +82,11 @@ class MultiToneGenerator : public FrameGenerator {
   void SetVolumes(double start_vol, double end_vol);
   virtual void Reset(const std::vector<double> &frequencies,
                      bool reset_timer = false);
-  virtual void Reset(const double *frequencies, unsigned int ntones,
+  virtual void Reset(const double *frequencies, int num_tones,
                      bool reset_timer = false);
   virtual void Reset(double frequency, bool reset_timer = false);
   virtual size_t GetFrames(SampleFormat format,
-                           int channels,
+                           int num_channels,
                            const std::set<int> &active_channels,
                            void *data,
                            size_t buf_size);
@@ -112,7 +109,7 @@ class MultiToneGenerator : public FrameGenerator {
 };
 
 
-class ASharpMinorGenerator : public FrameGenerator {
+class ASharpMinorGenerator : public ToneGenerator {
  public:
   ASharpMinorGenerator(int sample_rate, double tone_length_sec);
   virtual ~ASharpMinorGenerator();
@@ -120,7 +117,7 @@ class ASharpMinorGenerator : public FrameGenerator {
   void SetVolumes(double start_vol, double end_vol);
   virtual void Reset();
   virtual size_t GetFrames(SampleFormat format,
-                           int channels,
+                           int num_channels,
                            const std::set<int> &active_channels,
                            void *data,
                            size_t buf_size);

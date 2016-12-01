@@ -4,52 +4,64 @@
 
 #include "include/tone_generators.h"
 
-#include <assert.h>
+#include <math.h>
 #include <stdio.h>
 
 #include <limits>
 
 namespace {
-
-template <typename T>
-void *WriteSample(void *data, double magnitude) {
-  // Handle unsigned.
-  if (std::numeric_limits<T>::min() == 0) {
-    magnitude += 1.0;
-    magnitude /= 2.0;
-  }
-
-  T *sample_data = reinterpret_cast<T *>(data);
-  *sample_data = magnitude * std::numeric_limits<T>::max();
-  return sample_data + 1;
+  static const double kPi = 3.14159265358979323846264338327l;
+  static const double kHalfPi = kPi / 2.0;
 }
 
-void *WriteSampleForFormat(void *data, double magnitude, SampleFormat format) {
-  if (format.type() == SampleFormat::kPcmU8) {
-    return WriteSample<unsigned char>(data, magnitude);
-
-  } else if (format.type() == SampleFormat::kPcmS16) {
-    return WriteSample<int16_t>(data, magnitude);
-
-  } else if (format.type() == SampleFormat::kPcmS24) {
-    unsigned char *sample_data = reinterpret_cast<unsigned char *>(data);
-    int32_t value = magnitude * (1 << 23);  // 1 << 23 24-bit singed max().
-    sample_data[0] = value & 0xff;
-    sample_data[1] = (value >> 8) & 0xff;
-    sample_data[2] = (value >> 16) & 0xff;
-    return sample_data + 3;
-
-  } else if (format.type() == SampleFormat::kPcmS32) {
-    return WriteSample<int32_t>(data, magnitude);
-  }
-
-  // Return NULL, which should crash the caller.
-  assert(false);
-  return NULL;
+SineWaveGenerator::SineWaveGenerator(int sample_rate, double length_sec)
+    : cur_x_(0.0), cur_frame_(0), sample_rate_(sample_rate),
+      length_sec(length_sec), frequency_(0.0) {
+  if (length_sec > 0)
+    total_frame_ = length_sec * sample_rate;
+  else
+    total_frame_ = 0;
 }
 
-}  // namespace
+double SineWaveGenerator::Next() {
+  cur_x_ += (kPi * 2 * frequency_) / sample_rate_;
+  cur_frame_++;
+  return sin(cur_x_);
+}
+void SineWaveGenerator::Reset(double frequency) {
+  cur_x_ = 0;
+  cur_frame_ = 0;
+  frequency_ = frequency;
+}
 
+size_t SineWaveGenerator::GetFrames(SampleFormat format, int num_channels,
+    const std::set<int> &active_channels, void *data, size_t buf_size) {
+
+  int remain_frames = total_frame_ > 0
+                      ? (static_cast<int>(total_frame_) - cur_frame_ - 1)
+                      : std::numeric_limits<int>::max();
+  int frame_required = buf_size / num_channels / format.bytes();
+  int num_frames = std::min(frame_required, remain_frames);
+
+  for (int i = 0; i < num_frames; ++i) {
+    double sample = Next();
+    for (int c = 0; c < num_channels; ++c) {
+      if (active_channels.find(c) != active_channels.end())
+        data = WriteSample(sample, format, data);
+      else
+        data = WriteSample(0.0f, format, data);
+    }
+  }
+  return num_frames;
+}
+
+bool SineWaveGenerator::HasMoreFrames() const {
+  if (total_frame_ > 0) {
+    return cur_frame_ < total_frame_;
+  }
+  // Infinite.
+  return true;
+}
 
 MultiToneGenerator::MultiToneGenerator(int sample_rate, double length_sec)
     : frames_generated_(0),
@@ -94,11 +106,11 @@ void MultiToneGenerator::Reset(const std::vector<double> &frequencies,
   pthread_mutex_unlock(&param_mutex);
 }
 
-void MultiToneGenerator::Reset(const double *frequency, unsigned int ntones,
+void MultiToneGenerator::Reset(const double *frequency, int num_tones,
                                bool reset_timer) {
   pthread_mutex_lock(&param_mutex);
-  frequencies_.resize(ntones);
-  for (unsigned int i = 0; i < ntones; ++i) {
+  frequencies_.resize(num_tones);
+  for (int i = 0; i < num_tones; ++i) {
     frequencies_[i] = frequency[i];
   }
   if (reset_timer) {
@@ -120,36 +132,39 @@ void MultiToneGenerator::Reset(double frequency, bool reset_timer) {
 }
 
 size_t MultiToneGenerator::GetFrames(SampleFormat format,
-                                   int channels,
-                                   const std::set<int> &active_channels,
-                                   void *data,
-                                   size_t buf_size) {
-  const size_t kBytesPerFrame = channels * format.bytes();
+                                     int num_channels,
+                                     const std::set<int> &active_channels,
+                                     void *data,
+                                     size_t buf_size) {
+  const int kBytesPerFrame = num_channels * format.bytes();
   void *cur = data;
-  size_t frames = buf_size / kBytesPerFrame;
-  size_t frames_written;
+  int frames = buf_size / kBytesPerFrame;
+  int frames_written;
   pthread_mutex_lock(&param_mutex);
-  tone_wave_.resize(frequencies_.size());
+  tone_wave_.resize(frequencies_.size(), SineWaveGenerator(sample_rate_));
+  for (size_t f = 0; f < frequencies_.size(); ++f)
+    tone_wave_[f].Reset(frequencies_[f]);
+
   for (frames_written = 0; frames_written < frames; ++frames_written) {
     if (!HasMoreFrames()) {
       break;
     }
 
     double frame_magnitude = 0;
-    for (unsigned int f = 0; f < frequencies_.size(); ++f) {
-      frame_magnitude += tone_wave_[f].Next(sample_rate_, frequencies_[f]);
+    for (size_t f = 0; f < frequencies_.size(); ++f) {
+      frame_magnitude += tone_wave_[f].Next();
     }
     frame_magnitude *= GetFadeMagnitude() * cur_vol_;
     if (frequencies_.size() > 1) {
       frame_magnitude /= static_cast<double>(frequencies_.size());
     }
     cur_vol_ += inc_vol_;
-    for (int c = 0; c < channels; ++c) {
+    for (int c = 0; c < num_channels; ++c) {
       if (active_channels.find(c) != active_channels.end()) {
-        cur = WriteSampleForFormat(cur, frame_magnitude, format);
+        cur = WriteSample(frame_magnitude, format, cur);
       } else {
         // Silence the non-active channels.
-        cur = WriteSampleForFormat(cur, 0.0f, format);
+        cur = WriteSample(0.0f, format, cur);
       }
     }
 
@@ -200,10 +215,10 @@ void ASharpMinorGenerator::Reset() {
 }
 
 size_t ASharpMinorGenerator::GetFrames(SampleFormat format,
-                                     int channels,
-                                     const std::set<int> &active_channels,
-                                     void *data,
-                                     size_t buf_size) {
+                                       int num_channels,
+                                       const std::set<int> &active_channels,
+                                       void *data,
+                                       size_t buf_size) {
   if (!HasMoreFrames()) {
     return 0;
   }
@@ -214,7 +229,7 @@ size_t ASharpMinorGenerator::GetFrames(SampleFormat format,
   }
 
   return tone_generator_.GetFrames(format,
-                                   channels,
+                                   num_channels,
                                    active_channels,
                                    data,
                                    buf_size);
