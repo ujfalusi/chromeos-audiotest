@@ -10,8 +10,8 @@
 #include <set>
 #include <vector>
 
+#include "include/binary_client.h"
 #include "include/common.h"
-#include "include/connector.h"
 
 // Evaluates the frames coming from recorder process
 // and keep tracking of accumulated evaluating confidence of correctness.

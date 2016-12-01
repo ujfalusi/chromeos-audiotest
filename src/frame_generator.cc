@@ -46,7 +46,7 @@ void FrameGenerator::Run(PlayClient *player) {
 
     while (!stop_play_tone_ && HasMoreFrames()) {
       int written = GetFrames(buffer, fft_size_);
-      std::vector< std::vector<double> > chn_buf;
+      std::vector<std::vector<double> > chn_buf;
       for (int ch = 0; ch < num_channels_; ++ch) {
         if (active_channels_.count(ch) > 0)
           chn_buf.push_back(std::vector<double>(buffer, buffer + fft_size_));
@@ -71,6 +71,7 @@ void FrameGenerator::Stop() {
   // Close the play thread.
   ulock lock(change_state_mutex_);
   terminate_test_ = true;
+  stop_play_tone_ = true;
   change_state_cond_.notify_all();
   lock.unlock();
 

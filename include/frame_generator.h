@@ -13,8 +13,8 @@
 #include <set>
 #include <thread>
 
+#include "include/binary_client.h"
 #include "include/common.h"
-#include "include/connector.h"
 
 // Sine wave is a object recording
 // the current amplitude of the specific frequency
