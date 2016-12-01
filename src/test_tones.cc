@@ -16,6 +16,7 @@
 
 #include "include/alsa_client.h"
 #include "include/common.h"
+#include "include/sample_format.h"
 #include "include/tone_generators.h"
 
 static struct option long_options[] = {

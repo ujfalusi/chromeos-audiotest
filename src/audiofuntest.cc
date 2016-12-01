@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <assert.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,15 +12,19 @@
 #include "include/binary_client.h"
 #include "include/common.h"
 #include "include/evaluator.h"
-#include "include/frame_generator.h"
+#include "include/generator_player.h"
+#include "include/sample_format.h"
+#include "include/tone_generators.h"
 
-constexpr static const char *short_options = "a:d:n:o:P:f:R:F:r:t:c:C:T:l:hv";
+constexpr static const char *short_options =
+    "a:d:n:o:w:P:f:R:F:r:t:c:C:T:l:hv";
 
 constexpr static const struct option long_options[] = {
   {"active-speaker-channels", 1, NULL, 'a'},
   {"allowed-delay", 1, NULL, 'd'},
   {"fft-size", 1, NULL, 'n'},
   {"confidence-threshold", 1, NULL, 'o'},
+  {"match-window-size", 1, NULL, 'w'},
   {"player-command", 1, NULL, 'P'},
   {"player-fifo", 1, NULL, 'f'},
   {"recorder-command", 1, NULL, 'R'},
@@ -76,6 +81,13 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
         break;
       case 'o':
         config->confidence_threshold = atof(optarg);
+        break;
+      case 'w':
+        config->match_window_size = atoi(optarg);
+        if (config->match_window_size % 2 == 0) {
+          fprintf(stderr, "Match window size must be an odd value.\n");
+          return false;
+        }
         break;
       case 'P':
         config->player_command = std::string(optarg);
@@ -166,6 +178,11 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "\t\tThreshold of accumulated confidence to pass evaluation "
           "(def %.4f)\n", default_config.confidence_threshold);
   fprintf(fd,
+          "\t-w, --match-window-size:\n"
+          "\t\tNumber of bin to be used for calculating matching confidence. "
+          "Should be an odd number."
+          "(def %d)\n", default_config.match_window_size);
+  fprintf(fd,
           "\t-P, --player-command:\n"
           "\t\tThe command used to play sound.\n");
   fprintf(fd,
@@ -226,6 +243,7 @@ void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
   fprintf(fd, "\tAllowed delay: %.4f(s)\n", config.allowed_delay_sec);
   fprintf(fd, "\tFFT size: %d\n", config.fft_size);
   fprintf(fd, "\tConfidence threshold: %.4f\n", config.confidence_threshold);
+  fprintf(fd, "\tMatch window size: %d\n", config.match_window_size);
   fprintf(fd, "\tPlayer parameter: %s\n", config.player_command.c_str());
   fprintf(fd, "\tPlayer FIFO name: %s\n", config.player_fifo.c_str());
   fprintf(fd, "\tRecorder parameter: %s\n", config.recorder_command.c_str());
@@ -258,8 +276,8 @@ inline int RandomPick(int min, int max) {
 // Controls the main process of audiofuntest.
 void ControlLoop(const AudioFunTestConfig &config,
                  Evaluator *evaluator,
+                 PlayClient *player,
                  RecordClient *recorder,
-                 FrameGenerator *generator,
                  const int min_frequency = 4000,
                  const int max_frequency = 10000) {
   const double frequency_resolution =
@@ -270,21 +288,31 @@ void ControlLoop(const AudioFunTestConfig &config,
   std::vector<int> passes(config.num_mic_channels);
   std::vector<bool> single_round_pass(config.num_mic_channels);
 
+  size_t buf_size = config.fft_size * config.num_speaker_channels *
+      config.sample_format.bytes();
+  SineWaveGenerator generator(config.sample_rate, config.tone_length_sec);
+  GeneratorPlayer generatorPlayer(
+      buf_size,
+      config.num_speaker_channels,
+      config.active_speaker_channels,
+      config.sample_format,
+      player);
+
   for (int round = 1; round <= config.test_rounds; ++round) {
     std::fill(single_round_pass.begin(), single_round_pass.end(), false);
     int bin = RandomPick(min_bin, max_bin);
     double frequency = bin * frequency_resolution;
 
-    // Sets the frequency to be generated.
-    generator->SetFrequency(frequency);
+    generator.Reset(frequency);
+    generatorPlayer.Play(&generator);
 
-    evaluator->Evaluate(recorder, bin, &single_round_pass);
+    evaluator->Evaluate(bin, recorder, &single_round_pass);
     for (int chn = 0; chn < config.num_mic_channels; ++chn) {
       if (single_round_pass[chn]) {
         ++passes[chn];
       }
     }
-    generator->SetStopPlayTone();
+    generatorPlayer.Stop();
 
     printf("carrier = %d\n", bin);
     for (int c = 0; c < config.num_mic_channels; ++c) {
@@ -305,9 +333,6 @@ int main(int argc, char *argv[]) {
 
   PrintConfig(config);
 
-  // Main role initialization.
-  FrameGenerator generator(config);
-
   PlayClient player(config);
   player.Start();
 
@@ -316,17 +341,11 @@ int main(int argc, char *argv[]) {
 
   Evaluator evaluator(config);
 
-  generator.PlayTo(&player);
-
   // Starts evaluation.
-  ControlLoop(config, &evaluator, &recorder, &generator);
+  ControlLoop(config, &evaluator, &player, &recorder);
 
   // Terminates and cleans up.
   recorder.Terminate();
-
-  // Stops generator before player to
-  // avoid sending tones to closed pipe.
-  generator.Stop();
   player.Terminate();
 
   return 0;

@@ -5,68 +5,10 @@
 #ifndef INCLUDE_COMMON_H_
 #define INCLUDE_COMMON_H_
 
-#include <assert.h>
-
 #include <set>
 #include <string>
 
-class SampleFormat {
- public:
-  enum Type {
-    kPcmU8,
-    kPcmS16,
-    kPcmS24,
-    kPcmS32,
-    kPcmInvalid,
-  };
-
-  SampleFormat()
-      : type_(kPcmInvalid) {}
-
-  explicit SampleFormat(Type type)
-      : type_(type) {}
-
-  void set_type(Type type) { type_ = type; }
-  Type type() const { return type_; }
-
-  const char *to_string() const {
-    switch (type_) {
-      case kPcmU8:
-        return "u8";
-      case kPcmS16:
-        return "s16";
-      case kPcmS24:
-        return "s24";
-      case kPcmS32:
-        return "s32";
-      default:
-        assert(false);
-    }
-  }
-
-  size_t bytes() const {
-    switch (type_) {
-      case kPcmU8:
-        return 1;
-      case kPcmS16:
-        return 2;
-      case kPcmS24:
-        return 3;
-      case kPcmS32:
-        return 4;
-      default:
-        assert(false);
-    }
-  }
-
-  inline bool operator==(const SampleFormat &format) const {
-    return type_ == format.type();
-  }
-
- private:
-  Type type_;
-};
-
+#include "include/sample_format.h"
 
 struct TestConfig {
   enum TestType {
@@ -103,6 +45,7 @@ struct AudioFunTestConfig {
   AudioFunTestConfig()
       : allowed_delay_sec(1.5),
         fft_size(2048u),
+        match_window_size(7),
         confidence_threshold(3),
         sample_rate(64000),
         sample_format(SampleFormat::kPcmS16),
@@ -115,6 +58,7 @@ struct AudioFunTestConfig {
   std::set<int> active_speaker_channels;
   double allowed_delay_sec;
   int fft_size;
+  int match_window_size;
   double confidence_threshold;
   std::string player_command;
   std::string player_fifo;

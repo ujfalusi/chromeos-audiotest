@@ -15,7 +15,8 @@ LOCAL_SRC_FILES := \
 		src/binary_client.cc \
 		src/common.cc \
 		src/evaluator.cc \
-		src/frame_generator.cc
+		src/generator_player.cc \
+		src/tone_generators.cc
 
 LOCAL_MODULE := audiofuntest
 

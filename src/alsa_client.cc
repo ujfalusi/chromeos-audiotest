@@ -5,7 +5,6 @@
 #include "include/alsa_client.h"
 
 #include <limits>
-#include <set>
 
 #include "include/tone_generators.h"
 
@@ -59,49 +58,6 @@ double SampleToMagnitude(T sample) {
   return val;
 }
 
-void SampleCellToDoubleCell(void *sample_cell,
-                            std::vector<std::vector<double> > *double_cell,
-                            int num_frames,
-                            SampleFormat format,
-                            int num_channels) {
-  if (format.type() == SampleFormat::kPcmU8) {
-    unsigned char *ptr = static_cast<unsigned char *>(sample_cell);
-    for (int n = 0; n < num_frames; n++) {
-      for (int c = 0; c < num_channels; c++) {
-        (*double_cell)[c][n] = SampleToMagnitude<unsigned char>(*(ptr++));
-      }
-    }
-
-  } else if (format.type() == SampleFormat::kPcmS16) {
-    int16_t *ptr = static_cast<int16_t *>(sample_cell);
-    for (int n = 0; n < num_frames; n++) {
-      for (int c = 0; c < num_channels; c++) {
-        (*double_cell)[c][n] = SampleToMagnitude<int16_t>(*(ptr++));
-      }
-    }
-
-  } else if (format.type() == SampleFormat::kPcmS24) {
-    unsigned char *ptr = static_cast<unsigned char *>(sample_cell);
-    for (int n = 0; n < num_frames; n++) {
-      for (int c = 0; c < num_channels; c++) {
-        int32_t value = 0;
-        for (int i = 0; i < 3; i++) {
-          value |= (static_cast<int>(*(ptr++))) << (8 * i);
-        }
-        (*double_cell)[c][n] = static_cast<double>(value) / (1 << 23);
-      }
-    }
-
-  } else if (format.type() == SampleFormat::kPcmS32) {
-    int32_t *ptr = static_cast<int32_t *>(sample_cell);
-    for (int n = 0; n < num_frames; n++) {
-      for (int c = 0; c < num_channels; c++) {
-        (*double_cell)[c][n] = SampleToMagnitude<int32_t>(*(ptr++));
-      }
-    }
-  }
-}
-
 int AlsaPlaybackClient::PlaybackParam::Init(_snd_pcm *handle,
                                             SampleFormat format,
                                             int num_channels) {
@@ -150,12 +106,12 @@ AlsaPlaybackClient::~AlsaPlaybackClient() {
 }
 
 bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
-                              int num_channels, std::set<int> *act_chs,
+                              int num_channels, std::set<int> *active_channels,
                               int period_size) {
   sample_rate_ = sample_rate;
   format_ = format;
   num_channels_ = num_channels;
-  active_channels_ = act_chs;
+  active_channels_ = active_channels;
 
   /* Open pcm handle */
   if (pcm_out_handle_)

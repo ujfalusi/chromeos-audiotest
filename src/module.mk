@@ -16,8 +16,10 @@ CXX_BINARY(src/audiofuntest): \
 	src/audiofuntest.o \
 	src/common.o \
 	src/binary_client.o \
-	src/frame_generator.o \
-	src/evaluator.o
+	src/evaluator.o \
+	src/generator_player.o \
+	src/sample_format.o \
+	src/tone_generators.o
 CXX_BINARY(src/audiofuntest): \
 	CPPFLAGS += -std=c++11
 clean: CLEAN(src/audiofuntest)
@@ -26,6 +28,7 @@ all: CXX_BINARY(src/audiofuntest)
 CXX_BINARY(src/test_tones): \
 	src/alsa_client.o \
 	src/common.o \
+	src/sample_format.o \
 	src/test_tones.o \
 	src/tone_generators.o
 CXX_BINARY(src/test_tones): \

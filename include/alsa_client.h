@@ -14,25 +14,17 @@
 #include <vector>
 
 #include "include/common.h"
+#include "include/sample_format.h"
 
 // Alsa API forward declares.
 struct _snd_pcm;
 
-class FrameGenerator;
+class ToneGenerator;
 
 _snd_pcm_format SampleFormatToAlsaFormat(SampleFormat format);
 
 /* Calculate number of bytes per frame given format and channels */
 int SampleFormatToFrameBytes(SampleFormat format, int channels);
-
-/*
- * Convert a sample cell (size = num_frames) into double cell.
- * If there are two channels, the sample will be averaged
- */
-void SampleCellToDoubleCell(void *sample_cell,
-                            std::vector<std::vector<double> > *double_cell,
-                            int num_frames, SampleFormat format,
-                            int num_channels);
 
 /*
  * Maintain a circular buffer of type T, which has a vector of <count> cells.
@@ -160,8 +152,8 @@ class AlsaPlaybackClient {
   virtual ~AlsaPlaybackClient();
 
   virtual void Print(FILE *fp);
-  void SetPlayObj(FrameGenerator *gen) { generator_ = gen; }
-  FrameGenerator *PlayObj() { return generator_; }
+  void SetPlayObj(ToneGenerator *gen) { generator_ = gen; }
+  ToneGenerator *PlayObj() { return generator_; }
 
   virtual bool Init(int sample_rate,
                     SampleFormat format,
@@ -201,7 +193,7 @@ class AlsaPlaybackClient {
   std::string playback_device_;
 
   // snd_pcm_set_params() argument when PlayThreadEntry() calls PlayTones()
-  FrameGenerator *generator_;
+  ToneGenerator *generator_;
 };
 
 

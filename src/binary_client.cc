@@ -4,15 +4,12 @@
 
 #include "include/binary_client.h"
 
-#include <assert.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#include "include/util.h"
 
 namespace {
 
@@ -115,33 +112,19 @@ void PlayClient::Terminate() {
   kill(child_pid_, SIGKILL);
 }
 
-int PlayClient::Play(const std::vector<std::vector<double> > &block,
-                     size_t num_frames) {
-  size_t buf_size = num_frames * num_channels_ * format_.bytes();
-  char *buf = new char[buf_size];
-  if (num_frames > max_num_frames_) {
-    fprintf(stderr,
-            "Request value: %zu > Maximum frams capability: %zu.\n",
-            num_frames, max_num_frames_);
-    num_frames = max_num_frames_;
-  }
-  void *cur = buf;
-  for (size_t f = 0; f < num_frames; ++f) {
-    for (size_t ch = 0; ch < num_channels_; ++ch) {
-      cur = WriteSample(block[ch][f], cur, format_);
-    }
-  }
+void PlayClient::Play(const void *buffer, size_t size) {
   int res;
-  int byte_to_write = buf_size;
+  int byte_to_write = size;
+  const uint8_t *ptr = static_cast<const uint8_t *>(buffer);
   // Keep writing to pipe until error or finishing.
-  while ((res = write(play_fd_, buf, byte_to_write)) < byte_to_write) {
+  while ((res = write(play_fd_, ptr, byte_to_write)) < byte_to_write) {
     if (res < 0) {
-      return res;
+      perror("Failed to write to player.");
+      exit(EXIT_FAILURE);
     }
-    buf += res;
+    ptr += res;
     byte_to_write -= res;
   }
-  return num_frames;
 }
 
 void RecordClient::Start() {
@@ -150,18 +133,20 @@ void RecordClient::Start() {
   child_pid_ = StartProcess(command_, -1, other_side_fd);
 }
 
-int RecordClient::Record(std::vector<std::vector<double> > *sample_ptr,
-                         size_t num_frames) {
-  size_t bufsize = num_frames * num_channels_ * format_.bytes();
-  char *buf = new char[bufsize];
-  int res = read(record_fd_, buf, bufsize);
-  if (res <= 0)
-    return res;
+void RecordClient::Record(void *buffer, size_t size) {
+  int res;
+  int byte_to_read = size;
 
-  FramesToSamples(buf, bufsize, num_channels_, sample_ptr, format_);
-  delete [] buf;
-  // Returns number of frames read.
-  return res / (num_channels_ * format_.bytes());
+  uint8_t *ptr = static_cast<uint8_t *>(buffer);
+
+  while ((res = read(record_fd_, ptr, byte_to_read)) < byte_to_read) {
+    if (res < 0) {
+      fprintf(stderr, "Retrieve recorded data error.\n");
+      exit(EXIT_FAILURE);
+    }
+    ptr += res;
+    byte_to_read -= res;
+  }
 }
 
 void RecordClient::Terminate() {
