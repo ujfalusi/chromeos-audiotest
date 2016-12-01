@@ -11,12 +11,12 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_CPP_EXTENSION := .cc
 
 LOCAL_SRC_FILES := \
-		src/audiofuntest_v2.cc \
-		src/connector.cc \
-		src/frame_generator.cc \
+		src/audiofuntest.cc \
+		src/binary_client.cc \
+		src/common.cc \
 		src/evaluator.cc \
-		src/param_config.cc
+		src/frame_generator.cc
 
-LOCAL_MODULE := audiofuntest_v2
+LOCAL_MODULE := audiofuntest
 
 include $(BUILD_EXECUTABLE)

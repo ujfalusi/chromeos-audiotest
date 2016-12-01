@@ -15,8 +15,8 @@ CRAS_LIBS := $(shell $(PKG_CONFIG) --libs libcras)
 CXX_BINARY(src/audiofuntest): \
 	src/audiofuntest.o \
 	src/common.o \
+	src/binary_client.o \
 	src/frame_generator.o \
-	src/connector.o \
 	src/evaluator.o
 CXX_BINARY(src/audiofuntest): \
 	CPPFLAGS += -std=c++11

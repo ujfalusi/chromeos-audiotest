@@ -8,8 +8,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "include/binary_client.h"
 #include "include/common.h"
-#include "include/connector.h"
 #include "include/evaluator.h"
 #include "include/frame_generator.h"
 
@@ -309,10 +309,10 @@ int main(int argc, char *argv[]) {
   FrameGenerator generator(config);
 
   PlayClient player(config);
-  player.InitProcess();
+  player.Start();
 
   RecordClient recorder(config);
-  recorder.InitProcess();
+  recorder.Start();
 
   Evaluator evaluator(config);
 
