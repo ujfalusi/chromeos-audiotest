@@ -5,6 +5,9 @@
 #ifndef INCLUDE_EVALUATOR_H_
 #define INCLUDE_EVALUATOR_H_
 
+#include <stdint.h>
+
+#include <memory>
 #include <vector>
 
 #include "include/binary_client.h"
@@ -14,7 +17,6 @@
 class Evaluator {
  public:
   explicit Evaluator(const AudioFunTestConfig &);
-  ~Evaluator();
 
   // Evaluates the recorded wave and compared with the expected bin.
   // Saves the result in the vector that indicates the successness of each mic
@@ -33,7 +35,7 @@ class Evaluator {
   SampleFormat format_;
   int sample_rate_;
   std::vector<double> bin_;
-  uint8_t* buffer_;
+  std::unique_ptr<uint8_t[]> buffer_;
   size_t buf_size_;
 
   double confidence_threshold_;

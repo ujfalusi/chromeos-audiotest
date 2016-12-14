@@ -107,11 +107,7 @@ Evaluator::Evaluator(const AudioFunTestConfig &config)
       + confidence_threshold_ + 2;
 
   buf_size_ = num_channels_ * config.fft_size * format_.bytes();
-  buffer_ = new uint8_t[buf_size_];
-}
-
-Evaluator::~Evaluator() {
-  delete [] buffer_;
+  buffer_.reset(new uint8_t[buf_size_]);
 }
 
 void Evaluator::Evaluate(int center_bin,
@@ -124,10 +120,11 @@ void Evaluator::Evaluate(int center_bin,
        trial <= max_trial_ && !all_pass;
        ++trial) {
     all_pass = true;
-    recorder->Record(buffer_, buf_size_);
+    recorder->Record(buffer_.get(), buf_size_);
 
     std::vector<std::vector<double> > data;
-    int num_frames = Unpack(buffer_, buf_size_, format_, num_channels_, &data);
+    int num_frames = Unpack(
+        buffer_.get(), buf_size_, format_, num_channels_, &data);
 
     std::vector<double> complex_data(num_frames * 2);
 

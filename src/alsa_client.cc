@@ -62,7 +62,6 @@ int AlsaPlaybackClient::PlaybackParam::Init(_snd_pcm *handle,
                                             SampleFormat format,
                                             int num_channels) {
   int last_error;
-  FreeMemory();
   snd_pcm_uframes_t buffer_size = 0;
   snd_pcm_uframes_t period_size = 0;
   if ((last_error = snd_pcm_get_params(handle, &buffer_size,
@@ -71,7 +70,7 @@ int AlsaPlaybackClient::PlaybackParam::Init(_snd_pcm *handle,
   }
   num_frames_  = static_cast<size_t>(period_size);
   frame_bytes_ = SampleFormatToFrameBytes(format, num_channels);
-  chunk_       = new char[num_frames_ * frame_bytes_];
+  chunk_.reset(new char[num_frames_ * frame_bytes_]);
   return 0;
 }
 
@@ -237,11 +236,12 @@ void AlsaPlaybackClient::Play(
   // snd_pcm_drain() call takes a second or more to exit for some reason.
   int silent_chunk_count =
       1 + sample_rate_ * latency_ms_ / 1000 / pb_param_.num_frames_;
-  memset(pb_param_.chunk_, 0, pb_param_.num_frames_ * pb_param_.frame_bytes_);
+  memset(pb_param_.chunk_.get(), 0,
+         pb_param_.num_frames_ * pb_param_.frame_bytes_);
   while (silent_chunk_count--) {
     last_error_ = snd_pcm_writei(
         pcm_out_handle_,
-        static_cast<void *>(pb_param_.chunk_),
+        static_cast<void *>(pb_param_.chunk_.get()),
         static_cast<snd_pcm_uframes_t>(pb_param_.num_frames_));
   }
   set_state(kComplete);
@@ -262,14 +262,14 @@ void AlsaPlaybackClient::PlayTones() {
     size_t to_write = pb_param_.num_frames_ * pb_param_.frame_bytes_;
     size_t written = to_write;
     written = generator_->GetFrames(format_, num_channels_, *active_channels_,
-                                    pb_param_.chunk_, to_write);
+                                    pb_param_.chunk_.get(), to_write);
 
     if (written < to_write)
-      memset(pb_param_.chunk_ + written, 0, (to_write - written));
+      memset(pb_param_.chunk_.get() + written, 0, (to_write - written));
 
     last_error_ = snd_pcm_writei(
         pcm_out_handle_,
-        static_cast<void *>(pb_param_.chunk_),
+        static_cast<void *>(pb_param_.chunk_.get()),
         static_cast<snd_pcm_uframes_t>(pb_param_.num_frames_));
     if (last_error_ < 0)
       break;
@@ -279,11 +279,12 @@ void AlsaPlaybackClient::PlayTones() {
   // snd_pcm_drain() call takes a second or more to exit for some reason.
   int silent_chunk_count =
       1 + sample_rate_ * latency_ms_ / 1000 / pb_param_.num_frames_;
-  memset(pb_param_.chunk_, 0, pb_param_.num_frames_ * pb_param_.frame_bytes_);
+  memset(pb_param_.chunk_.get(), 0,
+         pb_param_.num_frames_ * pb_param_.frame_bytes_);
   while (silent_chunk_count--) {
     last_error_ = snd_pcm_writei(
         pcm_out_handle_,
-        static_cast<void *>(pb_param_.chunk_),
+        static_cast<void *>(pb_param_.chunk_.get()),
         static_cast<snd_pcm_uframes_t>(pb_param_.num_frames_));
   }
   set_state(kComplete);

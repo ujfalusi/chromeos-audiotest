@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <memory>
 #include <set>
 #include <thread>
 
@@ -21,7 +22,6 @@ class GeneratorPlayer {
                   const std::set<int> &active_channels,
                   SampleFormat format,
                   PlayClient *player);
-  ~GeneratorPlayer();
   void Play(ToneGenerator *generator);
   void Stop();
 
@@ -33,7 +33,7 @@ class GeneratorPlayer {
   PlayClient *player_;
   std::thread thread_;
   bool is_stopped_;
-  uint8_t *buffer_;
+  std::unique_ptr<uint8_t[]> buffer_;
 
   void Run(ToneGenerator *generator);
 };

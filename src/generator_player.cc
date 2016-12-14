@@ -17,13 +17,8 @@ GeneratorPlayer::GeneratorPlayer(size_t buf_size,
       active_channels_(active_channels),
       format_(format),
       player_(player),
-      is_stopped_(true) {
-  buffer_ = new uint8_t[buf_size_];
-}
-
-GeneratorPlayer::~GeneratorPlayer() {
-  delete [] buffer_;
-}
+      is_stopped_(true),
+      buffer_(new uint8_t[buf_size_]) {}
 
 void GeneratorPlayer::Play(ToneGenerator *generator) {
   if (!is_stopped_) {
@@ -44,8 +39,8 @@ void GeneratorPlayer::Stop() {
 void GeneratorPlayer::Run(ToneGenerator *generator) {
   while (!is_stopped_ && generator->HasMoreFrames()) {
     size_t frame_read = generator->GetFrames(
-        format_, num_channels_, active_channels_, buffer_, buf_size_);
-    player_->Play(buffer_, frame_read * num_channels_ * format_.bytes());
+        format_, num_channels_, active_channels_, buffer_.get(), buf_size_);
+    player_->Play(buffer_.get(), frame_read * num_channels_ * format_.bytes());
   }
   is_stopped_ = true;
 }

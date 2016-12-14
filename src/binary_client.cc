@@ -11,6 +11,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <memory>
+
 namespace {
 
 // Fork, exec child process and set its stdin / stdout fd.
@@ -24,9 +26,9 @@ int StartProcess(const std::string &cmd, int stdin_fd, int stdout_fd) {
   // Parse command into execvp accepted format.
   std::vector<char *> args;
   char *token;
-  char *buf = new char[cmd.size() + 1];
-  strncpy(buf, cmd.c_str(), cmd.size() + 1);
-  for (char *ptr = buf, *saveptr; ; ptr = NULL) {
+  std::unique_ptr<char[]> buf(new char[cmd.size() + 1]);
+  strncpy(buf.get(), cmd.c_str(), cmd.size() + 1);
+  for (char *ptr = buf.get(), *saveptr; ; ptr = NULL) {
     token = strtok_r(ptr, " ", &saveptr);
     args.push_back(token);
     if (token == NULL) break;
@@ -52,7 +54,6 @@ int StartProcess(const std::string &cmd, int stdin_fd, int stdout_fd) {
       exit(EXIT_FAILURE);
     }
   }
-  delete [] buf;
 
   // parent
   return child_pid;
