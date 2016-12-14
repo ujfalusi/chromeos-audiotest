@@ -133,16 +133,11 @@ class AlsaPlaybackClient {
 
   class PlaybackParam {
     friend class AlsaPlaybackClient;
-    PlaybackParam() : chunk_(NULL), num_frames_(0), frame_bytes_(0) {}
-    void FreeMemory() {
-      if (chunk_) delete [] chunk_;
-      chunk_ = NULL;
-    }
-    ~PlaybackParam() { FreeMemory(); }
+    PlaybackParam() : chunk_(nullptr), num_frames_(0), frame_bytes_(0) {}
     int Init(_snd_pcm *handle, SampleFormat format, int num_channels);
     void Print(FILE *fp);
 
-    char *chunk_;
+    std::unique_ptr<char[]> chunk_;
     size_t num_frames_;
     int frame_bytes_;
   };
