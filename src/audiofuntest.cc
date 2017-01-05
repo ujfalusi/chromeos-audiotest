@@ -205,7 +205,7 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "\t-t, --sample-format:\n"
           "\t\tFormat of recording & playing samples, should be one of u8, "
           "s16, s24, s32."
-          "(def %s).", default_config.sample_format.to_string());
+          "(def %s).\n", default_config.sample_format.to_string());
   fprintf(fd,
           "\t-c, --num-mic-channels:\n"
           "\t\tThe number of microphone channels "
