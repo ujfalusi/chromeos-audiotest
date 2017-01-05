@@ -53,6 +53,14 @@ int StartProcess(const std::string &cmd, int stdin_fd, int stdout_fd) {
       kill(getppid(), SIGKILL);
       exit(EXIT_FAILURE);
     }
+  } else {  // parent
+    // These fds are owned by child process, close them.
+    if (stdin_fd > 0) {
+      close(stdin_fd);
+    }
+    if (stdout_fd > 0) {
+      close(stdout_fd);
+    }
   }
 
   // parent
@@ -141,7 +149,7 @@ void RecordClient::Record(void *buffer, size_t size) {
   uint8_t *ptr = static_cast<uint8_t *>(buffer);
 
   while ((res = read(record_fd_, ptr, byte_to_read)) < byte_to_read) {
-    if (res < 0) {
+    if (res <= 0) {
       fprintf(stderr, "Retrieve recorded data error.\n");
       exit(EXIT_FAILURE);
     }
