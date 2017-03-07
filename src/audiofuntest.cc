@@ -17,10 +17,11 @@
 #include "include/tone_generators.h"
 
 constexpr static const char *short_options =
-    "a:d:n:o:w:P:f:R:F:r:t:c:C:T:l:hv";
+    "a:m:d:n:o:w:P:f:R:F:r:t:c:C:T:l:hv";
 
 constexpr static const struct option long_options[] = {
   {"active-speaker-channels", 1, NULL, 'a'},
+  {"active-mic-channels", 1, NULL, 'm'},
   {"allowed-delay", 1, NULL, 'd'},
   {"fft-size", 1, NULL, 'n'},
   {"confidence-threshold", 1, NULL, 'o'},
@@ -67,6 +68,9 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
     switch (opt) {
       case 'a':
         ParseActiveChannels(optarg, &(config->active_speaker_channels));
+        break;
+      case 'm':
+        ParseActiveChannels(optarg, &(config->active_mic_channels));
         break;
       case 'd':
         config->allowed_delay_sec = atof(optarg);
@@ -151,6 +155,12 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
       config->active_speaker_channels.insert(i);
     }
   }
+
+  if (config->active_mic_channels.empty()) {
+    for (int i = 0; i < config->num_mic_channels; ++i) {
+      config->active_mic_channels.insert(i);
+    }
+  }
   return true;
 }
 
@@ -163,6 +173,10 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
   fprintf(fd,
           "\t-a, --active-speaker-channels:\n"
           "\t\tComma-separated list of speaker channels to play on. "
+          "(def all channels)\n");
+  fprintf(fd,
+          "\t-m, --active-mic-channels:\n"
+          "\t\tComma-separated list of mic channels to test. "
           "(def all channels)\n");
   fprintf(fd,
           "\t-d, --allowed-delay:\n"
@@ -228,17 +242,24 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "\t-h, --help: Show this page.\n");
 }
 
-void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
-  fprintf(fd, "Config values.\n");
-
-  fprintf(fd, "\tSpeaker active channels: ");
+void PrintSet(const std::set<int> &numbers, FILE *fd = stdout) {
   bool first = true;
-  for (auto it : config.active_speaker_channels) {
+  for (auto it : numbers) {
     if (!first)
       fprintf(fd, ", ");
     fprintf(fd, "%d", it);
     first = false;
   }
+}
+
+void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
+  fprintf(fd, "Config values.\n");
+
+  fprintf(fd, "\tSpeaker active channels: ");
+  PrintSet(config.active_speaker_channels, fd);
+  fprintf(fd, "\n");
+  fprintf(fd, "\tMic active channels: ");
+  PrintSet(config.active_mic_channels, fd);
   fprintf(fd, "\n");
   fprintf(fd, "\tAllowed delay: %.4f(s)\n", config.allowed_delay_sec);
   fprintf(fd, "\tFFT size: %d\n", config.fft_size);
@@ -315,7 +336,7 @@ void ControlLoop(const AudioFunTestConfig &config,
     generatorPlayer.Stop();
 
     printf("carrier = %d\n", bin);
-    for (int c = 0; c < config.num_mic_channels; ++c) {
+    for (auto c : config.active_mic_channels) {
       const char *res = single_round_pass[c] ? "O" : "X";
       printf("%s: channel = %d, success = %d, fail = %d, rate = %.4f\n",
              res, c, passes[c], round - passes[c], 100.0 * passes[c] / round);

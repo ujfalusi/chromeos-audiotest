@@ -56,6 +56,7 @@ struct AudioFunTestConfig {
         verbose(false) {}
 
   std::set<int> active_speaker_channels;
+  std::set<int> active_mic_channels;
   double allowed_delay_sec;
   int fft_size;
   int match_window_size;

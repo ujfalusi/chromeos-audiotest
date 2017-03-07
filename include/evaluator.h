@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <set>
 #include <vector>
 
 #include "include/binary_client.h"
@@ -32,6 +33,7 @@ class Evaluator {
   std::vector<double> filter_;
   int half_window_size_;
   int num_channels_;
+  std::set<int> active_mic_channels_;
   SampleFormat format_;
   int sample_rate_;
   std::vector<double> bin_;

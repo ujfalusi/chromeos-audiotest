@@ -82,6 +82,7 @@ Evaluator::Evaluator(const AudioFunTestConfig &config)
     : filter_(config.match_window_size),
       half_window_size_(config.match_window_size / 2),
       num_channels_(config.num_mic_channels),
+      active_mic_channels_(config.active_mic_channels),
       format_(config.sample_format),
       sample_rate_(config.sample_rate),
       bin_(config.match_window_size),
@@ -129,7 +130,7 @@ void Evaluator::Evaluate(int center_bin,
     std::vector<double> complex_data(num_frames * 2);
 
     // Evaluates all channels.
-    for (int channel = 0; channel < num_channels_; ++channel) {
+    for (int channel: active_mic_channels_) {
       if (accum_confidence[channel] >= confidence_threshold_)
         continue;
       ToComplex(data[channel], &complex_data);
