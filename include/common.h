@@ -5,6 +5,7 @@
 #ifndef INCLUDE_COMMON_H_
 #define INCLUDE_COMMON_H_
 
+#include <pthread.h>
 #include <set>
 #include <string>
 
