@@ -17,7 +17,7 @@
 #include "include/tone_generators.h"
 
 constexpr static const char *short_options =
-    "a:m:d:n:o:w:P:f:R:F:r:t:c:C:T:l:hv";
+    "a:m:d:n:o:w:P:f:R:F:r:t:c:C:T:l:g:hv";
 
 constexpr static const struct option long_options[] = {
   {"active-speaker-channels", 1, NULL, 'a'},
@@ -36,6 +36,7 @@ constexpr static const struct option long_options[] = {
   {"num-speaker-channels", 1, NULL, 'C'},
   {"test-rounds", 1, NULL, 'T'},
   {"tone-length", 1, NULL, 'l'},
+  {"volume-gain", 1, NULL, 'g'},
 
   // Other helper args.
   {"help", 0, NULL, 'h'},
@@ -129,6 +130,12 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
           return false;
         }
         break;
+      case 'g':
+        config->volume_gain = atoi(optarg);
+        if (config->volume_gain < 0 || config->volume_gain > 100) {
+          fprintf(stderr, "Value of volume_gain is out of range.\n");
+          return false;
+        }
       case 'v':
         config->verbose = true;
         break;
@@ -237,6 +244,11 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "\t\tDecimal value of tone length in secs "
           "(def %.4f)\n", default_config.tone_length_sec);
   fprintf(fd,
+          "\t-g, --volume-gain\n"
+          "\t\tControl the volume of generated audio frames. The range is from"
+          " 0 to 100.");
+
+  fprintf(fd,
           "\t-v, --verbose: Show debugging information.\n");
   fprintf(fd,
           "\t-h, --help: Show this page.\n");
@@ -277,6 +289,7 @@ void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
           config.num_speaker_channels);
   fprintf(fd, "\tNumber of test rounds: %d\n", config.test_rounds);
   fprintf(fd, "\tTone length: %.4f(s)\n", config.tone_length_sec);
+  fprintf(fd, "\tVolume gain: %d\n", config.volume_gain);
 
   if (config.verbose)
     fprintf(fd, "\t** Verbose **.\n");
@@ -311,7 +324,10 @@ void ControlLoop(const AudioFunTestConfig &config,
 
   size_t buf_size = config.fft_size * config.num_speaker_channels *
       config.sample_format.bytes();
-  SineWaveGenerator generator(config.sample_rate, config.tone_length_sec);
+  SineWaveGenerator generator(
+      config.sample_rate,
+      config.tone_length_sec,
+      config.volume_gain);
   GeneratorPlayer generatorPlayer(
       buf_size,
       config.num_speaker_channels,

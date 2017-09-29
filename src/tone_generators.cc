@@ -14,9 +14,10 @@ namespace {
   static const double kHalfPi = kPi / 2.0;
 }
 
-SineWaveGenerator::SineWaveGenerator(int sample_rate, double length_sec)
+SineWaveGenerator::SineWaveGenerator(int sample_rate, double length_sec,
+    int volume_gain)
     : cur_x_(0.0), cur_frame_(0), sample_rate_(sample_rate),
-      length_sec(length_sec), frequency_(0.0) {
+      length_sec(length_sec), frequency_(0.0), volume_gain_(volume_gain) {
   if (length_sec > 0)
     total_frame_ = length_sec * sample_rate;
   else
@@ -26,7 +27,7 @@ SineWaveGenerator::SineWaveGenerator(int sample_rate, double length_sec)
 double SineWaveGenerator::Next() {
   cur_x_ += (kPi * 2 * frequency_) / sample_rate_;
   cur_frame_++;
-  return sin(cur_x_);
+  return sin(cur_x_) * volume_gain_ / 100.0;
 }
 void SineWaveGenerator::Reset(double frequency) {
   cur_x_ = 0;

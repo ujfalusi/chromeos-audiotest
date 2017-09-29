@@ -50,7 +50,9 @@ class ToneGenerator {
 
 class SineWaveGenerator : public ToneGenerator {
  public:
-  explicit SineWaveGenerator(int sample_rate, double length_sec = -1.0);
+  explicit SineWaveGenerator(int sample_rate,
+                             double length_sec = -1.0,
+                             int volume_gain = 50);
 
   // Generates a sampled sine wave, where the sine wave period is determined
   // by |frequency| and the sine wave sampling rate is determined by
@@ -71,6 +73,7 @@ class SineWaveGenerator : public ToneGenerator {
   int sample_rate_;
   double length_sec;
   double frequency_;
+  int volume_gain_;
 };
 
 
