@@ -66,6 +66,15 @@ CC_BINARY(src/alsa_api_test): \
 clean: CC_BINARY(src/alsa_api_test)
 all: CC_BINARY(src/alsa_api_test)
 
+CC_BINARY(src/alsa_helpers): \
+	src/alsa_helpers.o
+CC_BINARY(src/alsa_helpers): \
+	CFLAGS += $(ALSA_CFLAGS)
+CC_BINARY(src/alsa_helpers): \
+	LDLIBS += $(ALSA_LIBS)
+clean: CC_BINARY(src/alsa_helpers)
+all: CC_BINARY(src/alsa_helpers)
+
 CC_BINARY(src/cras_api_test): \
 	src/cras_api_test.o
 CC_BINARY(src/cras_api_test): \
