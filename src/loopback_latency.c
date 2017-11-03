@@ -364,8 +364,8 @@ static int cras_add_stream(struct cras_client *client,
     struct cras_audio_format *aud_format;
     cras_playback_cb_t aud_cb;
     cras_error_cb_t error_cb;
-    size_t cb_threshold = buffer_frames / 10;
-    size_t min_cb_level = buffer_frames / 10;
+    size_t cb_threshold = buffer_frames;
+    size_t min_cb_level = buffer_frames;
     int rc = 0;
     cras_stream_id_t stream_id = 0;
 
