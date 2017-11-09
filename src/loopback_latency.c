@@ -640,8 +640,8 @@ void alsa_test_latency(char *play_dev, char *cap_dev)
 int main (int argc, char *argv[])
 {
     int cras_only = 0;
-    char *play_dev = "default";
-    char *cap_dev = "default";
+    char *play_dev = NULL;
+    char *cap_dev = NULL;
 
     int arg;
     while ((arg = getopt(argc, argv, "b:i:o:n:r:p:c")) != -1) {
@@ -676,7 +676,12 @@ int main (int argc, char *argv[])
 
     if (cras_only)
         cras_test_latency();
-    else
-        alsa_test_latency(play_dev, cap_dev);
+    else {
+      if (play_dev == NULL || cap_dev == NULL) {
+          fprintf(stderr, "Input/output devices must be set in Alsa mode.\n");
+          exit(1);
+      }
+      alsa_test_latency(play_dev, cap_dev);
+    }
     exit(0);
 }
