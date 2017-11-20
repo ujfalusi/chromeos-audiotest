@@ -71,7 +71,6 @@ class SineWaveGenerator : public ToneGenerator {
   int cur_frame_;
   int total_frame_;
   int sample_rate_;
-  double length_sec;
   double frequency_;
   int volume_gain_;
 };

@@ -17,7 +17,7 @@ namespace {
 SineWaveGenerator::SineWaveGenerator(int sample_rate, double length_sec,
     int volume_gain)
     : cur_x_(0.0), cur_frame_(0), sample_rate_(sample_rate),
-      length_sec(length_sec), frequency_(0.0), volume_gain_(volume_gain) {
+      frequency_(0.0), volume_gain_(volume_gain) {
   if (length_sec > 0)
     total_frame_ = length_sec * sample_rate;
   else
