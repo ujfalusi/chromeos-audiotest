@@ -32,6 +32,7 @@
 #define PLAYBACK_COUNT          50
 #define PLAYBACK_SILENT_COUNT   50
 #define PLAYBACK_TIMEOUT_COUNT 100
+#define TTY_OUTPUT_SIZE       1024
 
 static double phase = M_PI / 2;
 static unsigned rate = 48000;
@@ -43,6 +44,9 @@ static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 static struct timeval *cras_play_time = NULL;
 static struct timeval *cras_cap_time = NULL;
 static int noise_threshold = 0x4000;
+static char *tty_output_dev = NULL;
+static FILE *tty_output = NULL;
+static const char tty_zeros_block[TTY_OUTPUT_SIZE] = {0};
 
 static int capture_count;
 static int playback_count;
@@ -339,6 +343,11 @@ static int cras_play_tone(struct cras_client *client,
             cras_play_time =
                     (struct timeval *)malloc(sizeof(*cras_play_time));
             gettimeofday(cras_play_time, NULL);
+            if (tty_output) {
+                fwrite(tty_zeros_block, sizeof(char),
+                       TTY_OUTPUT_SIZE, tty_output);
+                fflush(tty_output);
+            }
         }
     }
 
@@ -547,6 +556,16 @@ void cras_test_latency()
         exit(1);
     }
 
+    if (tty_output_dev) {
+        tty_output = fopen(tty_output_dev, "w");
+        if (!tty_output)
+            fprintf(stderr, "Failed to open TTY output device: %s",
+                    tty_output_dev);
+        else
+            fprintf(stdout, "Opened %s for UART signal\n",
+                    tty_output_dev);
+    }
+
     pthread_mutex_init(&latency_test_mutex, NULL);
     pthread_cond_init(&sine_start, NULL);
     pthread_cond_init(&terminate_test, NULL);
@@ -576,13 +595,23 @@ void cras_test_latency()
     pthread_mutex_unlock(&latency_test_mutex);
 
     if (cras_cap_time && cras_play_time) {
+        unsigned long playback_latency_us, capture_latency_us;
         unsigned long latency = subtract_timevals(cras_cap_time,
                                                   cras_play_time);
         fprintf(stdout, "Measured Latency: %lu uS.\n", latency);
 
-        latency = (playback_latency.tv_sec + capture_latency.tv_sec) * 1000000 +
-                (playback_latency.tv_nsec + capture_latency.tv_nsec) / 1000;
-        fprintf(stdout, "Reported Latency: %lu uS.\n", latency);
+        playback_latency_us = (playback_latency.tv_sec * 1000000) +
+            (playback_latency.tv_nsec / 1000);
+        capture_latency_us = (capture_latency.tv_sec * 1000000) +
+            (capture_latency.tv_nsec / 1000);
+
+        fprintf(stdout,
+                "Reported Latency: %lu uS.\n"
+                "Reported Output Latency: %lu uS.\n"
+                "Reported Input Latency: %lu uS.\n",
+                playback_latency_us + capture_latency_us,
+                playback_latency_us,
+                capture_latency_us);
     } else {
         fprintf(stdout, "Audio not detected.\n");
     }
@@ -591,6 +620,8 @@ void cras_test_latency()
     cras_client_stop(client);
     cras_client_stream_params_destroy(playback_params);
     cras_client_stream_params_destroy(capture_params);
+    if (tty_output)
+        fclose(tty_output);
     if (cras_play_time)
         free(cras_play_time);
     if (cras_cap_time)
@@ -644,7 +675,7 @@ int main (int argc, char *argv[])
     char *cap_dev = NULL;
 
     int arg;
-    while ((arg = getopt(argc, argv, "b:i:o:n:r:p:c")) != -1) {
+    while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:")) != -1) {
     switch (arg) {
         case 'b':
             buffer_frames = atoi(optarg);
@@ -668,6 +699,9 @@ int main (int argc, char *argv[])
             break;
         case 'p':
             period_size = atoi(optarg);
+            break;
+        case 't':
+            tty_output_dev = optarg;
             break;
         default:
             return 1;
