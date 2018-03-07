@@ -572,19 +572,19 @@ void cras_test_latency()
 
     cras_client_run_thread(client);
     rc = cras_add_stream(client,
-                         playback_params,
-                         CRAS_STREAM_OUTPUT,
-                         &playback_latency);
-    if (rc < 0) {
-        fprintf(stderr, "Fail to add playback stream.\n");
-        exit(1);
-    }
-    rc = cras_add_stream(client,
                          capture_params,
                          CRAS_STREAM_INPUT,
                          &capture_latency);
     if (rc < 0) {
         fprintf(stderr, "Fail to add capture stream.\n");
+        exit(1);
+    }
+    rc = cras_add_stream(client,
+                         playback_params,
+                         CRAS_STREAM_OUTPUT,
+                         &playback_latency);
+    if (rc < 0) {
+        fprintf(stderr, "Fail to add playback stream.\n");
         exit(1);
     }
 
