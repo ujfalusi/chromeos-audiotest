@@ -86,6 +86,18 @@ void dev_thread_set_format(struct dev_thread *thread, snd_pcm_format_t format)
     thread->format = format;
 }
 
+void dev_thread_set_format_from_str(struct dev_thread *thread,
+                                    const char *format_str)
+{
+    snd_pcm_format_t format;
+    format = snd_pcm_format_value(format_str);
+    if (format == SND_PCM_FORMAT_UNKNOWN) {
+        fprintf(stderr, "unknown format: %s\n", format_str);
+        exit(EXIT_FAILURE);
+    }
+    thread->format = format;
+}
+
 void dev_thread_set_rate(struct dev_thread *thread, unsigned int rate)
 {
     thread->rate = rate;

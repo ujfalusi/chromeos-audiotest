@@ -42,6 +42,9 @@ unsigned int args_get_block_size(const struct alsa_conformance_args *args);
 /* Return duration of argument. */
 double args_get_duration(const struct alsa_conformance_args *args);
 
+/* Return device file of argument. */
+const char* args_get_device_file(const struct alsa_conformance_args *args);
+
 /* Set playback device name. */
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
                                 const char *name);
@@ -70,5 +73,9 @@ void args_set_block_size(struct alsa_conformance_args *args, unsigned int size);
 
 /* Set duration of argument. */
 void args_set_duration(struct alsa_conformance_args *args, double duration);
+
+/* Set device file of argument. */
+void args_set_device_file(struct alsa_conformance_args *args,
+                          const char *name);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_ARGS_H_ */
