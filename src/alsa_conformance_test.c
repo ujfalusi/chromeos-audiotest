@@ -24,6 +24,10 @@ void show_usage(const char *name)
     printf("\t-f, --format <format>: Set format. (default: S16_LE)\n");
     printf("\t-r, --rate <rate>: Set rate. (default: 48000)\n");
     printf("\t-p, --period <period>: Set period. (default: 240)\n");
+    printf("\t-d, --durations <duration>: "
+           "Set durations(second). (default: 1.0)\n");
+    printf("\t-B, --block_size <block_size>: "
+           "Set block size in frames of each write. (default: 240)\n");
 }
 
 void set_dev_thread_args(struct dev_thread *thread,
@@ -35,6 +39,8 @@ void set_dev_thread_args(struct dev_thread *thread,
     dev_thread_set_format(thread, args_get_format(args));
     dev_thread_set_rate(thread, args_get_rate(args));
     dev_thread_set_period_size(thread, args_get_period_size(args));
+    dev_thread_set_block_size(thread, args_get_block_size(args));
+    dev_thread_set_duration(thread, args_get_duration(args));
 }
 
 void alsa_conformance_run(struct alsa_conformance_args *args)
@@ -51,6 +57,7 @@ void alsa_conformance_run(struct alsa_conformance_args *args)
     dev_thread_set_params(thread);
     dev_thread_print_params(thread);
 
+    dev_thread_run(thread);
     dev_thread_print_result(thread);
     dev_thread_destroy(thread);
 }
@@ -60,7 +67,7 @@ void parse_arguments(struct alsa_conformance_args *test_args,
                      char *argv[])
 {
     int c;
-    const char *short_opt = "hP:c:f:r:p:";
+    const char *short_opt = "hP:c:f:r:p:B:d:";
     static struct option long_opt[] =
     {
         {"help",         no_argument,       NULL, 'h'},
@@ -69,6 +76,8 @@ void parse_arguments(struct alsa_conformance_args *test_args,
         {"format",       required_argument, NULL, 'f'},
         {"rate",         required_argument, NULL, 'r'},
         {"period",       required_argument, NULL, 'p'},
+        {"block_size",   required_argument, NULL, 'B'},
+        {"durations",    required_argument, NULL, 'd'},
         {0, 0, 0, 0}
     };
     while (1) {
@@ -99,6 +108,14 @@ void parse_arguments(struct alsa_conformance_args *test_args,
 
         case 'p':
             args_set_period_size(test_args, (unsigned int) atoi(optarg));
+            break;
+
+        case 'B':
+            args_set_block_size(test_args, (unsigned int) atoi(optarg));
+            break;
+
+        case 'd':
+            args_set_duration(test_args, (double) atof(optarg));
             break;
 
         case ':':

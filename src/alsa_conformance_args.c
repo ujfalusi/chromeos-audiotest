@@ -18,6 +18,8 @@ struct alsa_conformance_args {
     snd_pcm_format_t format;
     unsigned int rate;
     snd_pcm_uframes_t period_size;
+    unsigned int block_size;
+    double duration;
 };
 
 struct alsa_conformance_args *args_create()
@@ -36,6 +38,8 @@ struct alsa_conformance_args *args_create()
     args->format = SND_PCM_FORMAT_S16_LE;
     args->rate = 48000;
     args->period_size = 240;
+    args->block_size = 240;
+    args->duration = 1.0;
 
     return args;
 }
@@ -71,6 +75,16 @@ snd_pcm_uframes_t args_get_period_size(const struct alsa_conformance_args *args)
     return args->period_size;
 }
 
+unsigned int args_get_block_size(const struct alsa_conformance_args *args)
+{
+    return args->block_size;
+}
+
+double args_get_duration(const struct alsa_conformance_args *args)
+{
+    return args->duration;
+}
+
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
                                 const char *name)
 {
@@ -104,4 +118,14 @@ void args_set_period_size(struct alsa_conformance_args *args,
                           unsigned int period_size)
 {
     args->period_size = (snd_pcm_uframes_t) period_size;
+}
+
+void args_set_block_size(struct alsa_conformance_args *args, unsigned int size)
+{
+    args->block_size = size;
+}
+
+void args_set_duration(struct alsa_conformance_args *args, double duration)
+{
+    args->duration = duration;
 }

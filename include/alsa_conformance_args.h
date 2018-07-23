@@ -32,6 +32,12 @@ unsigned int args_get_rate(const struct alsa_conformance_args *args);
 snd_pcm_uframes_t args_get_period_size(
         const struct alsa_conformance_args *args);
 
+/* Return block size of each write. */
+unsigned int args_get_block_size(const struct alsa_conformance_args *args);
+
+/* Return duration of argument. */
+double args_get_duration(const struct alsa_conformance_args *args);
+
 /* Set playback device name. */
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
                                 const char *name);
@@ -50,5 +56,11 @@ void args_set_rate(struct alsa_conformance_args *args, unsigned int rate);
 /* Set period size of argument. */
 void args_set_period_size(struct alsa_conformance_args *args,
                           unsigned int period_size);
+
+/* Set block size for each write. */
+void args_set_block_size(struct alsa_conformance_args *args, unsigned int size);
+
+/* Set duration of argument. */
+void args_set_duration(struct alsa_conformance_args *args, double duration);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_ARGS_H_ */

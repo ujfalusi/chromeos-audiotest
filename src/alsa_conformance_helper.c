@@ -366,3 +366,88 @@ int alsa_helper_set_sw_param(struct alsa_conformance_timer *timer,
 
     return 0;
 }
+
+int alsa_helper_prepare(snd_pcm_t *handle)
+{
+    int rc;
+    rc = snd_pcm_prepare(handle);
+    if (rc < 0) {
+        fprintf(stderr, "snd_pcm_prepare: %s\n", snd_strerror(rc));
+        return rc;
+    }
+    return 0;
+}
+
+int alsa_helper_start(struct alsa_conformance_timer *timer,
+                      snd_pcm_t *handle)
+{
+    int rc;
+    conformance_timer_start(timer, SND_PCM_START);
+    rc = snd_pcm_start(handle);
+    conformance_timer_stop(timer, SND_PCM_START);
+    if (rc < 0) {
+        fprintf(stderr, "snd_pcm_start: %s\n", snd_strerror(rc));
+        return rc;
+    }
+
+    return 0;
+}
+
+int alsa_helper_drop(snd_pcm_t *handle)
+{
+    int rc;
+    rc = snd_pcm_drop(handle);
+    if (rc < 0) {
+        fprintf(stderr, "snd_pcm_drop: %s\n", snd_strerror(rc));
+        return rc;
+    }
+
+    return 0;
+}
+
+snd_pcm_sframes_t alsa_helper_avail(struct alsa_conformance_timer *timer,
+                                    snd_pcm_t *handle)
+{
+    snd_pcm_sframes_t rc;
+
+    conformance_timer_start(timer, SND_PCM_AVAIL);
+    rc = snd_pcm_avail(handle);
+    conformance_timer_stop(timer, SND_PCM_AVAIL);
+    if (rc < 0) {
+        fprintf(stderr, "snd_pcm_avail: %s\n", snd_strerror(rc));
+        return rc;
+    }
+
+    return rc;
+}
+
+int alsa_helper_write(snd_pcm_t *handle, uint8_t *buf, snd_pcm_uframes_t size)
+{
+    const snd_pcm_channel_area_t *my_areas;
+    snd_pcm_uframes_t frames, offset;
+    uint8_t *dst;
+    int frame_bytes;
+    int rc;
+
+    while (size > 0) {
+        frames = size;
+        rc = snd_pcm_mmap_begin(handle, &my_areas, &offset, &frames);
+        if (rc < 0) {
+            fprintf(stderr, "snd_pcm_mmap_begin: %s\n",
+                    snd_strerror(rc));
+            return rc;
+        }
+        frame_bytes = my_areas[0].step / 8;
+        dst = (uint8_t *)my_areas[0].addr + offset * frame_bytes;
+        memcpy(dst, buf, frames * frame_bytes);
+        rc = snd_pcm_mmap_commit(handle, offset, frames);
+        if (rc < 0) {
+            fprintf(stderr, "snd_pcm_mmap_commit: %s\n",
+                    snd_strerror(rc));
+            return rc;
+        }
+        size -= frames;
+        buf += frames * frame_bytes;
+    }
+    return 0;
+}

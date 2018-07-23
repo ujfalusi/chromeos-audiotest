@@ -67,7 +67,7 @@ int alsa_helper_open(struct alsa_conformance_timer *timer,
                      const char *dev_name,
                      snd_pcm_stream_t stream);
 
-/* Close an alsa device, thin wrapper to snd_pcm_close.
+/* Close an alsa device. A thin wrapper to snd_pcm_close.
  * Args:
  *    handle - The open PCM to configure.
  * Returns:
@@ -104,5 +104,52 @@ int alsa_helper_set_hw_params(struct alsa_conformance_timer *timer,
  */
 int alsa_helper_set_sw_param(struct alsa_conformance_timer *timer,
                              snd_pcm_t *handle);
+
+/* Prepare an alsa device. A thin wrapper to snd_pcm_prepare.
+ * Args:
+ *    handle - The open PCM to configure.
+ * Returns:
+ *    0 on success, negative error on failure.
+ */
+int alsa_helper_prepare(snd_pcm_t *handle);
+
+/* Starts an alsa device. A thin wrapper to snd_pcm_start.
+ * Args:
+ *    timer - A pointer to timer which records the runtime of ALSA APIs.
+ *    handle - The open PCM to configure.
+ * Returns:
+ *    0 on success, negative error on failure.
+ */
+int alsa_helper_start(struct alsa_conformance_timer *timer,
+                      snd_pcm_t *handle);
+
+/* Drops an alsa device. A thin wrapper to snd_pcm_drop.
+ * Args:
+ *    handle - The open PCM to configure.
+ * Returns:
+ *    0 on success, negative error on failure.
+ */
+int alsa_helper_drop(snd_pcm_t *handle);
+
+/* Return number of frames ready to be read (capture) / written (playback),
+ * a thin wrapper to snd_pcm_avail.
+ * Args:
+ *    timer - A pointer to timer which records the runtime of ALSA APIs.
+ *    handle - The open PCM to configure.
+ * Returns:
+ *    A positive number of frames ready otherwise a negative error code.
+ */
+snd_pcm_sframes_t alsa_helper_avail(struct alsa_conformance_timer *timer,
+                                    snd_pcm_t *handle);
+
+/* Write samples to pcm using mmap.
+ * Args:
+ *    handle - The open PCM to configure.
+ *    buf - The output buffer which contain samples.
+ *    size - The size of output buffer.
+ * Returns:
+ *    0 on success, negative error on failure.
+ */
+int alsa_helper_write(snd_pcm_t *handle, uint8_t *buf, snd_pcm_uframes_t size);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_HELPER_H_ */
