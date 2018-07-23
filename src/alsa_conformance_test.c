@@ -51,6 +51,7 @@ void alsa_conformance_run(struct alsa_conformance_args *args)
     dev_thread_set_params(thread);
     dev_thread_print_params(thread);
 
+    dev_thread_print_result(thread);
     dev_thread_destroy(thread);
 }
 

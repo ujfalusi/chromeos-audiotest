@@ -88,7 +88,8 @@ CC_BINARY(src/alsa_conformance_test): \
 	src/alsa_conformance_args.o \
 	src/alsa_conformance_helper.o \
 	src/alsa_conformance_test.o \
-	src/alsa_conformance_thread.o
+	src/alsa_conformance_thread.o \
+	src/alsa_conformance_timer.o
 CC_BINARY(src/alsa_conformance_test): \
 	CFLAGS += $(ALSA_CFLAGS)
 CC_BINARY(src/alsa_conformance_test): \

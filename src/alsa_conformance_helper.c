@@ -7,6 +7,7 @@
 #include <alsa/asoundlib.h>
 
 #include "include/alsa_conformance_helper.h"
+#include "include/alsa_conformance_timer.h"
 
 /* Print device information before setting params */
 int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
@@ -184,12 +185,14 @@ int print_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
     return 0;
 }
 
-int alsa_helper_open(snd_pcm_t **handle,
+int alsa_helper_open(struct alsa_conformance_timer *timer,
+                     snd_pcm_t **handle,
                      snd_pcm_hw_params_t **params,
                      const char *dev_name,
                      snd_pcm_stream_t stream)
 {
     int rc;
+    conformance_timer_start(timer, SND_PCM_OPEN);
     rc = snd_pcm_open(handle,
                       dev_name,
                       stream,
@@ -197,6 +200,7 @@ int alsa_helper_open(snd_pcm_t **handle,
                       SND_PCM_NO_AUTO_RESAMPLE |
                       SND_PCM_NO_AUTO_CHANNELS |
                       SND_PCM_NO_AUTO_FORMAT);
+    conformance_timer_stop(timer, SND_PCM_OPEN);
     if (rc < 0) {
         fprintf(stderr, "snd_pcm_open %s: %s\n", dev_name, snd_strerror(rc));
         return rc;
@@ -210,7 +214,9 @@ int alsa_helper_open(snd_pcm_t **handle,
     }
 
     /* set default value */
+    conformance_timer_start(timer, SND_PCM_HW_PARAMS_ANY);
     rc = snd_pcm_hw_params_any(*handle, *params);
+    conformance_timer_stop(timer, SND_PCM_HW_PARAMS_ANY);
     if (rc < 0) {
         fprintf(stderr, "snd_pcm_hw_params_any: %s\n", snd_strerror(rc));
         return rc;
@@ -229,7 +235,8 @@ int alsa_helper_close(snd_pcm_t *handle)
     return 0;
 }
 
-int alsa_helper_set_hw_params(snd_pcm_t *handle,
+int alsa_helper_set_hw_params(struct alsa_conformance_timer *timer,
+                              snd_pcm_t *handle,
                               snd_pcm_hw_params_t *params,
                               snd_pcm_format_t format,
                               unsigned int channels,
@@ -292,7 +299,9 @@ int alsa_helper_set_hw_params(snd_pcm_t *handle,
     /* TODO(yuhsuan): We should support setting buffer_size in the future.
      * It's set automatically now.*/
 
+    conformance_timer_start(timer, SND_PCM_HW_PARAMS);
     rc = snd_pcm_hw_params(handle, params);
+    conformance_timer_stop(timer, SND_PCM_HW_PARAMS);
     if (rc < 0) {
         fprintf(stderr, "snd_pcm_hw_params: %s\n", snd_strerror(rc));
         return rc;
@@ -301,7 +310,8 @@ int alsa_helper_set_hw_params(snd_pcm_t *handle,
     return 0;
 }
 
-int alsa_helper_set_sw_param(snd_pcm_t *handle)
+int alsa_helper_set_sw_param(struct alsa_conformance_timer *timer,
+                             snd_pcm_t *handle)
 {
     snd_pcm_sw_params_t *swparams;
     snd_pcm_uframes_t boundary;
@@ -346,7 +356,9 @@ int alsa_helper_set_sw_param(snd_pcm_t *handle)
         return rc;
     }
 
+    conformance_timer_start(timer, SND_PCM_SW_PARAMS);
     rc = snd_pcm_sw_params(handle, swparams);
+    conformance_timer_stop(timer, SND_PCM_SW_PARAMS);
     if (rc < 0) {
         fprintf(stderr, "snd_pcm_sw_params: %s\n", snd_strerror(rc));
         return rc;

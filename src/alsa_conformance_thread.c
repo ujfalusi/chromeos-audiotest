@@ -6,6 +6,7 @@
 
 #include "include/alsa_conformance_helper.h"
 #include "include/alsa_conformance_thread.h"
+#include "include/alsa_conformance_timer.h"
 
 struct dev_thread {
     snd_pcm_t *handle;
@@ -17,6 +18,8 @@ struct dev_thread {
     snd_pcm_format_t format;
     unsigned int rate;
     snd_pcm_uframes_t period_size;
+
+    struct alsa_conformance_timer *timer;
 };
 
 struct dev_thread *dev_thread_create()
@@ -32,6 +35,7 @@ struct dev_thread *dev_thread_create()
     thread->handle = NULL;
     thread->params = NULL;
     thread->dev_name = NULL;
+    thread->timer = conformance_timer_create();
     return thread;
 }
 
@@ -41,6 +45,7 @@ void dev_thread_destroy(struct dev_thread *thread)
     free(thread->dev_name);
     snd_pcm_hw_params_free(thread->params);
     alsa_helper_close(thread->handle);
+    conformance_timer_destroy(thread->timer);
     free(thread);
 }
 
@@ -80,8 +85,11 @@ void dev_thread_device_open(struct dev_thread *thread)
 {
     int rc;
     assert(thread->dev_name);
-    rc = alsa_helper_open(&thread->handle, &thread->params,
-                          thread->dev_name, thread->stream);
+    rc = alsa_helper_open(thread->timer,
+                          &thread->handle,
+                          &thread->params,
+                          thread->dev_name,
+                          thread->stream);
     if (rc < 0)
         exit(EXIT_FAILURE);
 }
@@ -90,7 +98,8 @@ void dev_thread_set_params(struct dev_thread *thread)
 {
     int rc;
     assert(thread->handle);
-    rc = alsa_helper_set_hw_params(thread->handle,
+    rc = alsa_helper_set_hw_params(thread->timer,
+                                   thread->handle,
                                    thread->params,
                                    thread->format,
                                    thread->channels,
@@ -99,7 +108,8 @@ void dev_thread_set_params(struct dev_thread *thread)
     if (rc < 0)
         exit(EXIT_FAILURE);
 
-    rc = alsa_helper_set_sw_param(thread->handle);
+    rc = alsa_helper_set_sw_param(thread->timer,
+                                  thread->handle);
     if (rc < 0)
         exit(EXIT_FAILURE);
 }
@@ -120,4 +130,9 @@ void dev_thread_print_params(struct dev_thread *thread)
     rc = print_params(thread->handle, thread->params);
     if (rc < 0)
         exit(EXIT_FAILURE);
+}
+
+void dev_thread_print_result(struct dev_thread* thread)
+{
+    conformance_timer_print_result(thread->timer);
 }

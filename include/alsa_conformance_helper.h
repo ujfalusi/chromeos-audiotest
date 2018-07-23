@@ -8,6 +8,7 @@
 #define INCLUDE_ALSA_CONFORMANCE_HELPER_H_
 
 #include <alsa/asoundlib.h>
+#include "include/alsa_conformance_timer.h"
 
 /* Print device information.
  * Args:
@@ -51,6 +52,7 @@ int print_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
 
 /* Open pcm handle and malloc hw_params.
  * Args:
+ *    timer - A pointer to timer which records the runtime of ALSA APIs.
  *    handle - Filled with a pointer to the opened pcm.
  *    params - Filled with a pointer to the allocated hardware params.
  *    dev_name - Name of device to open. (e.g. hw:0,0)
@@ -59,7 +61,8 @@ int print_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
  * Returns:
  *    0 on success, negative error on failure.
  */
-int alsa_helper_open(snd_pcm_t **handle,
+int alsa_helper_open(struct alsa_conformance_timer *timer,
+                     snd_pcm_t **handle,
                      snd_pcm_hw_params_t **params,
                      const char *dev_name,
                      snd_pcm_stream_t stream);
@@ -74,6 +77,7 @@ int alsa_helper_close(snd_pcm_t *handle);
 
 /* Set hw_params.
  * Args:
+ *    timer - A pointer to timer which records the runtime of ALSA APIs.
  *    handle - The open PCM to configure.
  *    params - The allocated hardware params object.
  *    format - Alsa format type.
@@ -83,19 +87,22 @@ int alsa_helper_close(snd_pcm_t *handle);
  * Returns:
  *    0 on success, negative error on failure.
  */
-int alsa_helper_set_hw_params(snd_pcm_t *handle,
-                               snd_pcm_hw_params_t *params,
-                               snd_pcm_format_t format,
-                               unsigned int channels,
-                               unsigned int *rate,
-                               snd_pcm_uframes_t *period_size);
+int alsa_helper_set_hw_params(struct alsa_conformance_timer *timer,
+                              snd_pcm_t *handle,
+                              snd_pcm_hw_params_t *params,
+                              snd_pcm_format_t format,
+                              unsigned int channels,
+                              unsigned int *rate,
+                              snd_pcm_uframes_t *period_size);
 
 /* Set sw_params with default value.
  * Args:
+ *    timer - A pointer to timer which records the runtime of ALSA APIs.
  *    handle - The open PCM to configure.
  * Returns:
  *    0 on success, negative error on failure.
  */
-int alsa_helper_set_sw_param(snd_pcm_t *handle);
+int alsa_helper_set_sw_param(struct alsa_conformance_timer *timer,
+                             snd_pcm_t *handle);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_HELPER_H_ */
