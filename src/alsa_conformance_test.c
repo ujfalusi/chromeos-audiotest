@@ -6,13 +6,17 @@
 
 #include <alsa/asoundlib.h>
 #include <getopt.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "include/alsa_conformance_args.h"
+#include "include/alsa_conformance_debug.h"
 #include "include/alsa_conformance_helper.h"
 #include "include/alsa_conformance_thread.h"
+
+int DEBUG_MODE = false;
 
 void show_usage(const char *name)
 {
@@ -28,6 +32,7 @@ void show_usage(const char *name)
            "Set durations(second). (default: 1.0)\n");
     printf("\t-B, --block_size <block_size>: "
            "Set block size in frames of each write. (default: 240)\n");
+    printf("\t-D, --debug: Enable debug mode.\n");
 }
 
 void set_dev_thread_args(struct dev_thread *thread,
@@ -67,7 +72,7 @@ void parse_arguments(struct alsa_conformance_args *test_args,
                      char *argv[])
 {
     int c;
-    const char *short_opt = "hP:c:f:r:p:B:d:";
+    const char *short_opt = "hP:c:f:r:p:B:d:D";
     static struct option long_opt[] =
     {
         {"help",         no_argument,       NULL, 'h'},
@@ -78,6 +83,7 @@ void parse_arguments(struct alsa_conformance_args *test_args,
         {"period",       required_argument, NULL, 'p'},
         {"block_size",   required_argument, NULL, 'B'},
         {"durations",    required_argument, NULL, 'd'},
+        {"debug",        no_argument,       NULL, 'D'},
         {0, 0, 0, 0}
     };
     while (1) {
@@ -116,6 +122,11 @@ void parse_arguments(struct alsa_conformance_args *test_args,
 
         case 'd':
             args_set_duration(test_args, (double) atof(optarg));
+            break;
+
+        case 'D':
+            DEBUG_MODE = true;
+            logger("Enable debug mode!\n");
             break;
 
         case ':':

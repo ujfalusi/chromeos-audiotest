@@ -4,11 +4,15 @@
  * found in the LICENSE file.
  */
 #include <math.h>
+#include <stdbool.h>
 
+#include "include/alsa_conformance_debug.h"
 #include "include/alsa_conformance_helper.h"
 #include "include/alsa_conformance_recorder.h"
 #include "include/alsa_conformance_thread.h"
 #include "include/alsa_conformance_timer.h"
+
+extern int DEBUG_MODE;
 
 struct dev_thread {
     snd_pcm_t *handle;
@@ -144,11 +148,20 @@ void dev_thread_run(struct dev_thread *thread)
     snd_pcm_sframes_t frames_written;
     snd_pcm_sframes_t frames_left;
     snd_pcm_sframes_t frames_played;
+    snd_pcm_sframes_t frames_diff;
     snd_pcm_t *handle;
     struct timespec now;
     struct timespec ori;
+    struct timespec relative_ts;
     struct alsa_conformance_timer *timer;
     uint8_t *buf;
+
+    /* These variables are for debug usage. */
+    char *time_str;
+    struct timespec prev;
+    struct timespec time_diff;
+    double rate;
+
 
     handle = thread->handle;
     timer = thread->timer;
@@ -190,6 +203,15 @@ void dev_thread_run(struct dev_thread *thread)
     /* Get the timestamp of beginning. */
     clock_gettime(CLOCK_MONOTONIC_RAW, &ori);
 
+    if (DEBUG_MODE) {
+        prev = ori;
+        logger("%-13s %10s %10s %10s %18s\n", "TIME_DIFF(s)"
+                                            , "HW_LEVEL"
+                                            , "PLAYED"
+                                            , "DIFF"
+                                            , "RATE");
+    }
+
     /*
      * Get available frames without sleep. It's more accurate but consume
      * more cpu time. Maybe we can choose other method in order to handle
@@ -204,10 +226,27 @@ void dev_thread_run(struct dev_thread *thread)
          * Add a point into recorder when number of frames been played changes.
          */
         if (frames_played != frames_written - frames_left) {
+            frames_diff = frames_written - frames_left - frames_played;
             frames_played = frames_written - frames_left;
             clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-            subtract_timespec(&now, &ori);
-            recorder_add(thread->recorder, now, frames_played);
+            relative_ts = now;
+            subtract_timespec(&relative_ts, &ori);
+            recorder_add(thread->recorder, relative_ts, frames_played);
+
+            /* In debug mode, print each point in details. */
+            if (DEBUG_MODE) {
+                time_diff = now;
+                subtract_timespec(&time_diff, &prev);
+                time_str = timespec_to_str(&time_diff);
+                rate = (double) frames_diff / timespec_to_s(&time_diff);
+                logger("%-13s %10ld %10ld %10ld %18lf\n", time_str
+                                                        , frames_left
+                                                        , frames_played
+                                                        , frames_diff
+                                                        , rate);
+                free(time_str);
+                prev = now;
+            }
         }
 
         /*
