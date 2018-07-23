@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "include/alsa_conformance_helper.h"
+#include "include/alsa_conformance_recorder.h"
 #include "include/alsa_conformance_thread.h"
 #include "include/alsa_conformance_timer.h"
 
@@ -25,6 +26,7 @@ struct dev_thread {
     unsigned underrun_count; /* Record number of underruns during playback. */
 
     struct alsa_conformance_timer *timer;
+    struct alsa_conformance_recorder *recorder;
 };
 
 struct dev_thread *dev_thread_create()
@@ -42,6 +44,7 @@ struct dev_thread *dev_thread_create()
     thread->dev_name = NULL;
     thread->underrun_count = 0;
     thread->timer = conformance_timer_create();
+    thread->recorder = recorder_create();
     return thread;
 }
 
@@ -52,6 +55,7 @@ void dev_thread_destroy(struct dev_thread *thread)
     snd_pcm_hw_params_free(thread->params);
     alsa_helper_close(thread->handle);
     conformance_timer_destroy(thread->timer);
+    recorder_destroy(thread->recorder);
     free(thread);
 }
 
@@ -139,7 +143,10 @@ void dev_thread_run(struct dev_thread *thread)
     snd_pcm_sframes_t frames_avail;
     snd_pcm_sframes_t frames_written;
     snd_pcm_sframes_t frames_left;
+    snd_pcm_sframes_t frames_played;
     snd_pcm_t *handle;
+    struct timespec now;
+    struct timespec ori;
     struct alsa_conformance_timer *timer;
     uint8_t *buf;
 
@@ -176,8 +183,12 @@ void dev_thread_run(struct dev_thread *thread)
     /* First, we write 2 blocks into buffer. */
     alsa_helper_write(handle, buf, 2 * block_size);
     frames_written = 2 * block_size;
+    frames_played = 0;
 
     alsa_helper_start(timer, handle);
+
+    /* Get the timestamp of beginning. */
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ori);
 
     /*
      * Get available frames without sleep. It's more accurate but consume
@@ -188,6 +199,16 @@ void dev_thread_run(struct dev_thread *thread)
         frames_avail = alsa_helper_avail(timer, handle);
 
         frames_left = buffer_size - frames_avail;
+
+        /*
+         * Add a point into recorder when number of frames been played changes.
+         */
+        if (frames_played != frames_written - frames_left) {
+            frames_played = frames_written - frames_left;
+            clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+            subtract_timespec(&now, &ori);
+            recorder_add(thread->recorder, now, frames_played);
+        }
 
         /*
          * Because time of writing frames into buffer is much smaller than
@@ -229,5 +250,6 @@ void dev_thread_print_params(struct dev_thread *thread)
 void dev_thread_print_result(struct dev_thread* thread)
 {
     conformance_timer_print_result(thread->timer);
+    recorder_result(thread->recorder);
     printf("number of underrun: %u\n", thread->underrun_count);
 }
