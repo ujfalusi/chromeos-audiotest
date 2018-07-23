@@ -21,6 +21,7 @@ struct alsa_conformance_args {
     snd_pcm_uframes_t period_size;
     unsigned int block_size;
     double duration;
+    char *device_file;
 };
 
 struct alsa_conformance_args *args_create()
@@ -42,6 +43,7 @@ struct alsa_conformance_args *args_create()
     args->period_size = 240;
     args->block_size = 240;
     args->duration = 1.0;
+    args->device_file = NULL;
 
     return args;
 }
@@ -50,6 +52,7 @@ void args_destroy(struct alsa_conformance_args *args)
 {
     free(args->playback_dev_name);
     free(args->capture_dev_name);
+    free(args->device_file);
     free(args);
 }
 
@@ -91,6 +94,11 @@ unsigned int args_get_block_size(const struct alsa_conformance_args *args)
 double args_get_duration(const struct alsa_conformance_args *args)
 {
     return args->duration;
+}
+
+const char* args_get_device_file(const struct alsa_conformance_args *args)
+{
+    return args->device_file;
 }
 
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
@@ -143,4 +151,11 @@ void args_set_block_size(struct alsa_conformance_args *args, unsigned int size)
 void args_set_duration(struct alsa_conformance_args *args, double duration)
 {
     args->duration = duration;
+}
+
+void args_set_device_file(struct alsa_conformance_args *args,
+                          const char *name)
+{
+    free(args->device_file);
+    args->device_file = strdup(name);
 }

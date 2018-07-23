@@ -25,6 +25,10 @@ void dev_thread_set_channels(struct dev_thread *thread, unsigned int channels);
 /* Set format of device. */
 void dev_thread_set_format(struct dev_thread *thread, snd_pcm_format_t format);
 
+/* Set format of device from format string. */
+void dev_thread_set_format_from_str(struct dev_thread *thread,
+                                    const char *format_str);
+
 /* Set rate of device. */
 void dev_thread_set_rate(struct dev_thread *thread, unsigned int rate);
 

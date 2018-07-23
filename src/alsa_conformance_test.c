@@ -17,6 +17,8 @@
 #include "include/alsa_conformance_helper.h"
 #include "include/alsa_conformance_thread.h"
 
+#define MAX_DEVICES 10
+
 int DEBUG_MODE = false;
 int SINGLE_THREAD;
 
@@ -36,8 +38,16 @@ void show_usage(const char *name)
            "Set durations(second). (default: 1.0)\n");
     printf("\t-B, --block_size <block_size>: "
            "Set block size in frames of each write. (default: 240)\n");
-    printf("\t-D, --debug: "
+    printf("\t--debug: "
            "Enable debug mode. (Not support multi-streams in this version)\n");
+    printf("\t--device_file: "
+           "Device file path. It will load devices from the file.\n");
+
+    printf("\n");
+    printf("Device file format:\n"
+           "\t[name] [type] [channels] [format] [rate] [period] [block_size] "
+           "[durations] # comment\n"
+           "\teg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 # It's an example\n");
 }
 
 void set_dev_thread_args(struct dev_thread *thread,
@@ -71,6 +81,74 @@ struct dev_thread* create_capture_thread(struct alsa_conformance_args *args)
     return thread;
 }
 
+size_t parse_device_file(struct alsa_conformance_args *args,
+                         struct dev_thread **thread_list)
+{
+    FILE *fp;
+    const char *file_name;
+    size_t thread_count;
+    struct dev_thread *thread;
+    char name[20];
+    char type[20];
+    unsigned int channels;
+    char format[20];
+    unsigned int rate;
+    snd_pcm_uframes_t period_size;
+    unsigned int block_size;
+    double duration;
+    int rc;
+    char buf[1000];
+    char *p;
+
+    thread_count = 0;
+
+    file_name = args_get_device_file(args);
+    fp = fopen(file_name, "r");
+    if (fp == NULL) {
+        fprintf(stderr, "Open file %s fail: %s\n", file_name, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    /*
+     * Format of device file:
+     * [name] [type] [channels] [format] [rate] [period] [block] [duration]
+     * # comment
+     */
+    while (1) {
+        if(fgets(buf, 1000, fp) == NULL)
+            break;
+        p = strchr(buf, '#');
+        if (p)
+            *p = 0;
+
+        rc = sscanf(buf, "%15s %15s %u %15s %u %lu %u %lf", name, type,
+                    &channels, format, &rate, &period_size, &block_size,
+                    &duration);
+        if (rc != 8)
+            continue;
+
+        thread = dev_thread_create();
+        dev_thread_set_dev_name(thread, name);
+        if (strcmp(type, "CAPTURE") == 0) {
+            dev_thread_set_stream(thread, SND_PCM_STREAM_CAPTURE);
+        } else if (strcmp(type, "PLAYBACK") == 0) {
+            dev_thread_set_stream(thread, SND_PCM_STREAM_PLAYBACK);
+        } else {
+            fprintf(stderr, "Unknown type %s\n", type);
+            exit(EXIT_FAILURE);
+        }
+        dev_thread_set_channels(thread, channels);
+        dev_thread_set_format_from_str(thread, format);
+        dev_thread_set_rate(thread, rate);
+        dev_thread_set_period_size(thread, period_size);
+        dev_thread_set_block_size(thread, block_size);
+        dev_thread_set_duration(thread, duration);
+
+        thread_list[thread_count++] = thread;
+    }
+    return thread_count;
+}
+
 void* alsa_conformance_run_thread(void *arg)
 {
     struct dev_thread *thread = arg;
@@ -80,25 +158,30 @@ void* alsa_conformance_run_thread(void *arg)
 
 void alsa_conformance_run(struct alsa_conformance_args *args)
 {
-    /* Only support one playback and one capture device now. */
-    struct dev_thread *thread_list[2];
-    pthread_t thread_id[2];
+    struct dev_thread *thread_list[MAX_DEVICES];
+    pthread_t thread_id[MAX_DEVICES];
     size_t thread_count;
     int i;
 
-    thread_count = 0;
-
-    if (args_get_playback_dev_name(args)) {
-        thread_list[thread_count++] = create_playback_thread(args);
-    }
-
-    if (args_get_capture_dev_name(args)) {
-        thread_list[thread_count++] = create_capture_thread(args);
+    /*
+     * If we have device file, load devices from the file. Otherwise, load
+     * devices from arguments.
+     */
+    if (args_get_device_file(args)) {
+        thread_count = parse_device_file(args, thread_list);
+    } else {
+        thread_count = 0;
+        if (args_get_playback_dev_name(args)) {
+            thread_list[thread_count++] = create_playback_thread(args);
+        }
+        if (args_get_capture_dev_name(args)) {
+            thread_list[thread_count++] = create_capture_thread(args);
+        }
     }
 
     if (!thread_count) {
         puts("No device selected.");
-        exit(EXIT_FAILURE);
+        return;
     }
 
     if (thread_count > 1) {
@@ -142,6 +225,10 @@ void parse_arguments(struct alsa_conformance_args *test_args,
                      int argc,
                      char *argv[])
 {
+    enum OPTION {
+        OPT_DEBUG = 300,
+        OPT_DEVICE_FILE
+    };
     int c;
     const char *short_opt = "hP:C:c:f:r:p:B:d:D";
     static struct option long_opt[] =
@@ -155,7 +242,8 @@ void parse_arguments(struct alsa_conformance_args *test_args,
         {"period",       required_argument, NULL, 'p'},
         {"block_size",   required_argument, NULL, 'B'},
         {"durations",    required_argument, NULL, 'd'},
-        {"debug",        no_argument,       NULL, 'D'},
+        {"debug",        no_argument,       NULL, OPT_DEBUG},
+        {"device_file",  required_argument, NULL, OPT_DEVICE_FILE},
         {0, 0, 0, 0}
     };
     while (1) {
@@ -200,9 +288,13 @@ void parse_arguments(struct alsa_conformance_args *test_args,
             args_set_duration(test_args, (double) atof(optarg));
             break;
 
-        case 'D':
+        case OPT_DEBUG:
             DEBUG_MODE = true;
             puts("Enable debug mode!");
+            break;
+
+        case OPT_DEVICE_FILE:
+            args_set_device_file(test_args, optarg);
             break;
 
         case ':':
