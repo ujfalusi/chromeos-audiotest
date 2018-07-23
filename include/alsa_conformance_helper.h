@@ -28,6 +28,27 @@
  * */
 int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
 
+/* Print selected device parameters.
+ * Args:
+ *    handle - The open PCM to configure.
+ *    params - The allocated hardware params object which has been set.
+ * Prints to stdout:
+ *    PCM handle name - Name of PCM device.
+ *    PCM type - PCM type. (e.g. HW)
+ *    stream - PCM stream type. (PLAYBACK or CAPTURE)
+ *    access type - PCM access type. (Should be MMAP_INTERLEAVED)
+ *    format - PCM format.
+ *    channels - PCM channels count.
+ *    rate - PCM rate.
+ *    period time - PCM period time in us.
+ *    period size - PCM period size in frames.
+ *    buffer time - PCM buffer time in us.
+ *    buffer size - PCM buffer size in frames.
+ * Returns:
+ *    0 on success, negative error on failure.
+ * */
+int print_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
+
 /* Open pcm handle and malloc hw_params.
  * Args:
  *    handle - Filled with a pointer to the opened pcm.
@@ -50,5 +71,31 @@ int alsa_helper_open(snd_pcm_t **handle,
  *    0 on success, negative error on failure.
  */
 int alsa_helper_close(snd_pcm_t *handle);
+
+/* Set hw_params.
+ * Args:
+ *    handle - The open PCM to configure.
+ *    params - The allocated hardware params object.
+ *    format - Alsa format type.
+ *    channels - Number of channels.
+ *    rate - Rate pointer, it may be changed if not supported.
+ *    period_size - Period size pointer, it may be changed if not supported.
+ * Returns:
+ *    0 on success, negative error on failure.
+ */
+int alsa_helper_set_hw_params(snd_pcm_t *handle,
+                               snd_pcm_hw_params_t *params,
+                               snd_pcm_format_t format,
+                               unsigned int channels,
+                               unsigned int *rate,
+                               snd_pcm_uframes_t *period_size);
+
+/* Set sw_params with default value.
+ * Args:
+ *    handle - The open PCM to configure.
+ * Returns:
+ *    0 on success, negative error on failure.
+ */
+int alsa_helper_set_sw_param(snd_pcm_t *handle);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_HELPER_H_ */
