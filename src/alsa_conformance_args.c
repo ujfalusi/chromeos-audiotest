@@ -14,6 +14,7 @@
 
 struct alsa_conformance_args {
     char *playback_dev_name;
+    char *capture_dev_name;
     unsigned int channels;
     snd_pcm_format_t format;
     unsigned int rate;
@@ -33,7 +34,8 @@ struct alsa_conformance_args *args_create()
     }
 
     /* set default value */
-    args->playback_dev_name = strdup("hw:0,0");
+    args->playback_dev_name = NULL;
+    args->capture_dev_name = NULL;
     args->channels = 2;
     args->format = SND_PCM_FORMAT_S16_LE;
     args->rate = 48000;
@@ -47,12 +49,18 @@ struct alsa_conformance_args *args_create()
 void args_destroy(struct alsa_conformance_args *args)
 {
     free(args->playback_dev_name);
+    free(args->capture_dev_name);
     free(args);
 }
 
 const char* args_get_playback_dev_name(const struct alsa_conformance_args *args)
 {
     return args->playback_dev_name;
+}
+
+const char* args_get_capture_dev_name(const struct alsa_conformance_args *args)
+{
+    return args->capture_dev_name;
 }
 
 unsigned int args_get_channels(const struct alsa_conformance_args *args)
@@ -90,6 +98,13 @@ void args_set_playback_dev_name(struct alsa_conformance_args *args,
 {
     free(args->playback_dev_name);
     args->playback_dev_name = strndup(name, MAX_DEVICE_NAME_LENGTH);
+}
+
+void args_set_capture_dev_name(struct alsa_conformance_args *args,
+                               const char *name)
+{
+    free(args->capture_dev_name);
+    args->capture_dev_name = strdup(name);
 }
 
 void args_set_channels(struct alsa_conformance_args *args,

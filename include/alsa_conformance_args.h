@@ -19,6 +19,10 @@ void args_destroy(struct alsa_conformance_args *args);
 const char* args_get_playback_dev_name(
         const struct alsa_conformance_args *args);
 
+/* Return capture device name. */
+const char* args_get_capture_dev_name(
+        const struct alsa_conformance_args *args);
+
 /* Return number of channels of argument. */
 unsigned int args_get_channels(const struct alsa_conformance_args *args);
 
@@ -41,6 +45,10 @@ double args_get_duration(const struct alsa_conformance_args *args);
 /* Set playback device name. */
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
                                 const char *name);
+
+/* Set capture device name. */
+void args_set_capture_dev_name(struct alsa_conformance_args *args,
+                               const char *name);
 
 /* Set channels of argument. */
 void args_set_channels(struct alsa_conformance_args *args,

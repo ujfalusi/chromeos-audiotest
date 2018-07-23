@@ -152,4 +152,14 @@ snd_pcm_sframes_t alsa_helper_avail(struct alsa_conformance_timer *timer,
  */
 int alsa_helper_write(snd_pcm_t *handle, uint8_t *buf, snd_pcm_uframes_t size);
 
+/* Read samples from pcm using mmap.
+ * Args:
+ *    handle - The open PCM to configure.
+ *    buf - The input buffer which will be filled with samples.
+ *    size - The size of input buffer.
+ * Returns:
+ *    0 on success, negative error on failure.
+ */
+int alsa_helper_read(snd_pcm_t *handle, uint8_t *buf, snd_pcm_uframes_t size);
+
 #endif /* INCLUDE_ALSA_CONFORMANCE_HELPER_H_ */

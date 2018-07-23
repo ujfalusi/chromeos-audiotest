@@ -23,7 +23,9 @@ void show_usage(const char *name)
     printf("Usage: %s [OPTIONS]\n", name);
     printf("\t-h, --help: Print this help and exit.\n");
     printf("\t-P, --playback_dev <device>: "
-           "PCM device for playback. (default: hw:0,0)\n");
+           "PCM device for playback. (default: NULL)\n");
+    printf("\t-C, --capture_dev <device>: "
+           "PCM device for capture. (default: NULL)\n");
     printf("\t-c, --channels <channels>: Set channels. (default: 2)\n");
     printf("\t-f, --format <format>: Set format. (default: S16_LE)\n");
     printf("\t-r, --rate <rate>: Set rate. (default: 48000)\n");
@@ -38,8 +40,6 @@ void show_usage(const char *name)
 void set_dev_thread_args(struct dev_thread *thread,
                          struct alsa_conformance_args *args)
 {
-    dev_thread_set_stream(thread, SND_PCM_STREAM_PLAYBACK);
-    dev_thread_set_dev_name(thread, args_get_playback_dev_name(args));
     dev_thread_set_channels(thread, args_get_channels(args));
     dev_thread_set_format(thread, args_get_format(args));
     dev_thread_set_rate(thread, args_get_rate(args));
@@ -48,13 +48,42 @@ void set_dev_thread_args(struct dev_thread *thread,
     dev_thread_set_duration(thread, args_get_duration(args));
 }
 
-void alsa_conformance_run(struct alsa_conformance_args *args)
+struct dev_thread* create_playback_thread(struct alsa_conformance_args *args)
 {
-    /* Only support one playback device now. */
     struct dev_thread *thread;
-
     thread = dev_thread_create();
     set_dev_thread_args(thread, args);
+    dev_thread_set_stream(thread, SND_PCM_STREAM_PLAYBACK);
+    dev_thread_set_dev_name(thread, args_get_playback_dev_name(args));
+    return thread;
+}
+
+struct dev_thread* create_capture_thread(struct alsa_conformance_args *args)
+{
+    struct dev_thread *thread;
+    thread = dev_thread_create();
+    set_dev_thread_args(thread, args);
+    dev_thread_set_stream(thread, SND_PCM_STREAM_CAPTURE);
+    dev_thread_set_dev_name(thread, args_get_capture_dev_name(args));
+    return thread;
+}
+
+void alsa_conformance_run(struct alsa_conformance_args *args)
+{
+    /* Only support one playback or one capture device now. */
+    struct dev_thread *thread;
+
+    if (args_get_playback_dev_name(args) && args_get_capture_dev_name(args)) {
+        printf("Not support multiple streams yet.\n");
+        exit(EXIT_FAILURE);
+    } else if (args_get_playback_dev_name(args)) {
+        thread = create_playback_thread(args);
+    } else if (args_get_capture_dev_name(args)) {
+        thread = create_capture_thread(args);
+    } else {
+        printf("No device selected.\n");
+        exit(EXIT_FAILURE);
+    }
 
     dev_thread_device_open(thread);
     dev_thread_print_device_information(thread);
@@ -72,11 +101,12 @@ void parse_arguments(struct alsa_conformance_args *test_args,
                      char *argv[])
 {
     int c;
-    const char *short_opt = "hP:c:f:r:p:B:d:D";
+    const char *short_opt = "hP:C:c:f:r:p:B:d:D";
     static struct option long_opt[] =
     {
         {"help",         no_argument,       NULL, 'h'},
         {"playback_dev", required_argument, NULL, 'P'},
+        {"capture_dev",  required_argument, NULL, 'C'},
         {"channel",      required_argument, NULL, 'c'},
         {"format",       required_argument, NULL, 'f'},
         {"rate",         required_argument, NULL, 'r'},
@@ -93,6 +123,10 @@ void parse_arguments(struct alsa_conformance_args *test_args,
         switch (c) {
         case 'P':
             args_set_playback_dev_name(test_args, optarg);
+            break;
+
+        case 'C':
+            args_set_capture_dev_name(test_args, optarg);
             break;
 
         case 'h':

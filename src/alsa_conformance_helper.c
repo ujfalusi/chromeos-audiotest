@@ -451,3 +451,34 @@ int alsa_helper_write(snd_pcm_t *handle, uint8_t *buf, snd_pcm_uframes_t size)
     }
     return 0;
 }
+
+int alsa_helper_read(snd_pcm_t *handle, uint8_t *buf, snd_pcm_uframes_t size)
+{
+    const snd_pcm_channel_area_t *my_areas;
+    snd_pcm_uframes_t frames, offset;
+    uint8_t *dst;
+    int frame_bytes;
+    int rc;
+
+    while (size > 0) {
+        frames = size;
+        rc = snd_pcm_mmap_begin(handle, &my_areas, &offset, &frames);
+        if (rc < 0) {
+            fprintf(stderr, "snd_pcm_mmap_begin: %s\n",
+                    snd_strerror(rc));
+            return rc;
+        }
+        frame_bytes = my_areas[0].step / 8;
+        dst = (uint8_t *)my_areas[0].addr + offset * frame_bytes;
+        memcpy(buf, dst, frames * frame_bytes);
+        rc = snd_pcm_mmap_commit(handle, offset, frames);
+        if (rc < 0) {
+            fprintf(stderr, "snd_pcm_mmap_commit: %s\n",
+                    snd_strerror(rc));
+            return rc;
+        }
+        size -= frames;
+        buf += frames * frame_bytes;
+    }
+    return 0;
+}

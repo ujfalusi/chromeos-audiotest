@@ -28,6 +28,7 @@ struct dev_thread {
     double duration;
 
     unsigned underrun_count; /* Record number of underruns during playback. */
+    unsigned overrun_count; /* Record number of overrun during capture. */
 
     struct alsa_conformance_timer *timer;
     struct alsa_conformance_recorder *recorder;
@@ -47,6 +48,7 @@ struct dev_thread *dev_thread_create()
     thread->params = NULL;
     thread->dev_name = NULL;
     thread->underrun_count = 0;
+    thread->overrun_count = 0;
     thread->timer = conformance_timer_create();
     thread->recorder = recorder_create();
     return thread;
@@ -138,7 +140,7 @@ void dev_thread_set_params(struct dev_thread *thread)
         exit(EXIT_FAILURE);
 }
 
-void dev_thread_run(struct dev_thread *thread)
+void dev_thread_run_playback(struct dev_thread *thread)
 {
     snd_pcm_uframes_t buffer_size;
     snd_pcm_uframes_t period_size;
@@ -268,6 +270,124 @@ void dev_thread_run(struct dev_thread *thread)
     free(buf);
 }
 
+void dev_thread_run_capture(struct dev_thread *thread)
+{
+    snd_pcm_uframes_t block_size;
+    snd_pcm_uframes_t buffer_size;
+    snd_pcm_uframes_t period_size;
+    snd_pcm_uframes_t frames_to_read;
+    snd_pcm_sframes_t frames_avail;
+    snd_pcm_sframes_t frames_diff;
+    snd_pcm_sframes_t frames_read;
+    snd_pcm_sframes_t old_frames_avail;
+    snd_pcm_t *handle;
+    struct timespec now;
+    struct timespec ori;
+    struct timespec relative_ts;
+    struct alsa_conformance_timer *timer;
+    uint8_t *buf;
+
+    /* These variables are for debug usage. */
+    char *time_str;
+    struct timespec prev;
+    struct timespec time_diff;
+    double rate;
+
+    handle = thread->handle;
+    timer = thread->timer;
+    block_size = (snd_pcm_uframes_t) thread->block_size;
+    if (alsa_helper_prepare(handle) < 0)
+        exit(EXIT_FAILURE);
+
+    /* Get device buffer size. */
+    snd_pcm_get_params(handle, &buffer_size, &period_size);
+
+    /* Check block_size is available. */
+    if (block_size == 0 || block_size > buffer_size) {
+        fprintf(stderr,
+                "Block size %lu and buffer size %lu is not supported\n",
+                block_size, buffer_size);
+        exit(EXIT_FAILURE);
+    }
+
+    /* We need to allocate buffer which will save data from device. */
+    buf = (uint8_t*) calloc(buffer_size ,
+                            snd_pcm_format_physical_width(thread->format) / 8
+                            * thread->channels);
+    if (!buf) {
+        perror("calloc");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Calculate how many frames we need to read by duration * rate. */
+    frames_to_read = (snd_pcm_uframes_t)
+                     round(thread->duration * (double) thread->rate);
+
+    frames_read = 0;
+    old_frames_avail = 0;
+
+    alsa_helper_start(timer, handle);
+
+    /* Get the timestamp of beginning. */
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ori);
+
+    if (DEBUG_MODE) {
+        prev = ori;
+        logger("%-13s %10s %10s%18s\n", "TIME_DIFF(s)"
+                                      , "HW_LEVEL"
+                                      , "READ"
+                                      , "RATE");
+    }
+
+    while (frames_read < frames_to_read) {
+        frames_avail = alsa_helper_avail(timer, handle);
+
+        /* Check overrun. */
+        if (frames_avail > buffer_size)
+            thread->overrun_count++;
+
+        if (frames_avail != old_frames_avail) {
+            frames_diff = frames_avail - old_frames_avail;
+            old_frames_avail = frames_avail;
+            clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+            relative_ts = now;
+            subtract_timespec(&relative_ts, &ori);
+            recorder_add(thread->recorder, relative_ts,
+                         frames_read + frames_avail);
+
+            if (frames_avail >= block_size) {
+                if (alsa_helper_read(handle, buf, frames_avail) < 0)
+                    exit(EXIT_FAILURE);
+                frames_read += frames_avail;
+                old_frames_avail = 0;
+            }
+
+            if (DEBUG_MODE) {
+                time_diff = now;
+                subtract_timespec(&time_diff, &prev);
+                time_str = timespec_to_str(&time_diff);
+                rate = (double) frames_diff / timespec_to_s(&time_diff);
+                logger("%-13s %10ld %10ld %18lf\n", time_str
+                                                  , frames_avail
+                                                  , frames_read
+                                                  , rate);
+                free(time_str);
+                prev = now;
+            }
+        }
+    }
+    alsa_helper_drop(handle);
+    free(buf);
+}
+
+void dev_thread_run(struct dev_thread *thread)
+{
+    if (thread->stream == SND_PCM_STREAM_PLAYBACK)
+        dev_thread_run_playback(thread);
+    else if (thread->stream == SND_PCM_STREAM_CAPTURE)
+        dev_thread_run_capture(thread);
+}
+
 void dev_thread_print_device_information(struct dev_thread *thread)
 {
     int rc;
@@ -291,4 +411,5 @@ void dev_thread_print_result(struct dev_thread* thread)
     conformance_timer_print_result(thread->timer);
     recorder_result(thread->recorder);
     printf("number of underrun: %u\n", thread->underrun_count);
+    printf("number of overrun: %u\n", thread->overrun_count);
 }
