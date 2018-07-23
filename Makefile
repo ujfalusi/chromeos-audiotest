@@ -5,6 +5,7 @@
 include common.mk
 
 all: CC_BINARY(src/alsa_api_test) \
+     CC_BINARY(src/alsa_conformance_test) \
      CC_BINARY(src/alsa_helpers) \
      CXX_BINARY(src/audiofuntest) \
      CC_BINARY(src/cras_api_test) \

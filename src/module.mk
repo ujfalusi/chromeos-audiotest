@@ -83,3 +83,15 @@ CC_BINARY(src/cras_api_test): \
 	LDLIBS += $(ALSA_LIBS) $(CRAS_LIBS)
 clean: CC_BINARY(src/cras_api_test)
 all: CC_BINARY(src/cras_api_test)
+
+CC_BINARY(src/alsa_conformance_test): \
+	src/alsa_conformance_args.o \
+	src/alsa_conformance_helper.o \
+	src/alsa_conformance_test.o \
+	src/alsa_conformance_thread.o
+CC_BINARY(src/alsa_conformance_test): \
+	CFLAGS += $(ALSA_CFLAGS)
+CC_BINARY(src/alsa_conformance_test): \
+	LDLIBS += $(ALSA_LIBS)
+clean: CC_BINARY(src/alsa_conformance_test)
+all: CC_BINARY(src/alsa_conformance_test)
