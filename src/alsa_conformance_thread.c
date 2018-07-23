@@ -408,6 +408,7 @@ void dev_thread_print_params(struct dev_thread *thread)
 
 void dev_thread_print_result(struct dev_thread* thread)
 {
+    dev_thread_print_params(thread);
     conformance_timer_print_result(thread->timer);
     recorder_result(thread->recorder);
     printf("number of underrun: %u\n", thread->underrun_count);

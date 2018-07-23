@@ -6,6 +6,7 @@
 
 #include <alsa/asoundlib.h>
 #include <getopt.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -17,6 +18,7 @@
 #include "include/alsa_conformance_thread.h"
 
 int DEBUG_MODE = false;
+int SINGLE_THREAD;
 
 void show_usage(const char *name)
 {
@@ -34,7 +36,8 @@ void show_usage(const char *name)
            "Set durations(second). (default: 1.0)\n");
     printf("\t-B, --block_size <block_size>: "
            "Set block size in frames of each write. (default: 240)\n");
-    printf("\t-D, --debug: Enable debug mode.\n");
+    printf("\t-D, --debug: "
+           "Enable debug mode. (Not support multi-streams in this version)\n");
 }
 
 void set_dev_thread_args(struct dev_thread *thread,
@@ -68,32 +71,71 @@ struct dev_thread* create_capture_thread(struct alsa_conformance_args *args)
     return thread;
 }
 
+void* alsa_conformance_run_thread(void *arg)
+{
+    struct dev_thread *thread = arg;
+    dev_thread_run(thread);
+    return 0;
+}
+
 void alsa_conformance_run(struct alsa_conformance_args *args)
 {
-    /* Only support one playback or one capture device now. */
-    struct dev_thread *thread;
+    /* Only support one playback and one capture device now. */
+    struct dev_thread *thread_list[2];
+    pthread_t thread_id[2];
+    size_t thread_count;
+    int i;
 
-    if (args_get_playback_dev_name(args) && args_get_capture_dev_name(args)) {
-        printf("Not support multiple streams yet.\n");
-        exit(EXIT_FAILURE);
-    } else if (args_get_playback_dev_name(args)) {
-        thread = create_playback_thread(args);
-    } else if (args_get_capture_dev_name(args)) {
-        thread = create_capture_thread(args);
-    } else {
-        printf("No device selected.\n");
+    thread_count = 0;
+
+    if (args_get_playback_dev_name(args)) {
+        thread_list[thread_count++] = create_playback_thread(args);
+    }
+
+    if (args_get_capture_dev_name(args)) {
+        thread_list[thread_count++] = create_capture_thread(args);
+    }
+
+    if (!thread_count) {
+        puts("No device selected.");
         exit(EXIT_FAILURE);
     }
 
-    dev_thread_device_open(thread);
-    dev_thread_print_device_information(thread);
+    if (thread_count > 1) {
+       /* TODO(yuhsuan): Maybe we will support debug mode in multi-streams. */
+       if (DEBUG_MODE) {
+            puts("[Notice] Disable debug mode because of multi-threads.");
+            DEBUG_MODE = false;
+        }
+        SINGLE_THREAD = false;
+    } else {
+        SINGLE_THREAD = true;
+    }
 
-    dev_thread_set_params(thread);
-    dev_thread_print_params(thread);
+    for (i = 0; i < thread_count; i++) {
+        dev_thread_device_open(thread_list[i]);
+        if (SINGLE_THREAD)
+            dev_thread_print_device_information(thread_list[i]);
+        dev_thread_set_params(thread_list[i]);
+    }
 
-    dev_thread_run(thread);
-    dev_thread_print_result(thread);
-    dev_thread_destroy(thread);
+    for (i = 0; i < thread_count; i++)
+        pthread_create(&thread_id[i],
+                       NULL,
+                       alsa_conformance_run_thread,
+                       thread_list[i]);
+
+    for (i = 0; i < thread_count; i++)
+        pthread_join(thread_id[i],NULL);
+
+    for (i = 0; i < thread_count; i++) {
+        if (!SINGLE_THREAD)
+            puts("=============================================");
+        dev_thread_print_result(thread_list[i]);
+        dev_thread_destroy(thread_list[i]);
+        if (!SINGLE_THREAD)
+            puts("=============================================");
+    }
 }
 
 void parse_arguments(struct alsa_conformance_args *test_args,
@@ -160,7 +202,7 @@ void parse_arguments(struct alsa_conformance_args *test_args,
 
         case 'D':
             DEBUG_MODE = true;
-            logger("Enable debug mode!\n");
+            puts("Enable debug mode!");
             break;
 
         case ':':
