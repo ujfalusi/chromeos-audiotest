@@ -21,6 +21,7 @@
 
 int DEBUG_MODE = false;
 int SINGLE_THREAD;
+int STRICT_MODE = false;
 
 void show_usage(const char *name)
 {
@@ -42,6 +43,11 @@ void show_usage(const char *name)
            "Enable debug mode. (Not support multi-streams in this version)\n");
     printf("\t--device_file: "
            "Device file path. It will load devices from the file.\n");
+    printf("\t--strict: "
+           "Enable strict mode. It will set params to the fixed value.\n");
+    printf("\t--dev_info_only: "
+           "Show device information only without setting params and running "
+           "I/O.\n");
 
     printf("\n");
     printf("Device file format:\n"
@@ -195,12 +201,19 @@ void alsa_conformance_run(struct alsa_conformance_args *args)
         SINGLE_THREAD = true;
     }
 
-    for (i = 0; i < thread_count; i++) {
+    for (i = 0; i < thread_count; i++)
         dev_thread_device_open(thread_list[i]);
-        if (SINGLE_THREAD)
+
+    if (args_get_dev_info_only(args)) {
+        for (i = 0; i < thread_count; i++) {
             dev_thread_print_device_information(thread_list[i]);
-        dev_thread_set_params(thread_list[i]);
+            dev_thread_destroy(thread_list[i]);
+        }
+        return;
     }
+
+    for (i = 0; i < thread_count; i++)
+        dev_thread_set_params(thread_list[i]);
 
     for (i = 0; i < thread_count; i++)
         pthread_create(&thread_id[i],
@@ -227,7 +240,9 @@ void parse_arguments(struct alsa_conformance_args *test_args,
 {
     enum OPTION {
         OPT_DEBUG = 300,
-        OPT_DEVICE_FILE
+        OPT_DEVICE_FILE,
+        OPT_STRICT,
+        OPT_DEV_INFO_ONLY
     };
     int c;
     const char *short_opt = "hP:C:c:f:r:p:B:d:D";
@@ -244,6 +259,8 @@ void parse_arguments(struct alsa_conformance_args *test_args,
         {"durations",    required_argument, NULL, 'd'},
         {"debug",        no_argument,       NULL, OPT_DEBUG},
         {"device_file",  required_argument, NULL, OPT_DEVICE_FILE},
+        {"strict",       no_argument,       NULL, OPT_STRICT},
+        {"dev_info_only",no_argument,       NULL, OPT_DEV_INFO_ONLY},
         {0, 0, 0, 0}
     };
     while (1) {
@@ -295,6 +312,15 @@ void parse_arguments(struct alsa_conformance_args *test_args,
 
         case OPT_DEVICE_FILE:
             args_set_device_file(test_args, optarg);
+            break;
+
+        case OPT_STRICT:
+            STRICT_MODE = true;
+            puts("Enable strict mode!");
+            break;
+
+        case OPT_DEV_INFO_ONLY:
+            args_set_dev_info_only(test_args, true);
             break;
 
         case ':':

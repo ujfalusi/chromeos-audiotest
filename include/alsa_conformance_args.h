@@ -45,6 +45,9 @@ double args_get_duration(const struct alsa_conformance_args *args);
 /* Return device file of argument. */
 const char* args_get_device_file(const struct alsa_conformance_args *args);
 
+/* Return whether it is in device info only mode. */
+int args_get_dev_info_only(const struct alsa_conformance_args *args);
+
 /* Set playback device name. */
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
                                 const char *name);
@@ -77,5 +80,9 @@ void args_set_duration(struct alsa_conformance_args *args, double duration);
 /* Set device file of argument. */
 void args_set_device_file(struct alsa_conformance_args *args,
                           const char *name);
+
+/* Set info only flag of argument. */
+void args_set_dev_info_only(struct alsa_conformance_args *args,
+                            int flag);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_ARGS_H_ */

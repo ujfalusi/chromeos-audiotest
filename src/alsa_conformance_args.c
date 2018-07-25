@@ -5,6 +5,7 @@
  */
 
 #include <alsa/asoundlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -22,6 +23,7 @@ struct alsa_conformance_args {
     unsigned int block_size;
     double duration;
     char *device_file;
+    int dev_info_only;
 };
 
 struct alsa_conformance_args *args_create()
@@ -44,6 +46,7 @@ struct alsa_conformance_args *args_create()
     args->block_size = 240;
     args->duration = 1.0;
     args->device_file = NULL;
+    args->dev_info_only = false;
 
     return args;
 }
@@ -99,6 +102,11 @@ double args_get_duration(const struct alsa_conformance_args *args)
 const char* args_get_device_file(const struct alsa_conformance_args *args)
 {
     return args->device_file;
+}
+
+int args_get_dev_info_only(const struct alsa_conformance_args *args)
+{
+    return args->dev_info_only;
 }
 
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
@@ -158,4 +166,10 @@ void args_set_device_file(struct alsa_conformance_args *args,
 {
     free(args->device_file);
     args->device_file = strdup(name);
+}
+
+void args_set_dev_info_only(struct alsa_conformance_args *args,
+                            int flag)
+{
+    args->dev_info_only = flag;
 }
