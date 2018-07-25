@@ -13,6 +13,7 @@
 #include "include/alsa_conformance_timer.h"
 
 extern int DEBUG_MODE;
+extern int STRICT_MODE;
 
 struct dev_thread {
     snd_pcm_t *handle;
@@ -134,8 +135,13 @@ void dev_thread_device_open(struct dev_thread *thread)
 
 void dev_thread_set_params(struct dev_thread *thread)
 {
+    unsigned int rate;
+    snd_pcm_uframes_t period_size;
     int rc;
+
     assert(thread->handle);
+    rate = thread->rate;
+    period_size = thread->period_size;
     rc = alsa_helper_set_hw_params(thread->timer,
                                    thread->handle,
                                    thread->params,
@@ -145,6 +151,19 @@ void dev_thread_set_params(struct dev_thread *thread)
                                    &thread->period_size);
     if (rc < 0)
         exit(EXIT_FAILURE);
+
+    if (STRICT_MODE) {
+        if (rate != thread->rate) {
+            fprintf(stderr, "%s want to set rate %u but get %u.\n",
+                    thread->dev_name, rate, thread->rate);
+            exit(EXIT_FAILURE);
+        }
+        if (period_size != thread->period_size) {
+            fprintf(stderr, "%s want to set period_size %lu but get %lu.\n",
+                    thread->dev_name, period_size, thread->period_size);
+            exit(EXIT_FAILURE);
+        }
+    }
 
     rc = alsa_helper_set_sw_param(thread->timer,
                                   thread->handle);
