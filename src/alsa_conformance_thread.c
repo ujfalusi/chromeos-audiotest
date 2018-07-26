@@ -13,11 +13,13 @@
 #include "include/alsa_conformance_timer.h"
 
 extern int DEBUG_MODE;
+extern int SINGLE_THREAD;
 extern int STRICT_MODE;
 
 struct dev_thread {
     snd_pcm_t *handle;
     snd_pcm_hw_params_t *params;
+    snd_pcm_hw_params_t *params_record;
 
     char *dev_name;
     snd_pcm_stream_t stream;
@@ -27,12 +29,13 @@ struct dev_thread {
     snd_pcm_uframes_t period_size;
     unsigned int block_size;
     double duration;
+    int iterations;
 
     unsigned underrun_count; /* Record number of underruns during playback. */
     unsigned overrun_count; /* Record number of overrun during capture. */
 
     struct alsa_conformance_timer *timer;
-    struct alsa_conformance_recorder *recorder;
+    struct alsa_conformance_recorder_list *recorder_list;
 };
 
 struct dev_thread *dev_thread_create()
@@ -47,22 +50,21 @@ struct dev_thread *dev_thread_create()
 
     thread->handle = NULL;
     thread->params = NULL;
+    thread->params_record = NULL;
     thread->dev_name = NULL;
     thread->underrun_count = 0;
     thread->overrun_count = 0;
     thread->timer = conformance_timer_create();
-    thread->recorder = recorder_create();
+    thread->recorder_list = recorder_list_create();
     return thread;
 }
 
 void dev_thread_destroy(struct dev_thread *thread)
 {
-    assert(thread->handle);
-    free(thread->dev_name);
-    snd_pcm_hw_params_free(thread->params);
-    alsa_helper_close(thread->handle);
+    snd_pcm_hw_params_free(thread->params_record);
     conformance_timer_destroy(thread->timer);
-    recorder_destroy(thread->recorder);
+    recorder_list_destroy(thread->recorder_list);
+    free(thread->dev_name);
     free(thread);
 }
 
@@ -120,7 +122,13 @@ void dev_thread_set_duration(struct dev_thread *thread, double duration)
     thread->duration = duration;
 }
 
-void dev_thread_device_open(struct dev_thread *thread)
+void dev_thread_set_iterations(struct dev_thread *thread, int iterations)
+{
+    thread->iterations = iterations;
+}
+
+/* Open device and initialize params. */
+void dev_thread_open_device(struct dev_thread *thread)
 {
     int rc;
     assert(thread->dev_name);
@@ -131,6 +139,16 @@ void dev_thread_device_open(struct dev_thread *thread)
                           thread->stream);
     if (rc < 0)
         exit(EXIT_FAILURE);
+}
+
+/* Close device. */
+void dev_thread_close_device(struct dev_thread *thread)
+{
+    assert(thread->handle);
+    snd_pcm_hw_params_free(thread->params);
+    alsa_helper_close(thread->handle);
+    thread->handle = NULL;
+    thread->params = NULL;
 }
 
 void dev_thread_set_params(struct dev_thread *thread)
@@ -169,9 +187,15 @@ void dev_thread_set_params(struct dev_thread *thread)
                                   thread->handle);
     if (rc < 0)
         exit(EXIT_FAILURE);
+
+    /* Records hw_params to show it on the result. */
+    if (thread->params_record == NULL)
+        snd_pcm_hw_params_malloc(&thread->params_record);
+    snd_pcm_hw_params_copy(thread->params_record, thread->params);
 }
 
-void dev_thread_run_playback(struct dev_thread *thread)
+void dev_thread_start_playback(struct dev_thread *thread,
+                               struct alsa_conformance_recorder *recorder)
 {
     snd_pcm_uframes_t buffer_size;
     snd_pcm_uframes_t period_size;
@@ -264,7 +288,7 @@ void dev_thread_run_playback(struct dev_thread *thread)
             clock_gettime(CLOCK_MONOTONIC_RAW, &now);
             relative_ts = now;
             subtract_timespec(&relative_ts, &ori);
-            recorder_add(thread->recorder, relative_ts, frames_played);
+            recorder_add(recorder, relative_ts, frames_played);
 
             /* In debug mode, print each point in details. */
             if (DEBUG_MODE) {
@@ -301,7 +325,8 @@ void dev_thread_run_playback(struct dev_thread *thread)
     free(buf);
 }
 
-void dev_thread_run_capture(struct dev_thread *thread)
+void dev_thread_start_capture(struct dev_thread *thread,
+                              struct alsa_conformance_recorder *recorder)
 {
     snd_pcm_uframes_t block_size;
     snd_pcm_uframes_t buffer_size;
@@ -383,7 +408,7 @@ void dev_thread_run_capture(struct dev_thread *thread)
             clock_gettime(CLOCK_MONOTONIC_RAW, &now);
             relative_ts = now;
             subtract_timespec(&relative_ts, &ori);
-            recorder_add(thread->recorder, relative_ts,
+            recorder_add(recorder, relative_ts,
                          frames_read + frames_avail);
 
             if (frames_avail >= block_size) {
@@ -411,12 +436,33 @@ void dev_thread_run_capture(struct dev_thread *thread)
     free(buf);
 }
 
-void dev_thread_run(struct dev_thread *thread)
+/* Start device thread for playback or capture. */
+void dev_thread_run_once(struct dev_thread *thread)
 {
+    struct alsa_conformance_recorder *recorder;
+    recorder = recorder_create();
     if (thread->stream == SND_PCM_STREAM_PLAYBACK)
-        dev_thread_run_playback(thread);
+        dev_thread_start_playback(thread, recorder);
     else if (thread->stream == SND_PCM_STREAM_CAPTURE)
-        dev_thread_run_capture(thread);
+        dev_thread_start_capture(thread, recorder);
+    recorder_list_add_recorder(thread->recorder_list, recorder);
+}
+
+void *dev_thread_run_iterations(void *arg)
+{
+    struct dev_thread *thread = arg;
+    int i;
+    for (i = 0; i < thread->iterations; i++) {
+        if (SINGLE_THREAD && thread->iterations != 1)
+            printf("Run %d iteration...\n", i + 1);
+        dev_thread_open_device(thread);
+        dev_thread_set_params(thread);
+        /* If duration is zero, it won't run playback or capture. */
+        if (thread->duration)
+            dev_thread_run_once(thread);
+        dev_thread_close_device(thread);
+    }
+    return 0;
 }
 
 void dev_thread_print_device_information(struct dev_thread *thread)
@@ -431,17 +477,32 @@ void dev_thread_print_device_information(struct dev_thread *thread)
 void dev_thread_print_params(struct dev_thread *thread)
 {
     int rc;
-    assert(thread->handle);
-    rc = print_params(thread->handle, thread->params);
+    assert(thread->params_record);
+    printf("PCM name: %s\n", thread->dev_name);
+    printf("stream: %s\n", snd_pcm_stream_name(thread->stream));
+    rc = print_params(thread->params_record);
     if (rc < 0)
         exit(EXIT_FAILURE);
 }
 
 void dev_thread_print_result(struct dev_thread* thread)
 {
+    if (thread->params_record == NULL) {
+        puts("No data.");
+        return;
+    }
+
+    puts("---------PRINT PARAMS---------");
     dev_thread_print_params(thread);
+
+    puts("---------TIMER RESULT---------");
     conformance_timer_print_result(thread->timer);
-    recorder_result(thread->recorder);
+
+    if (thread->duration == 0)
+        return;
+
+    puts("----------RUN RESULT----------");
+    recorder_list_print_result(thread->recorder_list);
     printf("number of underrun: %u\n", thread->underrun_count);
     printf("number of overrun: %u\n", thread->overrun_count);
 }

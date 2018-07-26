@@ -71,6 +71,12 @@ void conformance_timer_start(struct alsa_conformance_timer *timer,
 void conformance_timer_stop(struct alsa_conformance_timer *timer,
                             enum ALSA_API id);
 
+/* Enables timer. It will record data. */
+void conformance_timer_enable(struct alsa_conformance_timer *timer);
+
+/* Disables timer. It will not record any data until it is enabled. */
+void conformance_timer_disable(struct alsa_conformance_timer *timer);
+
 /* Prints timer result. */
 void conformance_timer_print_result(const struct alsa_conformance_timer *timer);
 

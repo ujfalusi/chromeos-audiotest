@@ -22,7 +22,6 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
     int dir;
     int rc;
 
-    puts("------DEVICE INFORMATION------");
     printf("PCM handle name: %s\n", snd_pcm_name(handle));
 
     printf("PCM type: %s\n", snd_pcm_type_name(snd_pcm_type(handle)));
@@ -107,24 +106,15 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
     }
 
     printf("buffer size range: [%lu, %lu]\n", min2, max2);
-    puts("------------------------------");
     return 0;
 }
 
-int print_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
+int print_params(snd_pcm_hw_params_t *params)
 {
     unsigned int val;
     snd_pcm_uframes_t frames;
     int rc;
     int dir;
-
-    puts("---------PRINT PARAMS---------");
-
-    printf("PCM name: %s\n", snd_pcm_name(handle));
-
-    printf("PCM type: %s\n", snd_pcm_type_name(snd_pcm_type(handle)));
-
-    printf("stream: %s\n", snd_pcm_stream_name(snd_pcm_stream(handle)));
 
     rc = snd_pcm_hw_params_get_access(params, (snd_pcm_access_t *) &val);
     if (rc < 0) {
@@ -181,7 +171,6 @@ int print_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
         return rc;
     }
     printf("buffer size: %u frames\n", frames);
-    puts("------------------------------");
     return 0;
 }
 

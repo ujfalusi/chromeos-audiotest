@@ -42,13 +42,19 @@ void dev_thread_set_block_size(struct dev_thread *thread, unsigned int size);
 void dev_thread_set_duration(struct dev_thread *thread, double duration);
 
 /* Open device and initialize params. */
-void dev_thread_device_open(struct dev_thread *thread);
+void dev_thread_open_device(struct dev_thread *thread);
+
+/* Close device. */
+void dev_thread_close_device(struct dev_thread *thread);
 
 /* Set hw and sw params. */
 void dev_thread_set_params(struct dev_thread *thread);
 
-/* Run device thread. */
-void dev_thread_run(struct dev_thread *thread);
+/* Set iterations. */
+void dev_thread_set_iterations(struct dev_thread *thread, int iterations);
+
+/* Run device thread with set iterations. */
+void *dev_thread_run_iterations(void *arg);
 
 /* Print device information. */
 void dev_thread_print_device_information(struct dev_thread *thread);
