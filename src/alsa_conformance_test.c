@@ -46,6 +46,8 @@ void show_usage(const char *name)
     printf("\t--dev_info_only: "
            "Show device information only without setting params and running "
            "I/O.\n");
+    printf("\t--iterations: "
+           "Number of times to run the tests specified. (default: 1)\n");
     printf("\t--device_file:\n"
            "\t\tDevice file path. It will load devices from the file. "
            "File format:\n"
@@ -63,6 +65,7 @@ void set_dev_thread_args(struct dev_thread *thread,
     dev_thread_set_period_size(thread, args_get_period_size(args));
     dev_thread_set_block_size(thread, args_get_block_size(args));
     dev_thread_set_duration(thread, args_get_duration(args));
+    dev_thread_set_iterations(thread, args_get_iterations(args));
 }
 
 struct dev_thread* create_playback_thread(struct alsa_conformance_args *args)
@@ -147,17 +150,11 @@ size_t parse_device_file(struct alsa_conformance_args *args,
         dev_thread_set_period_size(thread, period_size);
         dev_thread_set_block_size(thread, block_size);
         dev_thread_set_duration(thread, duration);
+        dev_thread_set_iterations(thread, args_get_iterations(args));
 
         thread_list[thread_count++] = thread;
     }
     return thread_count;
-}
-
-void* alsa_conformance_run_thread(void *arg)
-{
-    struct dev_thread *thread = arg;
-    dev_thread_run(thread);
-    return 0;
 }
 
 void alsa_conformance_run(struct alsa_conformance_args *args)
@@ -199,24 +196,22 @@ void alsa_conformance_run(struct alsa_conformance_args *args)
         SINGLE_THREAD = true;
     }
 
-    for (i = 0; i < thread_count; i++)
-        dev_thread_device_open(thread_list[i]);
-
     if (args_get_dev_info_only(args)) {
         for (i = 0; i < thread_count; i++) {
+            puts("------DEVICE INFORMATION------");
+            dev_thread_open_device(thread_list[i]);
             dev_thread_print_device_information(thread_list[i]);
+            dev_thread_close_device(thread_list[i]);
             dev_thread_destroy(thread_list[i]);
+            puts("------------------------------");
         }
         return;
     }
 
     for (i = 0; i < thread_count; i++)
-        dev_thread_set_params(thread_list[i]);
-
-    for (i = 0; i < thread_count; i++)
         pthread_create(&thread_id[i],
                        NULL,
-                       alsa_conformance_run_thread,
+                       dev_thread_run_iterations,
                        thread_list[i]);
 
     for (i = 0; i < thread_count; i++)
@@ -240,7 +235,8 @@ void parse_arguments(struct alsa_conformance_args *test_args,
         OPT_DEBUG = 300,
         OPT_DEVICE_FILE,
         OPT_STRICT,
-        OPT_DEV_INFO_ONLY
+        OPT_DEV_INFO_ONLY,
+        OPT_ITERATIONS
     };
     int c;
     const char *short_opt = "hP:C:c:f:r:p:B:d:D";
@@ -259,6 +255,7 @@ void parse_arguments(struct alsa_conformance_args *test_args,
         {"device_file",  required_argument, NULL, OPT_DEVICE_FILE},
         {"strict",       no_argument,       NULL, OPT_STRICT},
         {"dev_info_only",no_argument,       NULL, OPT_DEV_INFO_ONLY},
+        {"iterations",   required_argument, NULL, OPT_ITERATIONS},
         {0, 0, 0, 0}
     };
     while (1) {
@@ -319,6 +316,10 @@ void parse_arguments(struct alsa_conformance_args *test_args,
 
         case OPT_DEV_INFO_ONLY:
             args_set_dev_info_only(test_args, true);
+            break;
+
+        case OPT_ITERATIONS:
+            args_set_iterations(test_args, atoi(optarg));
             break;
 
         case ':':

@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +24,7 @@ struct alsa_api_timer {
 
 struct alsa_conformance_timer {
     struct alsa_api_timer api_timer[ALSA_API_COUNT];
+    int enable; /* If false, timer will not work. */
 };
 
 int timespec_after(const struct timespec *a, const struct timespec *b)
@@ -82,6 +84,7 @@ struct alsa_conformance_timer *conformance_timer_create()
         exit(EXIT_FAILURE);
     }
     memset(timer, 0, sizeof(*timer));
+    timer->enable = true;
     return timer;
 }
 
@@ -96,6 +99,8 @@ void conformance_timer_start(struct alsa_conformance_timer *timer,
     struct alsa_api_timer *api_timer;
     int rc;
 
+    if (!timer->enable)
+        return;
     api_timer = &timer->api_timer[id];
     assert(!api_timer->is_running);
     api_timer->is_running = 1;
@@ -113,6 +118,8 @@ void conformance_timer_stop(struct alsa_conformance_timer *timer,
     struct timespec end_time;
     int rc;
 
+    if (!timer->enable)
+        return;
     rc = clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
     if (rc == -1) {
         perror("clock_gettime");
@@ -124,6 +131,16 @@ void conformance_timer_stop(struct alsa_conformance_timer *timer,
     api_timer->count_of_calls++;
     subtract_timespec(&end_time, &api_timer->start_time);
     add_timespec(&api_timer->total_time, &end_time);
+}
+
+void conformance_timer_enable(struct alsa_conformance_timer *timer)
+{
+    timer->enable = true;
+}
+
+void conformance_timer_disable(struct alsa_conformance_timer *timer)
+{
+    timer->enable = false;
 }
 
 void api_print_result(enum ALSA_API id, const struct alsa_api_timer *api_timer)
@@ -164,11 +181,9 @@ void conformance_timer_print_precision()
 void conformance_timer_print_result(const struct alsa_conformance_timer *timer)
 {
     int i;
-    puts("---------TIMER RESULT---------");
     printf("%-25s %20s %20s %20s\n",
            "", "Total_time(s)", "Counts", "Averages(s)");
     for (i = 0; i < ALSA_API_COUNT; i++)
         api_print_result(i, &timer->api_timer[i]);
     conformance_timer_print_precision();
-    puts("------------------------------");
 }

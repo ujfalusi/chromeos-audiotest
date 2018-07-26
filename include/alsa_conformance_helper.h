@@ -31,7 +31,6 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
 
 /* Print selected device parameters.
  * Args:
- *    handle - The open PCM to configure.
  *    params - The allocated hardware params object which has been set.
  * Prints to stdout:
  *    PCM handle name - Name of PCM device.
@@ -48,7 +47,7 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
  * Returns:
  *    0 on success, negative error on failure.
  * */
-int print_params(snd_pcm_t *handle, snd_pcm_hw_params_t *params);
+int print_params(snd_pcm_hw_params_t *params);
 
 /* Open pcm handle and malloc hw_params.
  * Args:

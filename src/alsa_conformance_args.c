@@ -24,6 +24,7 @@ struct alsa_conformance_args {
     double duration;
     char *device_file;
     int dev_info_only;
+    int iterations;
 };
 
 struct alsa_conformance_args *args_create()
@@ -47,6 +48,7 @@ struct alsa_conformance_args *args_create()
     args->duration = 1.0;
     args->device_file = NULL;
     args->dev_info_only = false;
+    args->iterations = 1;
 
     return args;
 }
@@ -107,6 +109,11 @@ const char* args_get_device_file(const struct alsa_conformance_args *args)
 int args_get_dev_info_only(const struct alsa_conformance_args *args)
 {
     return args->dev_info_only;
+}
+
+int args_get_iterations(const struct alsa_conformance_args *args)
+{
+    return args->iterations;
 }
 
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
@@ -172,4 +179,9 @@ void args_set_dev_info_only(struct alsa_conformance_args *args,
                             int flag)
 {
     args->dev_info_only = flag;
+}
+
+void args_set_iterations(struct alsa_conformance_args *args, int iterations)
+{
+    args->iterations = iterations;
 }
