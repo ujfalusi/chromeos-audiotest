@@ -11,4 +11,9 @@ all: CC_BINARY(src/alsa_api_test) \
      CC_BINARY(src/cras_api_test) \
      CC_BINARY(src/looptest) \
      CC_BINARY(src/loopback_latency) \
-     CXX_BINARY(src/test_tones)
+     CXX_BINARY(src/test_tones) \
+     script
+
+script:
+	mkdir -p $(OUT)/script
+	install -m 644 $(SRC)/script/* $(OUT)/script
