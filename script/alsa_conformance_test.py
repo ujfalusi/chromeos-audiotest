@@ -289,7 +289,7 @@ class AlsaConformanceTester(object):
 
     output = self.run(['--dev_info_only'])
     if output.rc != 0:
-      print 'FAIL - %s' % output.err
+      print 'Fail - %s' % output.err
       exit()
 
     self.dev_info = DeviceInfoParser().parse(output.out)
@@ -321,7 +321,7 @@ class AlsaConformanceTester(object):
 
   def show_dev_info(self):
     """Prints device information."""
-    print 'Device information'
+    print 'Device Information'
     print '\tName:', self.dev_info.name
     print '\tStream:', self.dev_info.stream
     print '\tFormat:', self.dev_info.valid_formats
@@ -371,13 +371,13 @@ class AlsaConformanceTester(object):
     Returns:
       The data or result. For example:
 
-      {'test': The name of the test.
+      {'name': The name of the test.
        'result': The first return value from check_function.
-                 It should be 'PASS' or 'FAIL'.
+                 It should be 'pass' or 'fail'.
        'error': The second return value from check_function.}
     """
     data = {}
-    data['test'] = test_name
+    data['name'] = test_name
     logging.info(test_name)
     output = self.run(test_args)
     result, error = check_function(output)
@@ -385,7 +385,7 @@ class AlsaConformanceTester(object):
     data['error'] = error
 
     logging_msg = result
-    if result == 'FAIL':
+    if result == 'fail':
       logging_msg += ' - ' + error
     logging.info(logging_msg)
 
@@ -399,14 +399,14 @@ class AlsaConformanceTester(object):
       output: The Output object from alsa_conformance_test.
 
     Returns:
-      result: PASS or FAIL.
+      result: pass or fail.
       err: The error message.
     """
     if output.rc != 0:
-      result = 'FAIL'
+      result = 'fail'
       error = output.err
     else:
-      result = 'PASS'
+      result = 'pass'
       error = ''
     return result, error
 
@@ -417,28 +417,29 @@ class AlsaConformanceTester(object):
       use_json: If true, print result with json format.
     """
     result = {}
-    result['Test Params'] = self.test_params()
+    result['testSuites'] = []
+    result['testSuites'].append(self.test_params())
     result = self.summarize(result)
 
     if use_json:
-      print json.dumps(result)
+      print json.dumps(result, indent=4, sort_keys=True)
     else:
       self.print_result(result)
 
   def test_params(self):
     """Checks if we can set params correctly on device."""
     result = {}
-    result['data'] = []
+    result['name'] = 'Test Params'
+    result['tests'] = []
 
-    result['data'] += self.test_params_channels()
-    result['data'] += self.test_params_formats()
-    result['data'] += self.test_params_rates()
+    result['tests'] += self.test_params_channels()
+    result['tests'] += self.test_params_formats()
+    result['tests'] += self.test_params_rates()
 
     return result
 
   def test_params_channels(self):
     """Checks if channels can be set correctly."""
-
     self.init_params()
     result = []
     for self.channels in range(self.dev_info.channels_range.lower,
@@ -452,7 +453,6 @@ class AlsaConformanceTester(object):
 
   def test_params_formats(self):
     """Checks if formats can be set correctly."""
-
     self.init_params()
     result = []
     for self.format in self.dev_info.valid_formats:
@@ -465,19 +465,17 @@ class AlsaConformanceTester(object):
 
   def test_params_rates(self):
     """Checks if rates can be set correctly."""
-
-    # Need to check the real rate in device params. It may be changed.
     def check_function(output):
       """Checks if rate in params is the same as rate being set."""
-      result = 'PASS'
+      result = 'pass'
       error = ''
       if output.rc != 0:
-        result = 'FAIL'
+        result = 'fail'
         error = output.err
       else:
         params = ParamsParser().parse(output.out)
         if params.rate != self.rate:
-          result = 'FAIL'
+          result = 'fail'
           error = 'Set rate %d but got %d' % (self.rate, params.rate)
       return result, error
 
@@ -497,34 +495,40 @@ class AlsaConformanceTester(object):
       result: A result from tester.
 
     Returns:
-      The result with counts of PASS and FAIL. For example:
-
-      {'PASS': 7,
-       'FAIL': 0,
-       'Test Params': {'PASS': 7,
-                       'FAIL': 0,
-                       'data':[{'test': 'Set channels 2',
-                                'result': 'PASS',
-                                'error': ''},
-                               {'test': 'Set format S16_LE',
-                                'result': 'PASS',
-                                'error': ''},
-                               ...
-                              ]
-                       }
-       }
+      The result with counts of pass and fail. For example:
+      {
+          "pass": 4,
+          "fail": 1,
+          "testSuites": [
+              {
+                  "name": "Test Params",
+                  "pass": 4,
+                  "fail": 1,
+                  "tests": [
+                      {
+                          "name": "Set channels 2",
+                          "result": "pass",
+                          "error": ""
+                      },
+                      {
+                          "name": "Set rate 48000",
+                          "result": "fail",
+                          "error": "Set rate 48000 but got 44100"
+                      }
+                  ]
+              }
+          ]
+      }
     """
-    result['PASS'] = 0
-    result['FAIL'] = 0
-
-    for key in result.iterkeys():
-      if key.startswith('Test'):
-        result[key]['PASS'] = 0
-        result[key]['FAIL'] = 0
-        for data in result[key]['data']:
-          result[key][data['result']] += 1
-        result['PASS'] += result[key]['PASS']
-        result['FAIL'] += result[key]['FAIL']
+    result['pass'] = 0
+    result['fail'] = 0
+    for suite in result['testSuites']:
+      suite['pass'] = 0
+      suite['fail'] = 0
+      for test in suite['tests']:
+        suite[test['result']] += 1
+      result['pass'] += suite['pass']
+      result['fail'] += suite['fail']
 
     return result
 
@@ -534,19 +538,16 @@ class AlsaConformanceTester(object):
     Args:
       result: A result from summarize.
     """
-
-    print '%d PASS, %d FAIL' % (result['PASS'], result['FAIL'])
+    print '%d passed, %d failed' % (result['pass'], result['fail'])
 
     self.show_dev_info()
 
-    for key in result.iterkeys():
-      if not key.startswith('Test'):
-        continue
-      print key
-      for data in result[key]['data']:
-        msg = data['test'] + ': ' + data['result']
-        if data['result'] == 'FAIL':
-          msg += ' - ' + data['error']
+    for suite in result['testSuites']:
+      print suite['name']
+      for test in suite['tests']:
+        msg = test['name'] + ': ' + test['result']
+        if test['result'] == 'fail':
+          msg += ' - ' + test['error']
         print '\t' + msg
 
 
