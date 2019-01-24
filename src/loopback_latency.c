@@ -48,6 +48,8 @@ static char *tty_output_dev = NULL;
 static FILE *tty_output = NULL;
 static const char tty_zeros_block[TTY_OUTPUT_SIZE] = {0};
 
+static int loop;
+static int cold;
 static int capture_count;
 static int playback_count;
 static snd_pcm_sframes_t playback_delay_frames;
@@ -321,6 +323,9 @@ static int cras_play_tone(struct cras_client *client,
                 snd_pcm_format_physical_width(format);
     }
 
+    if (cold)
+        goto play_tone;
+
     /* Write zero first when playback_count < PLAYBACK_SILENT_COUNT
      * or noise got captured. */
     if (playback_count < PLAYBACK_SILENT_COUNT) {
@@ -331,7 +336,11 @@ static int cras_play_tone(struct cras_client *client,
         terminate_capture = 1;
         pthread_cond_signal(&terminate_test);
         pthread_mutex_unlock(&latency_test_mutex);
+
+        /* for loop mode: to avoid underrun */
+        memset(samples, 0, sample_bytes * frames * channels);
     } else {
+play_tone:
         generate_sine(areas, 0, frames, &phase);
 
         if (!sine_started) {
@@ -588,6 +597,7 @@ void cras_test_latency()
         exit(1);
     }
 
+again:
     pthread_mutex_lock(&latency_test_mutex);
     while (!terminate_capture) {
         pthread_cond_wait(&terminate_test, &latency_test_mutex);
@@ -612,8 +622,25 @@ void cras_test_latency()
                 playback_latency_us + capture_latency_us,
                 playback_latency_us,
                 capture_latency_us);
+        fflush(stdout);
     } else {
         fprintf(stdout, "Audio not detected.\n");
+    }
+
+    if (--loop > 0) {
+        if (cras_play_time)
+            free(cras_play_time);
+        if (cras_cap_time)
+            free(cras_cap_time);
+        usleep(50000);
+        cras_play_time = cras_cap_time = NULL;
+        playback_count = 0;
+
+        pthread_mutex_lock(&latency_test_mutex);
+        terminate_capture = 0;
+        sine_started = 0;
+        pthread_mutex_unlock(&latency_test_mutex);
+        goto again;
     }
 
     /* Destruct things. */
@@ -675,7 +702,7 @@ int main (int argc, char *argv[])
     char *cap_dev = NULL;
 
     int arg;
-    while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:")) != -1) {
+    while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:l:C")) != -1) {
     switch (arg) {
         case 'b':
             buffer_frames = atoi(optarg);
@@ -703,9 +730,20 @@ int main (int argc, char *argv[])
         case 't':
             tty_output_dev = optarg;
             break;
+        case 'l':
+            loop = atoi(optarg);
+            break;
+        case 'C':
+            cold = 1;
+            break;
         default:
             return 1;
         }
+    }
+
+    if (loop && cold) {
+        fprintf(stderr, "Cold and loop are exclusive.\n");
+        exit(1);
     }
 
     if (cras_only)
