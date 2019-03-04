@@ -26,6 +26,11 @@ DataParams = collections.namedtuple('DataParams', [
     'buffer_size'
 ])
 
+DataResult = collections.namedtuple('DataResult', [
+    'points', 'step_average', 'step_min', 'step_max', 'step_sd', 'rate',
+    'rate_error', 'underrun_nums', 'overrun_nums'
+])
+
 DEFAULT_PARAMS = DataParams(
     name=None,
     stream=None,
@@ -35,6 +40,15 @@ DEFAULT_PARAMS = DataParams(
     rate=48000,
     period_size=240,
     buffer_size=None)
+
+Criteria = collections.namedtuple('PassCriteria', [
+    'rate_diff', 'rate_err'
+])
+
+PASS_CRITERIA = Criteria(
+    rate_diff=20,
+    rate_err=10
+)
 
 
 class Output(object):
@@ -270,6 +284,64 @@ class ParamsParser(Parser):
         int(buffer_size))
 
 
+class ResultParser(Parser):
+  """Object which can parse run result from alsa_conformance_test."""
+
+  def parse(self, context):
+    """Parses run result.
+
+    Args:
+      context: The output result from alsa_conformance_test.
+
+    Returns:
+      The DataResult object which includes run result. For example:
+
+      context = '''
+          ----------RUN RESULT----------
+          number of recorders: 1
+          number of points: 6142
+          step average: 7.769419
+          step min: 1
+          step max: 41
+          step standard deviation: 1.245727
+          rate: 48000.042167
+          rate error: 0.349262
+          number of underrun: 0
+          number of overrun: 0
+      '''
+      Result
+          DataResult(
+              points=6162,
+              step_average=7.769419,
+              step_min=1,
+              step_max=41,
+              step_sd=1.245727,
+              rate=48000.042167,
+              rate_error=0.349262,
+              underrun_nums=0,
+              overrun_nums=0
+          )
+
+    Raises:
+      ValueError: Can not get run result or wrong format.
+    """
+    if 'RUN RESULT' not in context:
+      raise ValueError('Can not get run result.')
+
+    self._context = context[context.find('RUN RESULT'):]
+
+    return DataResult(
+        int(self._get_value('number of points')),
+        float(self._get_value('step average')),
+        int(self._get_value('step min')),
+        int(self._get_value('step max')),
+        float(self._get_value('step standard deviation')),
+        float(self._get_value('rate')),
+        float(self._get_value('rate error')),
+        int(self._get_value('number of underrun')),
+        int(self._get_value('number of overrun')))
+
+
 class AlsaConformanceTester(object):
   """Object which can set params and run alsa_conformance_test."""
 
@@ -313,7 +385,7 @@ class AlsaConformanceTester(object):
     if DEFAULT_PARAMS.rate in self.dev_info.valid_rates:
       self.rate = DEFAULT_PARAMS.rate
     else:
-      self.rate = self.valid_rates[0]
+      self.rate = self.dev_info.valid_rates[0]
     if in_range(DEFAULT_PARAMS.period_size, self.dev_info.period_size_range):
       self.period_size = DEFAULT_PARAMS.period_size
     else:
@@ -419,6 +491,7 @@ class AlsaConformanceTester(object):
     result = {}
     result['testSuites'] = []
     result['testSuites'].append(self.test_params())
+    result['testSuites'].append(self.test_rates())
     result = self.summarize(result)
 
     if use_json:
@@ -486,6 +559,43 @@ class AlsaConformanceTester(object):
       test_args = ['-d', '0.1']
       data = self.run_and_check(test_name, test_args, check_function)
       result.append(data)
+    return result
+
+  def test_rates(self):
+    """Checks if rates meet our prediction."""
+    result = {}
+    result['name'] = 'Test Rates'
+    result['tests'] = []
+
+    def check_function(output):
+      """Checks if rate being set meets rate calculated by the test."""
+      result = 'pass'
+      error = ''
+      if output.rc != 0:
+        result = 'fail'
+        error = output.err
+      else:
+        run_result = ResultParser().parse(output.out)
+        if abs(run_result.rate - self.rate) > PASS_CRITERIA.rate_diff:
+          result = 'fail'
+          error = ('Expected rate is %lf, measure %lf, '
+                   'difference %lf > threshold %lf')
+          error = error % (self.rate, run_result.rate,
+                           abs(run_result.rate - self.rate),
+                           PASS_CRITERIA.rate_diff)
+        elif run_result.rate_error > PASS_CRITERIA.rate_err:
+          result = 'fail'
+          error = 'Rate error %lf > threshold %lf' % (
+              run_result.rate_error, PASS_CRITERIA.rate_err)
+      return result, error
+
+    self.init_params()
+    for self.rate in self.dev_info.valid_rates:
+      test_name = 'Set rate %d' % (self.rate)
+      test_args = ['-d', '1']
+      data = self.run_and_check(test_name, test_args, check_function)
+      result['tests'].append(data)
+
     return result
 
   def summarize(self, result):
