@@ -41,19 +41,17 @@ void show_usage(const char *name)
            "Set block size in frames of each write. (default: 240)\n");
     printf("\t--debug: "
            "Enable debug mode. (Not support multi-streams in this version)\n");
-    printf("\t--device_file: "
-           "Device file path. It will load devices from the file.\n");
     printf("\t--strict: "
            "Enable strict mode. It will set params to the fixed value.\n");
     printf("\t--dev_info_only: "
            "Show device information only without setting params and running "
            "I/O.\n");
-
-    printf("\n");
-    printf("Device file format:\n"
-           "\t[name] [type] [channels] [format] [rate] [period] [block_size] "
-           "[durations] # comment\n"
-           "\teg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 # It's an example\n");
+    printf("\t--device_file:\n"
+           "\t\tDevice file path. It will load devices from the file. "
+           "File format:\n"
+           "\t\t[name] [type] [channels] [format] [rate] [period] [block_size]"
+           " [durations] # comment\n"
+           "\t\teg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example\n");
 }
 
 void set_dev_thread_args(struct dev_thread *thread,
