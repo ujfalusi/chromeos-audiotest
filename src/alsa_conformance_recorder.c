@@ -163,10 +163,9 @@ struct alsa_conformance_recorder_list *recorder_list_create()
     list->count = 0;
     list->size = 8;
     list->array = (struct alsa_conformance_recorder**)
-        realloc(list->array,
-                list->size * sizeof(struct alsa_conformance_recorder*));
+        malloc(list->size * sizeof(struct alsa_conformance_recorder*));
     if (!list->array) {
-        perror("realloc (alsa_conformance_recorder_list)");
+        perror("malloc (alsa_conformance_recorder_list)");
         exit(EXIT_FAILURE);
     }
 
