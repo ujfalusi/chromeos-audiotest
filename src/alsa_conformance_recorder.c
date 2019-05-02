@@ -240,19 +240,19 @@ void recorder_list_print_result(struct alsa_conformance_recorder_list *list)
             err_max = MAX(err_max, recorder->err);
         }
     }
-    printf("number of recorders: %u\n", list->count);
-    printf("number of points: %u\n", points);
+    printf("number of recorders: %lu\n", list->count);
+    printf("number of points: %lu\n", points);
     if (list->count == 1) {
         printf("step average: %lf\n", step);
-        printf("step min: %u\n", step_min);
-        printf("step max: %u\n", step_max);
+        printf("step min: %lu\n", step_min);
+        printf("step max: %lu\n", step_max);
         printf("step standard deviation: %lf\n", list->array[0]->step_standard);
         printf("rate: %lf\n", rate);
         printf("rate error: %lf\n", err);
     } else {
         printf("step average: %lf\n", step / list->count);
-        printf("step min: %u\n", step_min);
-        printf("step max: %u\n", step_max);
+        printf("step min: %lu\n", step_min);
+        printf("step max: %lu\n", step_max);
         printf("rate average: %lf\n", rate / list->count);
         printf("rate min: %lf\n", rate_min);
         printf("rate max: %lf\n", rate_max);

@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,7 +60,8 @@ void subtract_timespec(struct timespec *a, const struct timespec *b)
 char* timespec_to_str(const struct timespec *time)
 {
     char buf[30];
-    snprintf(buf, 30, "%u.%09u", time->tv_sec, time->tv_nsec);
+    snprintf(buf, 30, "%" PRIu64 ".%09" PRIu64, (uint64_t) time->tv_sec,
+             (uint64_t) time->tv_nsec);
     return strdup(buf);
 }
 

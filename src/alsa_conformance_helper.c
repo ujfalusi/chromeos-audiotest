@@ -156,7 +156,7 @@ int print_params(snd_pcm_hw_params_t *params)
         fprintf(stderr, "hw_params_get_period_size: %s\n", snd_strerror(rc));
         return rc;
     }
-    printf("period size: %d frames\n", frames);
+    printf("period size: %lu frames\n", frames);
 
     rc = snd_pcm_hw_params_get_buffer_time(params, &val, &dir);
     if (rc < 0) {
@@ -170,7 +170,7 @@ int print_params(snd_pcm_hw_params_t *params)
         fprintf(stderr, "hw_params_get_buffer_time: %s\n", snd_strerror(rc));
         return rc;
     }
-    printf("buffer size: %u frames\n", frames);
+    printf("buffer size: %lu frames\n", frames);
     return 0;
 }
 
@@ -280,7 +280,7 @@ int alsa_helper_set_hw_params(struct alsa_conformance_timer *timer,
                                                 period_size,
                                                 &dir);
     if (rc < 0) {
-        fprintf(stderr, "snd_pcm_hw_params_set_period_size_near %l: %s\n",
+        fprintf(stderr, "snd_pcm_hw_params_set_period_size_near %lu: %s\n",
                 *period_size, snd_strerror(rc));
         return rc;
     }
