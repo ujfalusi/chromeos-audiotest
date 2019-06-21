@@ -45,11 +45,6 @@ Criteria = collections.namedtuple('PassCriteria', [
     'rate_diff', 'rate_err'
 ])
 
-PASS_CRITERIA = Criteria(
-    rate_diff=20,
-    rate_err=10
-)
-
 
 class Output(object):
   """The output from alsa_conformance_test.
@@ -345,12 +340,13 @@ class ResultParser(Parser):
 class AlsaConformanceTester(object):
   """Object which can set params and run alsa_conformance_test."""
 
-  def __init__(self, name, stream):
+  def __init__(self, name, stream, criteria):
     """Initializes an AlsaConformanceTester.
 
     Args:
       name: PCM device for playback or capture.
       stream: The stream type. (PLAYBACK or CAPTURE)
+      criteria: A Criteria object for pass criteria.
     """
     self.name = name
     self.stream = stream
@@ -358,6 +354,7 @@ class AlsaConformanceTester(object):
     self.channels = None
     self.rate = None
     self.period_size = None
+    self.criteria = criteria
 
     output = self.run(['--dev_info_only'])
     if output.rc != 0:
@@ -576,17 +573,18 @@ class AlsaConformanceTester(object):
         error = output.err
       else:
         run_result = ResultParser().parse(output.out)
-        if abs(run_result.rate - self.rate) > PASS_CRITERIA.rate_diff:
+        rate_threshold = self.rate * self.criteria.rate_diff / 100.0
+        if abs(run_result.rate - self.rate) > rate_threshold:
           result = 'fail'
           error = ('Expected rate is %lf, measure %lf, '
                    'difference %lf > threshold %lf')
           error = error % (self.rate, run_result.rate,
                            abs(run_result.rate - self.rate),
-                           PASS_CRITERIA.rate_diff)
-        elif run_result.rate_error > PASS_CRITERIA.rate_err:
+                           rate_threshold)
+        elif run_result.rate_error > self.criteria.rate_err:
           result = 'fail'
           error = 'Rate error %lf > threshold %lf' % (
-              run_result.rate_error, PASS_CRITERIA.rate_err)
+              run_result.rate_error, self.criteria.rate_err)
       return result, error
 
     self.init_params()
@@ -682,16 +680,28 @@ def main():
       help='Alsa pcm stream type (PLAYBACK or CAPTURE)',
       type=check_type)
   parser.add_argument(
+      '--rate-criteria-diff-pct',
+      help=('The pass criteria of rate. The value is a percentage of rate. '
+            'For example, 0.01 means the pass range is [47995.2, 48004.8] '
+            'for rate 48000. (default: 0.01)'),
+      type=float, default=0.01)
+  parser.add_argument(
+      '--rate-err-criteria',
+      help='The pass criteria of rate error. (default: 10)',
+      type=float, default=10)
+  parser.add_argument(
       '--json', action='store_true', help='Print result in JSON format')
   parser.add_argument('--log-file', help='The file to save logs.')
 
   args = parser.parse_args()
 
+  criteria = Criteria(args.rate_criteria_diff_pct, args.rate_err_criteria)
+
   if args.log_file is not None:
     logging.basicConfig(
         level=logging.DEBUG, filename=args.log_file, filemode='w')
 
-  tester = AlsaConformanceTester(args.device, args.stream)
+  tester = AlsaConformanceTester(args.device, args.stream, criteria)
   tester.test(args.json)
 
 
