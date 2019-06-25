@@ -580,6 +580,8 @@ void cras_test_latency()
     pthread_cond_init(&terminate_test, NULL);
 
     cras_client_run_thread(client);
+    // Sleep 500ms to skip input cold start time.
+    fprintf(stderr, "Create capture stream and wait for 500ms.\n");
     rc = cras_add_stream(client,
                          capture_params,
                          CRAS_STREAM_INPUT,
@@ -588,6 +590,10 @@ void cras_test_latency()
         fprintf(stderr, "Fail to add capture stream.\n");
         exit(1);
     }
+    struct timespec delay = { .tv_sec = 0, .tv_nsec = 500000000 };
+    nanosleep(&delay, NULL);
+
+    fprintf(stderr, "Create playback stream.\n");
     rc = cras_add_stream(client,
                          playback_params,
                          CRAS_STREAM_OUTPUT,
