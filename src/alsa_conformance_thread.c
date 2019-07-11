@@ -411,11 +411,12 @@ void dev_thread_start_capture(struct dev_thread *thread,
             recorder_add(recorder, relative_ts,
                          frames_read + frames_avail);
 
-            if (frames_avail >= block_size) {
-                if (alsa_helper_read(handle, buf, frames_avail) < 0)
+            /* Read blocks if there are enough frames in a device. */
+            while (old_frames_avail >= block_size) {
+                if (alsa_helper_read(handle, buf, block_size) < 0)
                     exit(EXIT_FAILURE);
-                frames_read += frames_avail;
-                old_frames_avail = 0;
+                frames_read += block_size;
+                old_frames_avail -= block_size;
             }
 
             if (DEBUG_MODE) {
