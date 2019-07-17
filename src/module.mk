@@ -54,7 +54,7 @@ CC_BINARY(src/loopback_latency): \
 	CFLAGS += $(ALSA_CFLAGS) $(CRAS_CFLAGS)
 CC_BINARY(src/loopback_latency): \
 	LDLIBS += $(ALSA_LIBS) $(CRAS_LIBS)
-clean: CC_BINARY(src/loopback_latency)
+clean: CLEAN(src/loopback_latency)
 all: CC_BINARY(src/loopback_latency)
 
 CC_BINARY(src/alsa_api_test): \
@@ -63,7 +63,7 @@ CC_BINARY(src/alsa_api_test): \
 	CFLAGS += $(ALSA_CFLAGS)
 CC_BINARY(src/alsa_api_test): \
 	LDLIBS += $(ALSA_LIBS)
-clean: CC_BINARY(src/alsa_api_test)
+clean: CLEAN(src/alsa_api_test)
 all: CC_BINARY(src/alsa_api_test)
 
 CC_BINARY(src/alsa_helpers): \
@@ -72,7 +72,7 @@ CC_BINARY(src/alsa_helpers): \
 	CFLAGS += $(ALSA_CFLAGS)
 CC_BINARY(src/alsa_helpers): \
 	LDLIBS += $(ALSA_LIBS)
-clean: CC_BINARY(src/alsa_helpers)
+clean: CLEAN(src/alsa_helpers)
 all: CC_BINARY(src/alsa_helpers)
 
 CC_BINARY(src/cras_api_test): \
@@ -81,7 +81,7 @@ CC_BINARY(src/cras_api_test): \
 	CFLAGS += $(ALSA_CFLAGS) $(CRAS_CFLAGS)
 CC_BINARY(src/cras_api_test): \
 	LDLIBS += $(ALSA_LIBS) $(CRAS_LIBS)
-clean: CC_BINARY(src/cras_api_test)
+clean: CLEAN(src/cras_api_test)
 all: CC_BINARY(src/cras_api_test)
 
 CC_BINARY(src/alsa_conformance_test): \
@@ -96,5 +96,5 @@ CC_BINARY(src/alsa_conformance_test): \
 	CFLAGS += $(ALSA_CFLAGS)
 CC_BINARY(src/alsa_conformance_test): \
 	LDLIBS += $(ALSA_LIBS)
-clean: CC_BINARY(src/alsa_conformance_test)
+clean: CLEAN(src/alsa_conformance_test)
 all: CC_BINARY(src/alsa_conformance_test)
