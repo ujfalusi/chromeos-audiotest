@@ -14,6 +14,8 @@ all: CC_BINARY(src/alsa_api_test) \
      CXX_BINARY(src/test_tones) \
      script
 
+alsa_conformance_test: CC_BINARY(src/alsa_conformance_test)
+
 script:
 	mkdir -p $(OUT)/script
 	install -m 644 $(SRC)/script/* $(OUT)/script
