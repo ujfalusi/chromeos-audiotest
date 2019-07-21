@@ -90,12 +90,12 @@ class Parser(object):
       _context = '''
           format: S16_LE
           channels: 4
-          rate: 48000 bps
+          rate: 48000 fps
           period size: 240 frames
       '''
       _get_value('format') = 'S16_LE'
       _get_value('channels') = '4'
-      _get_value('rate', 'bps') = '48000'
+      _get_value('rate', 'fps') = '48000'
       _get_value('period size', 'frames') = '240'
 
     Raises:
@@ -237,7 +237,7 @@ class ParamsParser(Parser):
           access type: MMAP_INTERLEAVED
           format: S16_LE
           channels: 2
-          rate: 48000 bps
+          rate: 48000 fps
           period time: 5000 us
           period size: 240 frames
           buffer time: 160000 us
@@ -264,7 +264,7 @@ class ParamsParser(Parser):
 
     self._context = context
 
-    rate = self._get_value('rate', unit='bps')
+    rate = self._get_value('rate', unit='fps')
     period_size = self._get_value('period size', unit='frames')
     buffer_size = self._get_value('buffer size', unit='frames')
 

@@ -143,7 +143,7 @@ int print_params(snd_pcm_hw_params_t *params)
         fprintf(stderr, "hw_params_get_rate: %s\n", snd_strerror(rc));
         return rc;
     }
-    printf("rate: %d bps\n", val);
+    printf("rate: %d fps\n", val);
 
     rc = snd_pcm_hw_params_get_period_time(params, &val, &dir);
     if (rc < 0) {
