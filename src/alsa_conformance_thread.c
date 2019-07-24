@@ -5,6 +5,7 @@
  */
 #include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "include/alsa_conformance_debug.h"
 #include "include/alsa_conformance_helper.h"

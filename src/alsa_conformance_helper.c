@@ -5,6 +5,7 @@
  */
 
 #include <alsa/asoundlib.h>
+#include <stdint.h>
 
 #include "include/alsa_conformance_helper.h"
 #include "include/alsa_conformance_timer.h"

@@ -344,4 +344,5 @@ int main(int argc, char *argv[])
     parse_arguments(test_args, argc, argv);
     alsa_conformance_run(test_args);
     args_destroy(test_args);
+    return 0;
 }
