@@ -206,8 +206,8 @@ void recorder_list_print_result(struct alsa_conformance_recorder_list *list)
     double err_min;
     double err_max;
     double step = 0;
-    unsigned long step_min;
-    unsigned long step_max;
+    unsigned long step_min = UINT32_MAX;
+    unsigned long step_max = 0;
     unsigned long points = 0;
     struct alsa_conformance_recorder *recorder;
     int i;
