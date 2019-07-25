@@ -50,13 +50,15 @@ Test basic funtion of alsa pcm device automatically.
 It is a script for alsa_conformance_test.
 """
 
-TEST_SUITES = ['test_params', 'test_rates']
+TEST_SUITES = ['test_params', 'test_rates', 'test_all_pairs']
 
 TEST_SUITES_DESCRIPTION = """
 test suites list:
   test_params           Check whether all parameters can be set correctly.
   test_rates            Check whether all estimated rates are the same as what
                         it set.
+  test_all_pairs        Check whether the audio is still stable when mixing
+                        different params.
 """
 
 
@@ -506,6 +508,8 @@ class AlsaConformanceTester(object):
       result['testSuites'].append(self.test_params())
     if 'test_rates' in test_suites:
       result['testSuites'].append(self.test_rates())
+    if 'test_all_pairs' in test_suites:
+      result['testSuites'].append(self.test_all_pairs())
     result = self.summarize(result)
 
     if use_json:
@@ -575,41 +579,64 @@ class AlsaConformanceTester(object):
       result.append(data)
     return result
 
+  def _check_rate(self, output):
+    """Checks if rate being set meets rate calculated by the test."""
+    result = 'pass'
+    error = ''
+    if output.rc != 0:
+      result = 'fail'
+      error = output.err
+    else:
+      run_result = ResultParser().parse(output.out)
+      rate_threshold = self.rate * self.criteria.rate_diff / 100.0
+      if abs(run_result.rate - self.rate) > rate_threshold:
+        result = 'fail'
+        error = ('Expected rate is %lf, measure %lf, '
+                 'difference %lf > threshold %lf')
+        error = error % (self.rate, run_result.rate,
+                         abs(run_result.rate - self.rate),
+                         rate_threshold)
+      elif run_result.rate_error > self.criteria.rate_err:
+        result = 'fail'
+        error = 'Rate error %lf > threshold %lf' % (
+            run_result.rate_error, self.criteria.rate_err)
+    return result, error
+
   def test_rates(self):
     """Checks if rates meet our prediction."""
     result = {}
     result['name'] = 'Test Rates'
     result['tests'] = []
 
-    def check_function(output):
-      """Checks if rate being set meets rate calculated by the test."""
-      result = 'pass'
-      error = ''
-      if output.rc != 0:
-        result = 'fail'
-        error = output.err
-      else:
-        run_result = ResultParser().parse(output.out)
-        rate_threshold = self.rate * self.criteria.rate_diff / 100.0
-        if abs(run_result.rate - self.rate) > rate_threshold:
-          result = 'fail'
-          error = ('Expected rate is %lf, measure %lf, '
-                   'difference %lf > threshold %lf')
-          error = error % (self.rate, run_result.rate,
-                           abs(run_result.rate - self.rate),
-                           rate_threshold)
-        elif run_result.rate_error > self.criteria.rate_err:
-          result = 'fail'
-          error = 'Rate error %lf > threshold %lf' % (
-              run_result.rate_error, self.criteria.rate_err)
-      return result, error
-
     self.init_params()
     for self.rate in self.dev_info.valid_rates:
       test_name = 'Set rate %d' % (self.rate)
       test_args = ['-d', '1']
-      data = self.run_and_check(test_name, test_args, check_function)
+      data = self.run_and_check(test_name, test_args, self._check_rate)
       result['tests'].append(data)
+
+    return result
+
+  def test_all_pairs(self):
+    """Checks if the audio is still stable when mixing different params.
+
+    The test will check if rates meet our prediction when testing all
+    combinations of channels, sample rates and formats.
+    """
+    result = {}
+    result['name'] = 'Test All Pairs'
+    result['tests'] = []
+
+    self.init_params()
+    for self.channels in range(self.dev_info.channels_range.lower,
+                               self.dev_info.channels_range.upper + 1):
+      for self.format in self.dev_info.valid_formats:
+        for self.rate in self.dev_info.valid_rates:
+          test_name = 'Set channels %d, format %s, rate %d' % (
+              self.channels, self.format, self.rate)
+          test_args = ['-d', '1']
+          data = self.run_and_check(test_name, test_args, self._check_rate)
+          result['tests'].append(data)
 
     return result
 
