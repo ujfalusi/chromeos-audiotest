@@ -45,6 +45,20 @@ Criteria = collections.namedtuple('PassCriteria', [
     'rate_diff', 'rate_err'
 ])
 
+DESCRIPTION = """
+Test basic funtion of alsa pcm device automatically.
+It is a script for alsa_conformance_test.
+"""
+
+TEST_SUITES = ['test_params', 'test_rates']
+
+TEST_SUITES_DESCRIPTION = """
+test suites list:
+  test_params           Check whether all parameters can be set correctly.
+  test_rates            Check whether all estimated rates are the same as what
+                        it set.
+"""
+
 
 class Output(object):
   """The output from alsa_conformance_test.
@@ -479,16 +493,19 @@ class AlsaConformanceTester(object):
       error = ''
     return result, error
 
-  def test(self, use_json):
+  def test(self, test_suites, use_json):
     """Does testing.
 
     Args:
+      test_suites: Indicate which tests will be run.
       use_json: If true, print result with json format.
     """
     result = {}
     result['testSuites'] = []
-    result['testSuites'].append(self.test_params())
-    result['testSuites'].append(self.test_rates())
+    if 'test_params' in test_suites:
+      result['testSuites'].append(self.test_params())
+    if 'test_rates' in test_suites:
+      result['testSuites'].append(self.test_rates())
     result = self.summarize(result)
 
     if use_json:
@@ -668,12 +685,10 @@ def check_type(stream):
 
 
 def main():
-  description = """
-      Test basic funtion of alsa pcm device automatically.
-      It is a script for alsa_conformance_test.
-  """
-
-  parser = argparse.ArgumentParser(description=description)
+  parser = argparse.ArgumentParser(
+      description=DESCRIPTION,
+      formatter_class=argparse.RawDescriptionHelpFormatter,
+      epilog=TEST_SUITES_DESCRIPTION)
   parser.add_argument('device', help='Alsa pcm device, such as hw:0,0')
   parser.add_argument(
       'stream',
@@ -692,6 +707,11 @@ def main():
   parser.add_argument(
       '--json', action='store_true', help='Print result in JSON format')
   parser.add_argument('--log-file', help='The file to save logs.')
+  parser.add_argument(
+      '--test-suites', nargs='+',
+      help='Customize which test suites should be run. If not set, all suites '
+           'will be run. See the test suites list for more information.',
+      choices=TEST_SUITES, default=TEST_SUITES, metavar='TEST_SUITE')
 
   args = parser.parse_args()
 
@@ -702,8 +722,7 @@ def main():
         level=logging.DEBUG, filename=args.log_file, filemode='w')
 
   tester = AlsaConformanceTester(args.device, args.stream, criteria)
-  tester.test(args.json)
-
+  tester.test(args.test_suites, args.json)
 
 if __name__ == '__main__':
   main()
