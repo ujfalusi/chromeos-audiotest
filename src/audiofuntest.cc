@@ -17,7 +17,7 @@
 #include "include/tone_generators.h"
 
 constexpr static const char *short_options =
-    "a:m:d:n:o:w:P:f:R:F:r:t:c:C:T:l:g:hv";
+    "a:m:d:n:o:w:P:f:R:F:r:t:c:C:T:l:g:i:x:hv";
 
 constexpr static const struct option long_options[] = {
   {"active-speaker-channels", 1, NULL, 'a'},
@@ -37,6 +37,8 @@ constexpr static const struct option long_options[] = {
   {"test-rounds", 1, NULL, 'T'},
   {"tone-length", 1, NULL, 'l'},
   {"volume-gain", 1, NULL, 'g'},
+  {"min-frequency", 1, NULL, 'i'},
+  {"max-frequency", 1, NULL, 'x'},
 
   // Other helper args.
   {"help", 0, NULL, 'h'},
@@ -136,6 +138,13 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
           fprintf(stderr, "Value of volume_gain is out of range.\n");
           return false;
         }
+        break;
+      case 'i':
+        config->min_frequency = atoi(optarg);
+        break;
+      case 'x':
+        config->max_frequency = atoi(optarg);
+        break;
       case 'v':
         config->verbose = true;
         break;
@@ -167,6 +176,16 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
     for (int i = 0; i < config->num_mic_channels; ++i) {
       config->active_mic_channels.insert(i);
     }
+  }
+
+  if (config->min_frequency > config->max_frequency) {
+    fprintf(stderr, "Range error: min_frequency > max_frequency\n");
+    return false;
+  }
+
+  if (config->min_frequency < 0) {
+    fprintf(stderr, "Range error: min_frequency < 0\n");
+    return false;
   }
   return true;
 }
@@ -246,7 +265,15 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
   fprintf(fd,
           "\t-g, --volume-gain\n"
           "\t\tControl the volume of generated audio frames. The range is from"
-          " 0 to 100.");
+          " 0 to 100.\n");
+  fprintf(fd,
+          "\t-i, --min-frequency:\n"
+          "\t\tThe minimum frequency of generated audio frames."
+          "(def %d)\n", default_config.min_frequency);
+  fprintf(fd,
+          "\t-x, --max-frequency\n"
+          "\t\tThe maximum frequency of generated audio frames."
+          "(def %d)\n", default_config.max_frequency);
 
   fprintf(fd,
           "\t-v, --verbose: Show debugging information.\n");
@@ -290,6 +317,8 @@ void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
   fprintf(fd, "\tNumber of test rounds: %d\n", config.test_rounds);
   fprintf(fd, "\tTone length: %.4f(s)\n", config.tone_length_sec);
   fprintf(fd, "\tVolume gain: %d\n", config.volume_gain);
+  fprintf(fd, "\tMinimum frequency: %d\n", config.min_frequency);
+  fprintf(fd, "\tMaximum frequency: %d\n", config.max_frequency);
 
   if (config.verbose)
     fprintf(fd, "\t** Verbose **.\n");
@@ -311,13 +340,11 @@ inline int RandomPick(int min, int max) {
 void ControlLoop(const AudioFunTestConfig &config,
                  Evaluator *evaluator,
                  PlayClient *player,
-                 RecordClient *recorder,
-                 const int min_frequency = 4000,
-                 const int max_frequency = 10000) {
+                 RecordClient *recorder) {
   const double frequency_resolution =
       static_cast<double>(config.sample_rate) / config.fft_size;
-  const int min_bin = min_frequency / frequency_resolution;
-  const int max_bin = max_frequency / frequency_resolution;
+  const int min_bin = config.min_frequency / frequency_resolution;
+  const int max_bin = config.max_frequency / frequency_resolution;
 
   std::vector<int> passes(config.num_mic_channels);
   std::vector<bool> single_round_pass(config.num_mic_channels);

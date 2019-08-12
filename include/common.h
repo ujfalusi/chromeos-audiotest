@@ -55,6 +55,8 @@ struct AudioFunTestConfig {
         test_rounds(10),
         tone_length_sec(10.0f),
         volume_gain(50),
+        min_frequency(4000),
+        max_frequency(10000),
         verbose(false) {}
 
   std::set<int> active_speaker_channels;
@@ -74,6 +76,8 @@ struct AudioFunTestConfig {
   int test_rounds;
   double tone_length_sec;
   int volume_gain;
+  int min_frequency;
+  int max_frequency;
   bool verbose;
 };
 
