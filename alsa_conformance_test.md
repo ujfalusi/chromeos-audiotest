@@ -324,7 +324,7 @@ Device Information
         Name: hw:0,0
         Stream: PLAYBACK
         Format: ['S16_LE', 'S32_LE']
-        Channels range: [2, 2]
+        Channels: [2]
         Rate: [44100, 48000, 96000, 192000]
         Period_size range: [16, 8192]
         Buffer_size range: [32, 16384]
