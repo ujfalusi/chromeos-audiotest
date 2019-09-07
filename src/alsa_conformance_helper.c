@@ -41,7 +41,13 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
         return rc;
     }
 
-    printf("channels range: [%u, %u]\n", min, max);
+    printf("available channels:");
+    for (i = min; i <= max; i++) {
+        rc = snd_pcm_hw_params_test_channels(handle, params, i);
+        if (rc == 0)
+            printf(" %d", i);
+    }
+    puts("");
 
     printf("available formats:");
     for (i = 0; i < SND_PCM_FORMAT_LAST; i++) {

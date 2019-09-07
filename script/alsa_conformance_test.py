@@ -17,7 +17,7 @@ TEST_BINARY = 'alsa_conformance_test'
 Range = collections.namedtuple('Range', ['lower', 'upper'])
 
 DataDevInfo = collections.namedtuple('DataDevInfo', [
-    'name', 'stream', 'valid_formats', 'valid_rates', 'channels_range',
+    'name', 'stream', 'valid_formats', 'valid_rates', 'valid_channels',
     'period_size_range', 'buffer_size_range'
 ])
 
@@ -137,11 +137,11 @@ class Parser(object):
       The list following the key. For example:
 
       _context = '''
-          channels range: [2, 2]
+          available channels: 1, 2
           available formats: S16_LE S32_LE
           available rates: 44100 48000 96000
       '''
-      _get_list('channels range') = ['2', '2']
+      _get_list('available channels') = ['1', '2']
       _get_list('available formats') = ['S16_LE', 'S32_LE']
       _get_list('available rates') = ['44100', '48000', '96000']
 
@@ -163,10 +163,8 @@ class Parser(object):
       The range following the key. For example:
 
       context = '''
-          channels range: [2, 2]
           period size range: [16, 262144]
       '''
-      _get_range('channels range') = [2, 2]
       _get_range('period size range') = [16, 262144]
 
     Raises:
@@ -197,7 +195,7 @@ class DeviceInfoParser(Parser):
           PCM handle name: hw:0,0
           PCM type: HW
           stream: PLAYBACK
-          channels range: [2, 2]
+          available range: 1, 2
           available formats: S16_LE S32_LE
           rate range: [44100, 192000]
           available rates: 44100 48000 96000 192000
@@ -210,7 +208,7 @@ class DeviceInfoParser(Parser):
               name='hw:0,0',
               stream='PLAYBACK',
               valid_formats=['S16_LE', 'S32_LE'],
-              channels_range=Range(lower=2, upper=2),
+              valid_channels=['1', '2'],
               valid_rates=[44100, 48000, 96000, 192000],
               period_size_range=Range(lower=16, upper=262144),
               buffer_size_range=Range(lower=32, upper=524288)
@@ -229,7 +227,7 @@ class DeviceInfoParser(Parser):
         self._get_value('stream'),
         self._get_list('available formats'),
         map(int, self._get_list('available rates')),
-        self._get_range('channels range'),
+        map(int, self._get_list('available channels')),
         self._get_range('period size range'),
         self._get_range('buffer size range'))
 
@@ -391,10 +389,10 @@ class AlsaConformanceTester(object):
       self.format = DEFAULT_PARAMS.format
     else:
       self.format = self.dev_info.valid_formats[0]
-    if in_range(DEFAULT_PARAMS.channels, self.dev_info.channels_range):
+    if DEFAULT_PARAMS.channels in self.dev_info.valid_channels:
       self.channels = DEFAULT_PARAMS.channels
     else:
-      self.channels = self.dev_info.channels_range.lower
+      self.channels = self.dev_info.valid_channels[0]
     if DEFAULT_PARAMS.rate in self.dev_info.valid_rates:
       self.rate = DEFAULT_PARAMS.rate
     else:
@@ -410,7 +408,7 @@ class AlsaConformanceTester(object):
     print '\tName:', self.dev_info.name
     print '\tStream:', self.dev_info.stream
     print '\tFormat:', self.dev_info.valid_formats
-    print '\tChannels range:', list(self.dev_info.channels_range)
+    print '\tChannels:', self.dev_info.valid_channels
     print '\tRate:', self.dev_info.valid_rates
     print '\tPeriod_size range:', list(self.dev_info.period_size_range)
     print '\tBuffer_size range:', list(self.dev_info.buffer_size_range)
@@ -533,8 +531,7 @@ class AlsaConformanceTester(object):
     """Checks if channels can be set correctly."""
     self.init_params()
     result = []
-    for self.channels in range(self.dev_info.channels_range.lower,
-                               self.dev_info.channels_range.upper + 1):
+    for self.channels in self.dev_info.valid_channels:
       test_name = 'Set channels %d' % (self.channels)
       test_args = ['-d', '0.1']
       data = self.run_and_check(test_name, test_args,
@@ -628,8 +625,7 @@ class AlsaConformanceTester(object):
     result['tests'] = []
 
     self.init_params()
-    for self.channels in range(self.dev_info.channels_range.lower,
-                               self.dev_info.channels_range.upper + 1):
+    for self.channels in self.dev_info.valid_channels:
       for self.format in self.dev_info.valid_formats:
         for self.rate in self.dev_info.valid_rates:
           test_name = 'Set channels %d, format %s, rate %d' % (
