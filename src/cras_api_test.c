@@ -46,7 +46,8 @@ static uint32_t get_input_period_size(uint32_t sample_rate)
         return CAPTURE_PERIOD_SIZE;
 }
 
-void cras_server_error_cb(struct cras_client *client, void *user_arg);
+void cras_connection_status_cb(struct cras_client *client,
+                               cras_connection_status_t status, void *user_arg);
 
 int cras_open(struct cras_client **client)
 {
@@ -77,7 +78,8 @@ int cras_open(struct cras_client **client)
         goto fail;
     }
 
-    cras_client_set_server_error_cb(*client, cras_server_error_cb, NULL);
+    cras_client_set_connection_status_cb(*client, cras_connection_status_cb,
+                                         NULL);
 
     return 0;
 
@@ -93,10 +95,13 @@ int cras_close(struct cras_client *client)
     return 0;
 }
 
-void cras_server_error_cb(struct cras_client *client, void *user_arg)
-{
-    fprintf(stderr, "Server error!\n");
-    cras_close(client);
+void cras_connection_status_cb(struct cras_client *client,
+                               cras_connection_status_t status,
+                               void *user_arg) {
+    if (status == CRAS_CONN_STATUS_FAILED) {
+        fprintf(stderr, "Server connection failed!\n");
+        cras_client_stop(client);
+    }
 }
 
 static int in_read_cb(struct cras_client *client,
