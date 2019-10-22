@@ -11,7 +11,7 @@
 
 #include "include/alsa_conformance_args.h"
 
-#define MAX_DEVICE_NAME_LENGTH 20
+#define MAX_DEVICE_NAME_LENGTH 50
 
 struct alsa_conformance_args {
     char *playback_dev_name;
@@ -127,7 +127,7 @@ void args_set_capture_dev_name(struct alsa_conformance_args *args,
                                const char *name)
 {
     free(args->capture_dev_name);
-    args->capture_dev_name = strdup(name);
+    args->capture_dev_name = strndup(name, MAX_DEVICE_NAME_LENGTH);
 }
 
 void args_set_channels(struct alsa_conformance_args *args,
