@@ -5,6 +5,7 @@
  */
 
 #include <math.h>
+#include <string.h>
 #include <sys/param.h>
 
 #include "alsa_conformance_recorder.h"
@@ -12,7 +13,9 @@
 
 struct alsa_conformance_recorder {
 	unsigned long count;
-	unsigned long old_frames;
+	unsigned long frames;
+	struct timespec time;
+	double merge_threshold;
 
 	double time_sum; /* sum(time) */
 	double time_square_sum; /* sum(time * time) */
@@ -30,9 +33,11 @@ struct alsa_conformance_recorder {
 	double rate;
 	double offset;
 	double err;
+
+	struct alsa_conformance_recorder *previous_state;
 };
 
-struct alsa_conformance_recorder *recorder_create()
+struct alsa_conformance_recorder *recorder_create(double merge_threshold)
 {
 	struct alsa_conformance_recorder *recorder;
 	recorder = (struct alsa_conformance_recorder *)malloc(
@@ -52,23 +57,60 @@ struct alsa_conformance_recorder *recorder_create()
 	recorder->step_max = 0;
 	recorder->diff_sum = 0;
 	recorder->diff_square_sum = 0;
+	recorder->frames = 0;
+	recorder->time.tv_sec = 0;
+	recorder->time.tv_nsec = 0;
+	recorder->merge_threshold = merge_threshold;
 
 	recorder->rate = -1;
 	recorder->offset = -1;
 	recorder->err = -1;
+
+	recorder->previous_state = (struct alsa_conformance_recorder *)calloc(
+		1, sizeof(struct alsa_conformance_recorder));
+
+	recorder->previous_state->previous_state = recorder->previous_state;
+	recorder->previous_state->step_min = UINT32_MAX;
+	recorder->previous_state->rate = -1;
+	recorder->previous_state->offset = -1;
+	recorder->previous_state->err = -1;
+	recorder->previous_state->merge_threshold = merge_threshold;
+
 	return recorder;
 }
 
 void recorder_destroy(struct alsa_conformance_recorder *recorder)
 {
+	free(recorder->previous_state);
 	free(recorder);
 }
 
-void recorder_add(struct alsa_conformance_recorder *recorder,
-		  struct timespec time, unsigned long frames)
+int should_merge(struct alsa_conformance_recorder *recorder,
+		 struct timespec time)
+{
+	double time_s;
+	subtract_timespec(&time, &recorder->time);
+	time_s = timespec_to_s(&time);
+	if (time_s < recorder->merge_threshold)
+		return 1;
+	return 0;
+}
+
+int recorder_add(struct alsa_conformance_recorder *recorder,
+		 struct timespec time, unsigned long frames)
 {
 	double time_s;
 	unsigned long diff;
+	int merged = 0;
+
+	if (should_merge(recorder, time)) {
+		merged = 1;
+		memcpy(recorder, recorder->previous_state,
+		       sizeof(struct alsa_conformance_recorder));
+	} else {
+		memcpy(recorder->previous_state, recorder,
+		       sizeof(struct alsa_conformance_recorder));
+	}
 
 	time_s = timespec_to_s(&time);
 	recorder->count++;
@@ -79,13 +121,15 @@ void recorder_add(struct alsa_conformance_recorder *recorder,
 	recorder->time_frames_sum += time_s * frames;
 
 	if (recorder->count >= 2) {
-		diff = frames - recorder->old_frames;
+		diff = frames - recorder->frames;
 		recorder->step_min = MIN(recorder->step_min, diff);
 		recorder->step_max = MAX(recorder->step_max, diff);
 		recorder->diff_sum += (double)diff;
 		recorder->diff_square_sum += (double)diff * diff;
 	}
-	recorder->old_frames = frames;
+	recorder->frames = frames;
+	recorder->time = time;
+	return merged;
 }
 
 /* Compute average and standard deviation of steps. */

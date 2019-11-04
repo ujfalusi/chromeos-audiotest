@@ -25,6 +25,7 @@ struct alsa_conformance_args {
 	char *device_file;
 	int dev_info_only;
 	int iterations;
+	double merge_threshold;
 };
 
 struct alsa_conformance_args *args_create()
@@ -49,6 +50,7 @@ struct alsa_conformance_args *args_create()
 	args->device_file = NULL;
 	args->dev_info_only = false;
 	args->iterations = 1;
+	args->merge_threshold = 0.0001;
 
 	return args;
 }
@@ -114,6 +116,11 @@ int args_get_dev_info_only(const struct alsa_conformance_args *args)
 int args_get_iterations(const struct alsa_conformance_args *args)
 {
 	return args->iterations;
+}
+
+double args_get_merge_threshold(const struct alsa_conformance_args *args)
+{
+	return args->merge_threshold;
 }
 
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
@@ -182,4 +189,10 @@ void args_set_dev_info_only(struct alsa_conformance_args *args, int flag)
 void args_set_iterations(struct alsa_conformance_args *args, int iterations)
 {
 	args->iterations = iterations;
+}
+
+void args_set_merge_threshold(struct alsa_conformance_args *args,
+			      double merge_threshold)
+{
+	args->merge_threshold = merge_threshold;
 }

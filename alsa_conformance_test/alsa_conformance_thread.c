@@ -32,6 +32,7 @@ struct dev_thread {
 	double duration;
 	int iterations;
 
+	double merge_threshold;
 	unsigned underrun_count; /* Record number of underruns during playback. */
 	unsigned overrun_count; /* Record number of overrun during capture. */
 
@@ -57,6 +58,7 @@ struct dev_thread *dev_thread_create()
 	thread->overrun_count = 0;
 	thread->timer = conformance_timer_create();
 	thread->recorder_list = recorder_list_create();
+	thread->merge_threshold = 0;
 	return thread;
 }
 
@@ -78,6 +80,12 @@ void dev_thread_set_dev_name(struct dev_thread *thread, const char *name)
 {
 	free(thread->dev_name);
 	thread->dev_name = strdup(name);
+}
+
+void dev_thread_set_merge_threshold(struct dev_thread *thread,
+				    double merge_threshold)
+{
+	thread->merge_threshold = merge_threshold;
 }
 
 void dev_thread_set_channels(struct dev_thread *thread, unsigned int channels)
@@ -214,6 +222,7 @@ void dev_thread_start_playback(struct dev_thread *thread,
 	struct timespec prev;
 	struct timespec time_diff;
 	double rate;
+	int merged = 0;
 
 	handle = thread->handle;
 	timer = thread->timer;
@@ -281,7 +290,8 @@ void dev_thread_start_playback(struct dev_thread *thread,
 			clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 			relative_ts = now;
 			subtract_timespec(&relative_ts, &ori);
-			recorder_add(recorder, relative_ts, frames_played);
+			merged = recorder_add(recorder, relative_ts,
+					      frames_played);
 
 			/* In debug mode, print each point in details. */
 			if (DEBUG_MODE) {
@@ -290,9 +300,17 @@ void dev_thread_start_playback(struct dev_thread *thread,
 				time_str = timespec_to_str(&time_diff);
 				rate = (double)frames_diff /
 				       timespec_to_s(&time_diff);
-				logger("%-13s %10ld %10ld %10ld %18lf\n",
-				       time_str, frames_left, frames_played,
-				       frames_diff, rate);
+				if (!merged) {
+					logger("%-13s %10ld %10ld %10ld %18lf\n",
+					       time_str, frames_left,
+					       frames_played, frames_diff,
+					       rate);
+				} else {
+					logger("%-13s %10ld %10ld %10ld %18lf [Merged]\n",
+					       time_str, frames_left,
+					       frames_played, frames_diff,
+					       rate);
+				}
 				free(time_str);
 				prev = now;
 			}
@@ -340,6 +358,7 @@ void dev_thread_start_capture(struct dev_thread *thread,
 	struct timespec prev;
 	struct timespec time_diff;
 	double rate;
+	int merged = 0;
 
 	handle = thread->handle;
 	timer = thread->timer;
@@ -398,8 +417,8 @@ void dev_thread_start_capture(struct dev_thread *thread,
 			clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 			relative_ts = now;
 			subtract_timespec(&relative_ts, &ori);
-			recorder_add(recorder, relative_ts,
-				     frames_read + frames_avail);
+			merged = recorder_add(recorder, relative_ts,
+					      frames_read + frames_avail);
 
 			/* Read blocks if there are enough frames in a device. */
 			while (old_frames_avail >= block_size) {
@@ -416,8 +435,15 @@ void dev_thread_start_capture(struct dev_thread *thread,
 				time_str = timespec_to_str(&time_diff);
 				rate = (double)frames_diff /
 				       timespec_to_s(&time_diff);
-				logger("%-13s %10ld %10ld %18lf\n", time_str,
-				       frames_avail, frames_read, rate);
+				if (!merged) {
+					logger("%-13s %10ld %10ld %18lf\n",
+					       time_str, frames_avail,
+					       frames_read, rate);
+				} else {
+					logger("%-13s %10ld %10ld %18lf [Merged]\n",
+					       time_str, frames_avail,
+					       frames_read, rate);
+				}
 				free(time_str);
 				prev = now;
 			}
@@ -431,7 +457,7 @@ void dev_thread_start_capture(struct dev_thread *thread,
 void dev_thread_run_once(struct dev_thread *thread)
 {
 	struct alsa_conformance_recorder *recorder;
-	recorder = recorder_create();
+	recorder = recorder_create(thread->merge_threshold);
 	if (thread->stream == SND_PCM_STREAM_PLAYBACK)
 		dev_thread_start_playback(thread, recorder);
 	else if (thread->stream == SND_PCM_STREAM_CAPTURE)
@@ -471,6 +497,7 @@ void dev_thread_print_params(struct dev_thread *thread)
 	assert(thread->params_record);
 	printf("PCM name: %s\n", thread->dev_name);
 	printf("stream: %s\n", snd_pcm_stream_name(thread->stream));
+	printf("merge_threshold: %lf\n", thread->merge_threshold);
 	rc = print_params(thread->params_record);
 	if (rc < 0)
 		exit(EXIT_FAILURE);

@@ -65,4 +65,8 @@ void dev_thread_print_params(struct dev_thread *thread);
 /* Print result of device thread. */
 void dev_thread_print_result(struct dev_thread *thread);
 
+/* Set merge threshould. */
+void dev_thread_set_merge_threshold(struct dev_thread *thread,
+				    double merge_threshold);
+
 #endif /* INCLUDE_ALSA_CONFORMANCE_THREAD_H_ */

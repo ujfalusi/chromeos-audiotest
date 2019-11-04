@@ -102,6 +102,9 @@ alsaucm -c kbl_r5514_5663_max set _verb HiFi set _enadev "Headphone"
 	  	[name] [type] [channels] [format] [rate] [period] [block_size] [durations] # comment
       	eg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example
 		```
++ --merge_threshold
+	+ Merge points with TIME_DIFF less than merge_threshold. Only the latter point is
+  counted in linear regression(default: 0.0001)
 
 ## Results
 These are the functions that ALSA conformance test covers.
@@ -154,6 +157,34 @@ because an unstable short-term rate may not affect the whole stability.
 
 + HW_LEVEL - Hardware level. The number of frames in a device buffer.
 + READ - The cumulative number of frames has been read since the beginning.
+
+**Explaination of point merge**
+```
+TIME_DIFF(s)    HW_LEVEL              PLAYED           DIFF               RATE
+0.001000772          376                1064             48        47962.972585
+0.001000089          328                1112             48        47995.728380
+0.001000082          280                1160             48        47996.064323
+0.001016092          232                1208             48        47239.816867
+0.000983772          424                1256             48        48791.793220
+0.000998709          400                1280             24        24031.024052
+0.000082259          376                1304             24        291761.387812 [Merged]
+```
+
+In the last two lines above, the device consumes 24 samples twice in a short time
+instead of 48 samples in the fixed period and result in higher rate error.
+With the --merge_threshold set to 0.0001, the last two points will be merged, and only
+the latter point is counted in linear regression. The result of point merge is the same as
+below:
+```
+TIME_DIFF(s)    HW_LEVEL              PLAYED           DIFF               RATE
+0.001000772          376                1064             48        47962.972585
+0.001000089          328                1112             48        47995.728380
+0.001000082          280                1160             48        47996.064323
+0.001016092          232                1208             48        47239.816867
+0.000983772          424                1256             48        48791.793220
+0.001080968          376                1304             48        44404.6447258
+```
+
 
 ### Stability of step
 If a device consumes too large a block at once, we cannot maintain the buffer

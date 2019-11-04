@@ -48,6 +48,10 @@ void show_usage(const char *name)
 	       "I/O.\n");
 	printf("\t--iterations: "
 	       "Number of times to run the tests specified. (default: 1)\n");
+	printf("\t--merge_threshold: "
+	       "Merge points with TIME_DIFF less than merge_threshold. "
+	       "Only the latter point is counted in linear regression "
+	       "(default: 0.0001)\n");
 	printf("\t--device_file:\n"
 	       "\t\tDevice file path. It will load devices from the file. "
 	       "File format:\n"
@@ -66,6 +70,7 @@ void set_dev_thread_args(struct dev_thread *thread,
 	dev_thread_set_block_size(thread, args_get_block_size(args));
 	dev_thread_set_duration(thread, args_get_duration(args));
 	dev_thread_set_iterations(thread, args_get_iterations(args));
+	dev_thread_set_merge_threshold(thread, args_get_merge_threshold(args));
 }
 
 struct dev_thread *create_playback_thread(struct alsa_conformance_args *args)
@@ -236,7 +241,8 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 		OPT_DEVICE_FILE,
 		OPT_STRICT,
 		OPT_DEV_INFO_ONLY,
-		OPT_ITERATIONS
+		OPT_ITERATIONS,
+		OPT_MERGE_THRESHOLD
 	};
 	int c;
 	const char *short_opt = "hP:C:c:f:r:p:B:d:D";
@@ -255,6 +261,8 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 		{ "strict", no_argument, NULL, OPT_STRICT },
 		{ "dev_info_only", no_argument, NULL, OPT_DEV_INFO_ONLY },
 		{ "iterations", required_argument, NULL, OPT_ITERATIONS },
+		{ "merge_threshold", required_argument, NULL,
+		  OPT_MERGE_THRESHOLD },
 		{ 0, 0, 0, 0 }
 	};
 	while (1) {
@@ -322,6 +330,11 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 
 		case OPT_ITERATIONS:
 			args_set_iterations(test_args, atoi(optarg));
+			break;
+
+		case OPT_MERGE_THRESHOLD:
+			args_set_merge_threshold(test_args,
+						 (double)atof(optarg));
 			break;
 
 		case ':':

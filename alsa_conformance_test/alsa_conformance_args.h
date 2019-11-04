@@ -50,6 +50,9 @@ int args_get_dev_info_only(const struct alsa_conformance_args *args);
 /* Return iterations of argument. */
 int args_get_iterations(const struct alsa_conformance_args *args);
 
+/* Return merge threshold. */
+double args_get_merge_threshold(const struct alsa_conformance_args *args);
+
 /* Set playback device name. */
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
 				const char *name);
@@ -87,5 +90,9 @@ void args_set_dev_info_only(struct alsa_conformance_args *args, int flag);
 
 /* Set iterations of argument. */
 void args_set_iterations(struct alsa_conformance_args *args, int iterations);
+
+/* Set merge threshould */
+void args_set_merge_threshold(struct alsa_conformance_args *args,
+			      double merge_threshold);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_ARGS_H_ */
