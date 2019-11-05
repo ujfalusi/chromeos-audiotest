@@ -5,7 +5,7 @@
 include common.mk
 
 all: CC_BINARY(src/alsa_api_test) \
-     CC_BINARY(src/alsa_conformance_test) \
+     CC_BINARY(alsa_conformance_test/alsa_conformance_test) \
      CC_BINARY(src/alsa_helpers) \
      CXX_BINARY(src/audiofuntest) \
      CC_BINARY(src/cras_api_test) \
@@ -14,7 +14,7 @@ all: CC_BINARY(src/alsa_api_test) \
      CXX_BINARY(src/test_tones) \
      script
 
-alsa_conformance_test: CC_BINARY(src/alsa_conformance_test)
+alsa_conformance_test: CC_BINARY(alsa_conformance_test/alsa_conformance_test)
 
 script:
 	mkdir -p $(OUT)/script
