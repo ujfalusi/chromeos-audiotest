@@ -60,11 +60,9 @@ int print_params(snd_pcm_hw_params_t *params);
  * Returns:
  *    0 on success, negative error on failure.
  */
-int alsa_helper_open(struct alsa_conformance_timer *timer,
-                     snd_pcm_t **handle,
-                     snd_pcm_hw_params_t **params,
-                     const char *dev_name,
-                     snd_pcm_stream_t stream);
+int alsa_helper_open(struct alsa_conformance_timer *timer, snd_pcm_t **handle,
+		     snd_pcm_hw_params_t **params, const char *dev_name,
+		     snd_pcm_stream_t stream);
 
 /* Close an alsa device. A thin wrapper to snd_pcm_close.
  * Args:
@@ -87,12 +85,10 @@ int alsa_helper_close(snd_pcm_t *handle);
  *    0 on success, negative error on failure.
  */
 int alsa_helper_set_hw_params(struct alsa_conformance_timer *timer,
-                              snd_pcm_t *handle,
-                              snd_pcm_hw_params_t *params,
-                              snd_pcm_format_t format,
-                              unsigned int channels,
-                              unsigned int *rate,
-                              snd_pcm_uframes_t *period_size);
+			      snd_pcm_t *handle, snd_pcm_hw_params_t *params,
+			      snd_pcm_format_t format, unsigned int channels,
+			      unsigned int *rate,
+			      snd_pcm_uframes_t *period_size);
 
 /* Set sw_params with default value.
  * Args:
@@ -102,7 +98,7 @@ int alsa_helper_set_hw_params(struct alsa_conformance_timer *timer,
  *    0 on success, negative error on failure.
  */
 int alsa_helper_set_sw_param(struct alsa_conformance_timer *timer,
-                             snd_pcm_t *handle);
+			     snd_pcm_t *handle);
 
 /* Prepare an alsa device. A thin wrapper to snd_pcm_prepare.
  * Args:
@@ -119,8 +115,7 @@ int alsa_helper_prepare(snd_pcm_t *handle);
  * Returns:
  *    0 on success, negative error on failure.
  */
-int alsa_helper_start(struct alsa_conformance_timer *timer,
-                      snd_pcm_t *handle);
+int alsa_helper_start(struct alsa_conformance_timer *timer, snd_pcm_t *handle);
 
 /* Drops an alsa device. A thin wrapper to snd_pcm_drop.
  * Args:
@@ -139,7 +134,7 @@ int alsa_helper_drop(snd_pcm_t *handle);
  *    A positive number of frames ready otherwise a negative error code.
  */
 snd_pcm_sframes_t alsa_helper_avail(struct alsa_conformance_timer *timer,
-                                    snd_pcm_t *handle);
+				    snd_pcm_t *handle);
 
 /* Write samples to pcm using mmap.
  * Args:

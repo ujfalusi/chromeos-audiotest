@@ -8,7 +8,7 @@
 #define INCLUDE_ALSA_CONFORMANCE_DEBUG_H_
 
 /* Print debug messages. Only available in debug mode. */
-__attribute__((__format__(__printf__, 1, 2)))
-void logger(const char *format, ...);
+__attribute__((__format__(__printf__, 1, 2))) void logger(const char *format,
+							  ...);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_DEBUG_H_ */

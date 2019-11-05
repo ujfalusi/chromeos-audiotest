@@ -15,12 +15,12 @@ extern int DEBUG_MODE;
 
 void logger(const char *format, ...)
 {
-    va_list arg;
+	va_list arg;
 
-    if (!DEBUG_MODE)
-        return;
+	if (!DEBUG_MODE)
+		return;
 
-    va_start (arg, format);
-    vfprintf(stderr, format, arg);
-    va_end (arg);
+	va_start(arg, format);
+	vfprintf(stderr, format, arg);
+	va_end(arg);
 }

@@ -12,29 +12,31 @@
 #define MAX_ALSA_API_LENGTH 25
 
 enum ALSA_API {
-    SND_PCM_OPEN = 0,
-    SND_PCM_HW_PARAMS,
-    SND_PCM_HW_PARAMS_ANY,
-    SND_PCM_SW_PARAMS,
-    SND_PCM_START,
-    SND_PCM_AVAIL,
-    ALSA_API_COUNT /* Keep it in the last line to count total amounts. */
+	SND_PCM_OPEN = 0,
+	SND_PCM_HW_PARAMS,
+	SND_PCM_HW_PARAMS_ANY,
+	SND_PCM_SW_PARAMS,
+	SND_PCM_START,
+	SND_PCM_AVAIL,
+	ALSA_API_COUNT /* Keep it in the last line to count total amounts. */
 };
 
-#define ENUM_STR(x) case x: return #x;
+#define ENUM_STR(x)                                                            \
+	case x:                                                                \
+		return #x;
 
 static inline const char *alsa_api_str(enum ALSA_API api)
 {
-    switch(api) {
-    ENUM_STR(SND_PCM_OPEN)
-    ENUM_STR(SND_PCM_HW_PARAMS)
-    ENUM_STR(SND_PCM_HW_PARAMS_ANY)
-    ENUM_STR(SND_PCM_SW_PARAMS)
-    ENUM_STR(SND_PCM_START)
-    ENUM_STR(SND_PCM_AVAIL)
-    default:
-        return "INVALID_API";
-    }
+	switch (api) {
+		ENUM_STR(SND_PCM_OPEN)
+		ENUM_STR(SND_PCM_HW_PARAMS)
+		ENUM_STR(SND_PCM_HW_PARAMS_ANY)
+		ENUM_STR(SND_PCM_SW_PARAMS)
+		ENUM_STR(SND_PCM_START)
+		ENUM_STR(SND_PCM_AVAIL)
+	default:
+		return "INVALID_API";
+	}
 }
 
 struct alsa_conformance_timer;
@@ -49,7 +51,7 @@ void add_timespec(struct timespec *a, const struct timespec *b);
 void subtract_timespec(struct timespec *a, const struct timespec *b);
 
 /* Returns string of timespec, need to be freed after usage.*/
-char* timespec_to_str(const struct timespec *time);
+char *timespec_to_str(const struct timespec *time);
 
 /* Returns nanosecond of timespec. */
 long long timespec_to_ns(const struct timespec *time);
@@ -65,11 +67,11 @@ void conformance_timer_destroy(struct alsa_conformance_timer *timer);
 
 /* Starts api_timer of this alsa api. */
 void conformance_timer_start(struct alsa_conformance_timer *timer,
-                             enum ALSA_API id);
+			     enum ALSA_API id);
 
 /* Stops api_timer and records time of this alsa api. */
 void conformance_timer_stop(struct alsa_conformance_timer *timer,
-                            enum ALSA_API id);
+			    enum ALSA_API id);
 
 /* Enables timer. It will record data. */
 void conformance_timer_enable(struct alsa_conformance_timer *timer);

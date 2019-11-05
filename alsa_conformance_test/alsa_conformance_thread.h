@@ -27,14 +27,14 @@ void dev_thread_set_format(struct dev_thread *thread, snd_pcm_format_t format);
 
 /* Set format of device from format string. */
 void dev_thread_set_format_from_str(struct dev_thread *thread,
-                                    const char *format_str);
+				    const char *format_str);
 
 /* Set rate of device. */
 void dev_thread_set_rate(struct dev_thread *thread, unsigned int rate);
 
 /* Set period size of device. */
 void dev_thread_set_period_size(struct dev_thread *thread,
-                                snd_pcm_uframes_t period_size);
+				snd_pcm_uframes_t period_size);
 /* Set block size for each write. */
 void dev_thread_set_block_size(struct dev_thread *thread, unsigned int size);
 
@@ -63,6 +63,6 @@ void dev_thread_print_device_information(struct dev_thread *thread);
 void dev_thread_print_params(struct dev_thread *thread);
 
 /* Print result of device thread. */
-void dev_thread_print_result(struct dev_thread* thread);
+void dev_thread_print_result(struct dev_thread *thread);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_THREAD_H_ */
