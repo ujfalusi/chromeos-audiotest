@@ -14,7 +14,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "include/alsa_conformance_timer.h"
+#include "alsa_conformance_timer.h"
 
 struct alsa_api_timer {
     struct timespec total_time;

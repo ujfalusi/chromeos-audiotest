@@ -8,7 +8,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
-#include "include/alsa_conformance_debug.h"
+#include "alsa_conformance_debug.h"
 
 /* Set true to enable debug mode. Or use --debug flag. */
 extern int DEBUG_MODE;

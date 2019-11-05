@@ -7,11 +7,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "include/alsa_conformance_debug.h"
-#include "include/alsa_conformance_helper.h"
-#include "include/alsa_conformance_recorder.h"
-#include "include/alsa_conformance_thread.h"
-#include "include/alsa_conformance_timer.h"
+#include "alsa_conformance_debug.h"
+#include "alsa_conformance_helper.h"
+#include "alsa_conformance_recorder.h"
+#include "alsa_conformance_thread.h"
+#include "alsa_conformance_timer.h"
 
 extern int DEBUG_MODE;
 extern int SINGLE_THREAD;

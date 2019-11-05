@@ -7,8 +7,8 @@
 #include <alsa/asoundlib.h>
 #include <stdint.h>
 
-#include "include/alsa_conformance_helper.h"
-#include "include/alsa_conformance_timer.h"
+#include "alsa_conformance_helper.h"
+#include "alsa_conformance_timer.h"
 
 /* Print device information before setting params */
 int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)

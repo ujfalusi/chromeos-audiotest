@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "include/alsa_conformance_args.h"
+#include "alsa_conformance_args.h"
 
 #define MAX_DEVICE_NAME_LENGTH 50
 

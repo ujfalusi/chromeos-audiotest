@@ -8,7 +8,7 @@
 #define INCLUDE_ALSA_CONFORMANCE_HELPER_H_
 
 #include <alsa/asoundlib.h>
-#include "include/alsa_conformance_timer.h"
+#include "alsa_conformance_timer.h"
 
 /* Print device information.
  * Args:

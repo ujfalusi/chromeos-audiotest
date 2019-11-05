@@ -12,10 +12,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "include/alsa_conformance_args.h"
-#include "include/alsa_conformance_debug.h"
-#include "include/alsa_conformance_helper.h"
-#include "include/alsa_conformance_thread.h"
+#include "alsa_conformance_args.h"
+#include "alsa_conformance_debug.h"
+#include "alsa_conformance_helper.h"
+#include "alsa_conformance_thread.h"
 
 #define MAX_DEVICES 10
 

@@ -7,8 +7,8 @@
 #include <math.h>
 #include <sys/param.h>
 
-#include "include/alsa_conformance_recorder.h"
-#include "include/alsa_conformance_timer.h"
+#include "alsa_conformance_recorder.h"
+#include "alsa_conformance_timer.h"
 
 struct alsa_conformance_recorder {
     unsigned long count;
