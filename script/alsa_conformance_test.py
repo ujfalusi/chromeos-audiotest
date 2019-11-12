@@ -11,6 +11,7 @@ import json
 import logging
 import re
 import subprocess
+import sys
 
 TEST_BINARY = 'alsa_conformance_test'
 
@@ -699,24 +700,17 @@ class AlsaConformanceTester(object):
         print '\t' + msg
 
 
-def check_type(stream):
-  """Check stream type. Raise error if it is not an available type."""
-  if stream not in ['PLAYBACK', 'CAPTURE']:
-    msg = stream + ' is not an available type.'
-    raise argparse.ArgumentTypeError(msg)
-  return stream
-
-
 def main():
   parser = argparse.ArgumentParser(
       description=DESCRIPTION,
       formatter_class=argparse.RawDescriptionHelpFormatter,
       epilog=TEST_SUITES_DESCRIPTION)
-  parser.add_argument('device', help='Alsa pcm device, such as hw:0,0')
   parser.add_argument(
-      'stream',
-      help='Alsa pcm stream type (PLAYBACK or CAPTURE)',
-      type=check_type)
+      '-C', '--input_device',
+      help='Alsa input device, such as hw:0,0')
+  parser.add_argument(
+      '-P', '--output_device',
+      help='Alsa output device, such as hw:0,0')
   parser.add_argument(
       '--rate-criteria-diff-pct',
       help=('The pass criteria of rate. The value is a percentage of rate. '
@@ -744,7 +738,20 @@ def main():
     logging.basicConfig(
         level=logging.DEBUG, filename=args.log_file, filemode='w')
 
-  tester = AlsaConformanceTester(args.device, args.stream, criteria)
+  if not args.input_device and not args.output_device:
+    print >> sys.stderr, 'Require an input or output device to test.'
+    exit(1)
+
+  if args.input_device and args.output_device:
+    print >> sys.stderr, 'Not support testing multiple devices yet.'
+    exit(1)
+
+  if args.input_device:
+    tester = AlsaConformanceTester(args.input_device, 'CAPTURE', criteria)
+
+  if args.output_device:
+    tester = AlsaConformanceTester(args.output_device, 'PLAYBACK', criteria)
+
   tester.test(args.test_suites, args.json)
 
 if __name__ == '__main__':

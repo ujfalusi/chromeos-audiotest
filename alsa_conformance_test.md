@@ -273,21 +273,20 @@ hw:0,1 CAPTURE  2 S32_LE 44100 240 240 2
 For more convenience, this is a script that can test the basic funtions of
 ALSA PCM device automatically.
 ```
-alsa_conformance_test.py [-h]
+alsa_conformance_test.py [-h] [-C INPUT_DEVICE] [-P OUTPUT_DEVICE]
                          [--rate-criteria-diff-pct RATE_CRITERIA_DIFF_PCT]
                          [--rate-err-criteria RATE_ERR_CRITERIA]
                          [--json] [--log-file LOG_FILE]
                          [--test-suites  [...]]
-                         device stream
 ```
 
 ### Options
-+ device
-	+ ALSA PCM device, such as hw:0,0
-+ stream
-	+ ALSA PCM stream type (PLAYBACK or CAPTURE)
 + -h, --help
 	+ show this help message and exit
++ -C INPUT_DEVICE, --input_device INPUT_DEVICE
+    + Alsa input device, such as hw:0,0
++ -P OUTPUT_DEVICE, --output_device OUTPUT_DEVICE
+    + Alsa output device, such as hw:0,0
 + --rate_criteria RATE_CRITERIA
 	+ The pass criteria of rate. The value is a percentage of rate. For example,
       0.01 means the pass range is [47995.2, 48004.8] for rate 48000.
@@ -318,7 +317,7 @@ The result will show pass or fail.
 ### Example
 
 ```
-> alsa_conformance_test.py hw:0,0 PLAYBACK
+> alsa_conformance_test.py -P hw:0,0
 11 passed, 0 failed
 Device Information
         Name: hw:0,0
