@@ -13,6 +13,8 @@
 #include "alsa_conformance_thread.h"
 #include "alsa_conformance_timer.h"
 
+#define CHANNELS_MAX 16
+
 extern int DEBUG_MODE;
 extern int SINGLE_THREAD;
 extern int STRICT_MODE;
@@ -32,6 +34,9 @@ struct dev_thread {
 	double duration;
 	int iterations;
 
+	/* True if all samples captured in that channel are zeros. */
+	bool zero_channels[CHANNELS_MAX];
+
 	double merge_threshold_t;
 	snd_pcm_sframes_t merge_threshold_sz;
 	unsigned underrun_count; /* Record number of underruns during playback. */
@@ -44,6 +49,7 @@ struct dev_thread {
 struct dev_thread *dev_thread_create()
 {
 	struct dev_thread *thread;
+	int i;
 
 	thread = (struct dev_thread *)malloc(sizeof(struct dev_thread));
 	if (!thread) {
@@ -61,6 +67,10 @@ struct dev_thread *dev_thread_create()
 	thread->recorder_list = recorder_list_create();
 	thread->merge_threshold_t = 0;
 	thread->merge_threshold_sz = 0;
+
+	for (i = 0; i < CHANNELS_MAX; i++)
+		thread->zero_channels[i] = true;
+
 	return thread;
 }
 
@@ -337,6 +347,25 @@ void dev_thread_start_playback(struct dev_thread *thread,
 	free(buf);
 }
 
+/* Returns whether all samples in the buffer are zeros. */
+static void update_zero_channels(struct dev_thread *thread, uint8_t *buf,
+				 int len)
+{
+	int width = snd_pcm_format_physical_width(thread->format) / 8;
+	int i, j, c;
+
+	for (c = 0; c < thread->channels; c++) {
+		if (!thread->zero_channels[c])
+			continue;
+		for (i = c * width; i < len; i += width * thread->channels) {
+			for (j = 0; j < width; j++) {
+				if (buf[i + j])
+					thread->zero_channels[c] = false;
+			}
+		}
+	}
+}
+
 void dev_thread_start_capture(struct dev_thread *thread,
 			      struct alsa_conformance_recorder *recorder)
 {
@@ -426,6 +455,7 @@ void dev_thread_start_capture(struct dev_thread *thread,
 				if (alsa_helper_read(handle, buf, block_size) <
 				    0)
 					exit(EXIT_FAILURE);
+				update_zero_channels(thread, buf, block_size);
 				frames_read += block_size;
 				old_frames_avail -= block_size;
 			}
@@ -546,6 +576,7 @@ void dev_thread_print_params(struct dev_thread *thread)
 
 void dev_thread_print_result(struct dev_thread *thread)
 {
+	int i;
 	if (thread->params_record == NULL) {
 		puts("No data.");
 		return;
@@ -562,6 +593,14 @@ void dev_thread_print_result(struct dev_thread *thread)
 
 	puts("----------RUN RESULT----------");
 	recorder_list_print_result(thread->recorder_list);
+
+	if (thread->stream == SND_PCM_STREAM_CAPTURE) {
+		printf("zero channels:");
+		for (i = 0; i < thread->channels; i++)
+			printf(" %d", thread->zero_channels[i]);
+		puts("");
+	}
+
 	printf("number of underrun: %u\n", thread->underrun_count);
 	printf("number of overrun: %u\n", thread->overrun_count);
 }

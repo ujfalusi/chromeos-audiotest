@@ -215,6 +215,15 @@ snd_pcm_avail                      0.807074662               246177             
 precision: 0.000000001
 ```
 
+### Correctness of recorded samples
+Without any help from users, we can verify the correctness of recorded samples
+by checking whether all of them are zeros. The tool shows whether each channel
+is a zero channel, which means all samples in this channel are zeros. Usually
+the recorded samples should not be all zeros.
+```
+zero channels: 0 1 // Channel 0 is not a zero channel but channel 1 is.
+```
+
 ### Underrun and Overrun
 The basic request of the audio device is not causing any underrun or overrun.
 + Underrun happens when there are no frames to playback on a running device.
