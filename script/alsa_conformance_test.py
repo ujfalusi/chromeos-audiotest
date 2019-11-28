@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # Copyright 2018 The Chromium OS Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -122,9 +122,9 @@ class Parser(object):
     pattern = key + ': (.*)' + unit + '\n'
     search = re.search(pattern, self._context)
     if search is None:
-      msg = 'Can not find keyword %s' % key
+      msg = 'Can not find keyword {}'.format(key)
       if not unit:
-        msg += ' with unit %s' % unit
+        msg += ' with unit {}'.format(unit)
       raise ValueError(msg)
     return search.group(1).strip()
 
@@ -227,8 +227,8 @@ class DeviceInfoParser(Parser):
         self._get_value('PCM handle name'),
         self._get_value('stream'),
         self._get_list('available formats'),
-        map(int, self._get_list('available rates')),
-        map(int, self._get_list('available channels')),
+        list(map(int, self._get_list('available rates'))),
+        list(map(int, self._get_list('available channels'))),
         self._get_range('period size range'),
         self._get_range('buffer size range'))
 
@@ -373,7 +373,7 @@ class AlsaConformanceTester(object):
 
     output = self.run(['--dev_info_only'])
     if output.rc != 0:
-      print 'Fail - %s' % output.err
+      print('Fail - {}'.format(output.err))
       exit()
 
     self.dev_info = DeviceInfoParser().parse(output.out)
@@ -405,14 +405,14 @@ class AlsaConformanceTester(object):
 
   def show_dev_info(self):
     """Prints device information."""
-    print 'Device Information'
-    print '\tName:', self.dev_info.name
-    print '\tStream:', self.dev_info.stream
-    print '\tFormat:', self.dev_info.valid_formats
-    print '\tChannels:', self.dev_info.valid_channels
-    print '\tRate:', self.dev_info.valid_rates
-    print '\tPeriod_size range:', list(self.dev_info.period_size_range)
-    print '\tBuffer_size range:', list(self.dev_info.buffer_size_range)
+    print('Device Information')
+    print('\tName:', self.dev_info.name)
+    print('\tStream:', self.dev_info.stream)
+    print('\tFormat:', self.dev_info.valid_formats)
+    print('\tChannels:', self.dev_info.valid_channels)
+    print('\tRate:', self.dev_info.valid_rates)
+    print('\tPeriod_size range:', list(self.dev_info.period_size_range))
+    print('\tBuffer_size range:', list(self.dev_info.buffer_size_range))
 
   def run(self, arg):
     """Runs alsa_conformance_test.
@@ -437,7 +437,11 @@ class AlsaConformanceTester(object):
     if self.period_size is not None:
       cmd += ['-p', str(self.period_size)]
     logging.info('Execute command: %s', ' '.join(cmd))
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding='utf8')
     rc = p.wait()
     out, err = p.communicate()
     return Output(rc, out, err[:-1])
@@ -512,7 +516,7 @@ class AlsaConformanceTester(object):
     result = self.summarize(result)
 
     if use_json:
-      print json.dumps(result, indent=4, sort_keys=True)
+      print(json.dumps(result, indent=4, sort_keys=True))
     else:
       self.print_result(result)
 
@@ -533,7 +537,7 @@ class AlsaConformanceTester(object):
     self.init_params()
     result = []
     for self.channels in self.dev_info.valid_channels:
-      test_name = 'Set channels %d' % (self.channels)
+      test_name = 'Set channels {}'.format(self.channels)
       test_args = ['-d', '0.1']
       data = self.run_and_check(test_name, test_args,
                                 self._default_check_function)
@@ -545,7 +549,7 @@ class AlsaConformanceTester(object):
     self.init_params()
     result = []
     for self.format in self.dev_info.valid_formats:
-      test_name = 'Set format %s' % (self.format)
+      test_name = 'Set format {}'.format(self.format)
       test_args = ['-d', '0.1']
       data = self.run_and_check(test_name, test_args,
                                 self._default_check_function)
@@ -565,13 +569,13 @@ class AlsaConformanceTester(object):
         params = ParamsParser().parse(output.out)
         if params.rate != self.rate:
           result = 'fail'
-          error = 'Set rate %d but got %d' % (self.rate, params.rate)
+          error = 'Set rate {} but got {}'.format(self.rate, params.rate)
       return result, error
 
     self.init_params()
     result = []
     for self.rate in self.dev_info.valid_rates:
-      test_name = 'Set rate %d' % (self.rate)
+      test_name = 'Set rate {}'.format(self.rate)
       test_args = ['-d', '0.1']
       data = self.run_and_check(test_name, test_args, check_function)
       result.append(data)
@@ -589,14 +593,15 @@ class AlsaConformanceTester(object):
       rate_threshold = self.rate * self.criteria.rate_diff / 100.0
       if abs(run_result.rate - self.rate) > rate_threshold:
         result = 'fail'
-        error = ('Expected rate is %lf, measure %lf, '
-                 'difference %lf > threshold %lf')
-        error = error % (self.rate, run_result.rate,
-                         abs(run_result.rate - self.rate),
-                         rate_threshold)
+        error = ('Expected rate is {}, measure {}, '
+                 'difference {} > threshold {}')
+        error = error.format(
+            self.rate, run_result.rate,
+            abs(run_result.rate - self.rate),
+            rate_threshold)
       elif run_result.rate_error > self.criteria.rate_err:
         result = 'fail'
-        error = 'Rate error %lf > threshold %lf' % (
+        error = 'Rate error {} > threshold {}'.format(
             run_result.rate_error, self.criteria.rate_err)
     return result, error
 
@@ -608,7 +613,7 @@ class AlsaConformanceTester(object):
 
     self.init_params()
     for self.rate in self.dev_info.valid_rates:
-      test_name = 'Set rate %d' % (self.rate)
+      test_name = 'Set rate {}'.format(self.rate)
       test_args = ['-d', '1']
       data = self.run_and_check(test_name, test_args, self._check_rate)
       result['tests'].append(data)
@@ -629,7 +634,7 @@ class AlsaConformanceTester(object):
     for self.channels in self.dev_info.valid_channels:
       for self.format in self.dev_info.valid_formats:
         for self.rate in self.dev_info.valid_rates:
-          test_name = 'Set channels %d, format %s, rate %d' % (
+          test_name = 'Set channels {}, format {}, rate {}'.format(
               self.channels, self.format, self.rate)
           test_args = ['-d', '1']
           data = self.run_and_check(test_name, test_args, self._check_rate)
@@ -687,17 +692,17 @@ class AlsaConformanceTester(object):
     Args:
       result: A result from summarize.
     """
-    print '%d passed, %d failed' % (result['pass'], result['fail'])
+    print('{} passed, {} failed'.format(result['pass'], result['fail']))
 
     self.show_dev_info()
 
     for suite in result['testSuites']:
-      print suite['name']
+      print(suite['name'])
       for test in suite['tests']:
         msg = test['name'] + ': ' + test['result']
         if test['result'] == 'fail':
           msg += ' - ' + test['error']
-        print '\t' + msg
+        print('\t' + msg)
 
 
 def main():
@@ -739,11 +744,11 @@ def main():
         level=logging.DEBUG, filename=args.log_file, filemode='w')
 
   if not args.input_device and not args.output_device:
-    print >> sys.stderr, 'Require an input or output device to test.'
+    print('Require an input or output device to test.', file=sys.stderr)
     exit(1)
 
   if args.input_device and args.output_device:
-    print >> sys.stderr, 'Not support testing multiple devices yet.'
+    print('Not support testing multiple devices yet.', file=sys.stderr)
     exit(1)
 
   if args.input_device:
