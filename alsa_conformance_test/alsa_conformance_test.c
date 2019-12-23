@@ -50,8 +50,8 @@ void show_usage(const char *name)
 	       "Number of times to run the tests specified. (default: 1)\n");
 	printf("\t--merge_threshold: "
 	       "Merge points with TIME_DIFF less than merge_threshold. "
-	       "Only the latter point is counted in linear regression "
-	       "(default: 0.0001)\n");
+	       "Only the latter point is counted in linear regression. "
+	       "(default: 0)\n");
 	printf("\t--device_file:\n"
 	       "\t\tDevice file path. It will load devices from the file. "
 	       "File format:\n"

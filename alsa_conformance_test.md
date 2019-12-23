@@ -104,7 +104,7 @@ alsaucm -c kbl_r5514_5663_max set _verb HiFi set _enadev "Headphone"
 		```
 + --merge_threshold
 	+ Merge points with TIME_DIFF less than merge_threshold. Only the latter point is
-  counted in linear regression(default: 0.0001)
+  counted in linear regression. (default: 0)
 
 ## Results
 These are the functions that ALSA conformance test covers.
