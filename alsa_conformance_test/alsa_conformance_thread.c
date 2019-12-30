@@ -32,7 +32,8 @@ struct dev_thread {
 	double duration;
 	int iterations;
 
-	double merge_threshold;
+	double merge_threshold_t;
+	snd_pcm_sframes_t merge_threshold_sz;
 	unsigned underrun_count; /* Record number of underruns during playback. */
 	unsigned overrun_count; /* Record number of overrun during capture. */
 
@@ -58,7 +59,8 @@ struct dev_thread *dev_thread_create()
 	thread->overrun_count = 0;
 	thread->timer = conformance_timer_create();
 	thread->recorder_list = recorder_list_create();
-	thread->merge_threshold = 0;
+	thread->merge_threshold_t = 0;
+	thread->merge_threshold_sz = 0;
 	return thread;
 }
 
@@ -82,10 +84,10 @@ void dev_thread_set_dev_name(struct dev_thread *thread, const char *name)
 	thread->dev_name = strdup(name);
 }
 
-void dev_thread_set_merge_threshold(struct dev_thread *thread,
-				    double merge_threshold)
+void dev_thread_set_merge_threshold_t(struct dev_thread *thread,
+				      double merge_threshold)
 {
-	thread->merge_threshold = merge_threshold;
+	thread->merge_threshold_t = merge_threshold;
 }
 
 void dev_thread_set_channels(struct dev_thread *thread, unsigned int channels)
@@ -227,6 +229,7 @@ void dev_thread_start_playback(struct dev_thread *thread,
 	handle = thread->handle;
 	timer = thread->timer;
 	block_size = (snd_pcm_uframes_t)thread->block_size;
+
 	if (alsa_helper_prepare(handle) < 0)
 		exit(EXIT_FAILURE);
 
@@ -292,7 +295,6 @@ void dev_thread_start_playback(struct dev_thread *thread,
 			subtract_timespec(&relative_ts, &ori);
 			merged = recorder_add(recorder, relative_ts,
 					      frames_played);
-
 			/* In debug mode, print each point in details. */
 			if (DEBUG_MODE) {
 				time_diff = now;
@@ -419,7 +421,6 @@ void dev_thread_start_capture(struct dev_thread *thread,
 			subtract_timespec(&relative_ts, &ori);
 			merged = recorder_add(recorder, relative_ts,
 					      frames_read + frames_avail);
-
 			/* Read blocks if there are enough frames in a device. */
 			while (old_frames_avail >= block_size) {
 				if (alsa_helper_read(handle, buf, block_size) <
@@ -454,30 +455,62 @@ void dev_thread_start_capture(struct dev_thread *thread,
 }
 
 /* Start device thread for playback or capture. */
-void dev_thread_run_once(struct dev_thread *thread)
+struct alsa_conformance_recorder *dev_thread_run_once(struct dev_thread *thread,
+						      int dryrun)
 {
 	struct alsa_conformance_recorder *recorder;
-	recorder = recorder_create(thread->merge_threshold);
+	recorder = recorder_create(thread->merge_threshold_t,
+				   thread->merge_threshold_sz);
 	if (thread->stream == SND_PCM_STREAM_PLAYBACK)
 		dev_thread_start_playback(thread, recorder);
 	else if (thread->stream == SND_PCM_STREAM_CAPTURE)
 		dev_thread_start_capture(thread, recorder);
-	recorder_list_add_recorder(thread->recorder_list, recorder);
+
+	if (!dryrun)
+		recorder_list_add_recorder(thread->recorder_list, recorder);
+	return recorder;
+}
+
+struct alsa_conformance_recorder *
+dev_thread_run_one_iteration(struct dev_thread *thread, int dryrun)
+{
+	struct alsa_conformance_recorder *recorder = NULL;
+	dev_thread_open_device(thread);
+	dev_thread_set_params(thread);
+	/* If duration is zero, it won't run playback or capture. */
+	if (thread->duration)
+		recorder = dev_thread_run_once(thread, dryrun);
+	dev_thread_close_device(thread);
+	return recorder;
+}
+
+/* Dry run the test to get step_median */
+void dev_thread_set_merge_threshold_sz(struct dev_thread *thread)
+{
+	int old_debug_mode = DEBUG_MODE;
+	double old_merge_threshold_t = thread->merge_threshold_t;
+	DEBUG_MODE = 0;
+	thread->merge_threshold_t = 0;
+	struct alsa_conformance_recorder *recorder =
+		dev_thread_run_one_iteration(thread, 1);
+
+	recorder_compute_step_median(recorder);
+	thread->merge_threshold_sz = get_step_median(recorder);
+	recorder_destroy(recorder);
+	DEBUG_MODE = old_debug_mode;
+	thread->merge_threshold_t = old_merge_threshold_t;
 }
 
 void *dev_thread_run_iterations(void *arg)
 {
 	struct dev_thread *thread = arg;
 	int i;
+
+	dev_thread_set_merge_threshold_sz(thread);
 	for (i = 0; i < thread->iterations; i++) {
 		if (SINGLE_THREAD && thread->iterations != 1)
 			printf("Run %d iteration...\n", i + 1);
-		dev_thread_open_device(thread);
-		dev_thread_set_params(thread);
-		/* If duration is zero, it won't run playback or capture. */
-		if (thread->duration)
-			dev_thread_run_once(thread);
-		dev_thread_close_device(thread);
+		dev_thread_run_one_iteration(thread, 0);
 	}
 	return 0;
 }
@@ -497,7 +530,8 @@ void dev_thread_print_params(struct dev_thread *thread)
 	assert(thread->params_record);
 	printf("PCM name: %s\n", thread->dev_name);
 	printf("stream: %s\n", snd_pcm_stream_name(thread->stream));
-	printf("merge_threshold: %lf\n", thread->merge_threshold);
+	printf("merge_threshold_t: %lf\n", thread->merge_threshold_t);
+	printf("merge_threshold_sz: %ld\n", thread->merge_threshold_sz);
 	rc = print_params(thread->params_record);
 	if (rc < 0)
 		exit(EXIT_FAILURE);

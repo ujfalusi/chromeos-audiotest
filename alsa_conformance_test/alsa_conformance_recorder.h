@@ -7,6 +7,7 @@
 #ifndef INCLUDE_ALSA_CFM_RECORDER_H_
 #define INCLUDE_ALSA_CFM_RECORDER_H_
 
+#include <alsa/asoundlib.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -14,7 +15,14 @@
 #include <unistd.h>
 
 /* Creates and initialize new recorder object. */
-struct alsa_conformance_recorder *recorder_create();
+struct alsa_conformance_recorder *
+recorder_create(double merge_threshold_t, snd_pcm_sframes_t merge_threshold_sz);
+
+/* Compute the median of steps. */
+void recorder_compute_step_median(struct alsa_conformance_recorder *recorder);
+
+/* Query step median */
+snd_pcm_sframes_t get_step_median(struct alsa_conformance_recorder *recorder);
 
 /* Destroys recorder object. */
 void recorder_destroy(struct alsa_conformance_recorder *recorder);

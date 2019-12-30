@@ -49,9 +49,9 @@ void show_usage(const char *name)
 	printf("\t--iterations: "
 	       "Number of times to run the tests specified. (default: 1)\n");
 	printf("\t--merge_threshold: "
-	       "Merge points with TIME_DIFF less than merge_threshold. "
-	       "Only the latter point is counted in linear regression. "
-	       "(default: 0)\n");
+	       "Set merge_threshold_t (default: 0.0001).\n"
+	       "\t\tPoints with TIME_DIFF less than merge_threshold_t and\n"
+	       "\t\tSAMPLES_DIFF less than merge_threshold_sz will be merged.\n");
 	printf("\t--device_file:\n"
 	       "\t\tDevice file path. It will load devices from the file. "
 	       "File format:\n"
@@ -70,7 +70,8 @@ void set_dev_thread_args(struct dev_thread *thread,
 	dev_thread_set_block_size(thread, args_get_block_size(args));
 	dev_thread_set_duration(thread, args_get_duration(args));
 	dev_thread_set_iterations(thread, args_get_iterations(args));
-	dev_thread_set_merge_threshold(thread, args_get_merge_threshold(args));
+	dev_thread_set_merge_threshold_t(thread,
+					 args_get_merge_threshold(args));
 }
 
 struct dev_thread *create_playback_thread(struct alsa_conformance_args *args)

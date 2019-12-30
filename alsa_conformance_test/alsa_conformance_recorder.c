@@ -11,11 +11,16 @@
 #include "alsa_conformance_recorder.h"
 #include "alsa_conformance_timer.h"
 
+static const int ARRAY_SIZE = 4096;
+
 struct alsa_conformance_recorder {
 	unsigned long count;
 	unsigned long frames;
 	struct timespec time;
-	double merge_threshold;
+	double merge_threshold_t;
+	double merge_threshold_sz;
+	snd_pcm_sframes_t step_median;
+	snd_pcm_sframes_t step_counter[ARRAY_SIZE];
 
 	double time_sum; /* sum(time) */
 	double time_square_sum; /* sum(time * time) */
@@ -37,7 +42,8 @@ struct alsa_conformance_recorder {
 	struct alsa_conformance_recorder *previous_state;
 };
 
-struct alsa_conformance_recorder *recorder_create(double merge_threshold)
+struct alsa_conformance_recorder *
+recorder_create(double merge_threshold_t, snd_pcm_sframes_t merge_threshold_sz)
 {
 	struct alsa_conformance_recorder *recorder;
 	recorder = (struct alsa_conformance_recorder *)malloc(
@@ -60,7 +66,12 @@ struct alsa_conformance_recorder *recorder_create(double merge_threshold)
 	recorder->frames = 0;
 	recorder->time.tv_sec = 0;
 	recorder->time.tv_nsec = 0;
-	recorder->merge_threshold = merge_threshold;
+	recorder->merge_threshold_t = merge_threshold_t;
+	recorder->merge_threshold_sz = merge_threshold_sz;
+	recorder->step_median = 0;
+
+	memset(recorder->step_counter, 0,
+	       ARRAY_SIZE * sizeof(snd_pcm_sframes_t));
 
 	recorder->rate = -1;
 	recorder->offset = -1;
@@ -74,7 +85,11 @@ struct alsa_conformance_recorder *recorder_create(double merge_threshold)
 	recorder->previous_state->rate = -1;
 	recorder->previous_state->offset = -1;
 	recorder->previous_state->err = -1;
-	recorder->previous_state->merge_threshold = merge_threshold;
+	recorder->previous_state->merge_threshold_t = merge_threshold_t;
+	recorder->previous_state->merge_threshold_sz = merge_threshold_sz;
+	recorder->previous_state->step_median = 0;
+	memset(recorder->previous_state->step_counter, 0,
+	       ARRAY_SIZE * sizeof(snd_pcm_sframes_t));
 
 	return recorder;
 }
@@ -86,12 +101,13 @@ void recorder_destroy(struct alsa_conformance_recorder *recorder)
 }
 
 int should_merge(struct alsa_conformance_recorder *recorder,
-		 struct timespec time)
+		 struct timespec time, unsigned long frames)
 {
 	double time_s;
 	subtract_timespec(&time, &recorder->time);
 	time_s = timespec_to_s(&time);
-	if (time_s < recorder->merge_threshold)
+	if (time_s < recorder->merge_threshold_t &&
+	    frames < recorder->merge_threshold_sz)
 		return 1;
 	return 0;
 }
@@ -100,10 +116,14 @@ int recorder_add(struct alsa_conformance_recorder *recorder,
 		 struct timespec time, unsigned long frames)
 {
 	double time_s;
-	unsigned long diff;
+	unsigned long diff = frames;
 	int merged = 0;
 
-	if (should_merge(recorder, time)) {
+	if (recorder->count >= 2) {
+		diff = frames - recorder->frames;
+	}
+
+	if (should_merge(recorder, time, diff)) {
 		merged = 1;
 		memcpy(recorder, recorder->previous_state,
 		       sizeof(struct alsa_conformance_recorder));
@@ -127,6 +147,11 @@ int recorder_add(struct alsa_conformance_recorder *recorder,
 		recorder->diff_sum += (double)diff;
 		recorder->diff_square_sum += (double)diff * diff;
 	}
+	if (diff < ARRAY_SIZE) {
+		recorder->step_counter[diff]++;
+	} else {
+		printf("[Notice] frame_diff %ld >= %d.", diff, ARRAY_SIZE);
+	}
 	recorder->frames = frames;
 	recorder->time = time;
 	return merged;
@@ -145,6 +170,21 @@ void recorder_compute_step(struct alsa_conformance_recorder *recorder)
 	tmp = recorder->diff_square_sum / (recorder->count - 1);
 	tmp -= recorder->step_average * recorder->step_average;
 	recorder->step_standard = sqrt(tmp);
+}
+
+snd_pcm_sframes_t get_step_median(struct alsa_conformance_recorder *recorder)
+{
+	return recorder->step_median;
+}
+
+void recorder_compute_step_median(struct alsa_conformance_recorder *recorder)
+{
+	int cnt = recorder->count / 2;
+	int i = 0;
+	while (cnt > 0) {
+		cnt -= recorder->step_counter[i++];
+	}
+	recorder->step_median = i - 1;
 }
 
 /* Use data in recorder to compute linear regression. */
@@ -264,6 +304,7 @@ void recorder_list_print_result(struct alsa_conformance_recorder_list *list)
 	}
 	for (i = 0; i < list->count; i++) {
 		recorder = list->array[i];
+		recorder_compute_step_median(recorder);
 		recorder_compute_step(recorder);
 		recorder_compute_regression(recorder);
 		points += recorder->count;
@@ -292,6 +333,7 @@ void recorder_list_print_result(struct alsa_conformance_recorder_list *list)
 		printf("step average: %lf\n", step);
 		printf("step min: %lu\n", step_min);
 		printf("step max: %lu\n", step_max);
+		printf("step median: %lu\n", recorder->step_median);
 		printf("step standard deviation: %lf\n",
 		       list->array[0]->step_standard);
 		printf("rate: %lf\n", rate);

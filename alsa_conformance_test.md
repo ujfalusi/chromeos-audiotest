@@ -103,8 +103,7 @@ alsaucm -c kbl_r5514_5663_max set _verb HiFi set _enadev "Headphone"
       	eg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example
 		```
 + --merge_threshold
-	+ Merge points with TIME_DIFF less than merge_threshold. Only the latter point is
-  counted in linear regression. (default: 0)
+	+ Set merge_threshold_t (default: 0.0001). Points with TIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less than merge_threshold_sz will be merged.
 
 ## Results
 These are the functions that ALSA conformance test covers.
@@ -172,9 +171,9 @@ TIME_DIFF(s)    HW_LEVEL              PLAYED           DIFF               RATE
 
 In the last two lines above, the device consumes 24 samples twice in a short time
 instead of 48 samples in the fixed period and result in higher rate error.
+To reduce the error, points with TIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less than merge_threshold_sz will be merged. The merge_threshold_sz is determined automatically by the test and merge_threshold_t can be set by --merge_threshold option.
 With the --merge_threshold set to 0.0001, the last two points will be merged, and only
-the latter point is counted in linear regression. The result of point merge is the same as
-below:
+the latter point is counted in linear regression. The result of point merge is the same as below:
 ```
 TIME_DIFF(s)    HW_LEVEL              PLAYED           DIFF               RATE
 0.001000772          376                1064             48        47962.972585
