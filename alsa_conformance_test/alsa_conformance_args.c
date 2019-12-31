@@ -50,12 +50,7 @@ struct alsa_conformance_args *args_create()
 	args->device_file = NULL;
 	args->dev_info_only = false;
 	args->iterations = 1;
-	/*
-	 * TODO(yuhsuan): This feature is not stable. Sometimes it may merge
-	 * wrong points if the step size is small. Disable merging points until
-	 * the issue is fixed. (b/145486343)
-	 */
-	args->merge_threshold = 0;
+	args->merge_threshold = 0.0001;
 
 	return args;
 }
