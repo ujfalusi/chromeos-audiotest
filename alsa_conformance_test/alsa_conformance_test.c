@@ -49,9 +49,11 @@ void show_usage(const char *name)
 	printf("\t--iterations: "
 	       "Number of times to run the tests specified. (default: 1)\n");
 	printf("\t--merge_threshold: "
-	       "Set merge_threshold_t (default: 0.0001).\n"
-	       "\t\tPoints with TIME_DIFF less than merge_threshold_t and\n"
-	       "\t\tSAMPLES_DIFF less than merge_threshold_sz will be merged.\n");
+	       "Set merge_threshold_t. (default: 0.0001)\n"
+	       "\t\tIf the value is not zero, there will be a dryrun to set the\n"
+	       "\t\tmerge_threshold_sz as the median of frame diff. Points with\n"
+	       "\t\tTIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less\n"
+	       "\t\tthan merge_threshold_sz will be merged.\n");
 	printf("\t--device_file:\n"
 	       "\t\tDevice file path. It will load devices from the file. "
 	       "File format:\n"

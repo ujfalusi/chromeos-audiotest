@@ -103,7 +103,11 @@ alsaucm -c kbl_r5514_5663_max set _verb HiFi set _enadev "Headphone"
       	eg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example
 		```
 + --merge_threshold
-	+ Set merge_threshold_t (default: 0.0001). Points with TIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less than merge_threshold_sz will be merged.
+	+ Set merge_threshold_t. (default: 0.0001)
+	+ If the value is not zero, there will be a dryrun to set the
+	  merge_threshold_sz as the median of frame diff. Points with
+	  TIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less
+	  than merge_threshold_sz will be merged.
 
 ## Results
 These are the functions that ALSA conformance test covers.

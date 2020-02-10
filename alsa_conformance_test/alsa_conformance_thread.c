@@ -489,6 +489,13 @@ void dev_thread_set_merge_threshold_sz(struct dev_thread *thread)
 {
 	int old_debug_mode = DEBUG_MODE;
 	double old_merge_threshold_t = thread->merge_threshold_t;
+
+	/* Skip when the merge_threshold_t is 0. */
+	if (!thread->merge_threshold_t) {
+		thread->merge_threshold_sz = 0;
+		return;
+	}
+
 	DEBUG_MODE = 0;
 	thread->merge_threshold_t = 0;
 	struct alsa_conformance_recorder *recorder =
