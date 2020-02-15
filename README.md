@@ -1,5 +1,4 @@
-
-ChromeOS Audio Test
+# ChromeOS Audio Test
 
 This package intends to be a fast and powerful automated audio test tool.
 It performs polyphonic tone synthesis while simultaneously capturing
@@ -43,10 +42,27 @@ Additional features planned for inclusion very shortly:
 - Remote control, so a master can test ports in a Device Under Test.
 - Higher resolution sound capture with new hardware.
 
+## Packages included
 
-----------------------------------------------------------------------
-Miscellaneous Notes
+- [ALSA Conformance Test](alsa_conformance_test.md) - A tool to verify audio
+drivers.
 
+- [ALSA API Test](src/alsa_api_test.c) - Test basic ALSA API function.
+
+- [ALSA Helper](src/alsa_helpers.c) - Get basic information for PCM devices.
+
+- [AudioFunTest](src/audiofuntest.cc) - A tool to test loopback, comparing
+output streaming and input streaming with a special designed algorithm.
+
+- [CRAS API Test](src/cras_api_test.c) - Test basic CRAS API function.
+
+- [Loop Test](src/looptest.c) - Test loopback function for PCM devices.
+
+- [Loopback Latency](src/loopback_latency.c) - Test loopback latency for PCM devices.
+
+- [Test Tones](src/test_tones.cc) - A tool to play tone from PCM devices.
+
+## Miscellaneous Notes
 
 Properties of the DFT
 DFT stands for 'Discrete Fourier Transform'. A pure Fourier
