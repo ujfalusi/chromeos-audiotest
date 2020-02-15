@@ -11,7 +11,7 @@
 #include "alsa_conformance_recorder.h"
 #include "alsa_conformance_timer.h"
 
-static const int ARRAY_SIZE = 4096;
+#define ARRAY_SIZE 4096
 
 struct alsa_conformance_recorder {
 	unsigned long count;

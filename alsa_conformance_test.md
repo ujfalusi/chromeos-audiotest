@@ -14,14 +14,14 @@ Make sure these packages are on the host to compile the tool.
 ```Shell
 sudo apt-get update
 sudo apt-get upgrade
-sudo apt-get install git, pkg-config, build-essential, libasound2-dev
+sudo apt-get install git pkg-config build-essential libasound2-dev
 ```
 
 Make sure these packages are on the device under test(DUT) for testing.
 ```Shell
 sudo apt-get update
 sudo apt-get upgrade
-sudo apt-get install alsa-utils, libasound2-dev
+sudo apt-get install alsa-utils libasound2-dev
 ```
 **NOTE:** ChromeOS has already had these packages.
 
