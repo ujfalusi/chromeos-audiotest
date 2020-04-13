@@ -78,7 +78,7 @@ alsaucm -c kbl_r5514_5663_max set _verb HiFi set _enadev "Headphone"
 + -r, --rate <rate>
 	+ Set rate. (default: 48000)
 + -p, --period <period>
-	+ Set period. (default: 240)
+	+ Set period. If not set, the default value set in the driver will be used.
 + -d, --durations <duration>
 	+ Set durations(second). (default: 1.0)
 + -B, --block_size <block_size>

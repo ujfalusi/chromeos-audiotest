@@ -191,7 +191,7 @@ void dev_thread_set_params(struct dev_thread *thread)
 				thread->dev_name, rate, thread->rate);
 			exit(EXIT_FAILURE);
 		}
-		if (period_size != thread->period_size) {
+		if (period_size != 0 && period_size != thread->period_size) {
 			fprintf(stderr,
 				"%s want to set period_size %lu but get %lu.\n",
 				thread->dev_name, period_size,

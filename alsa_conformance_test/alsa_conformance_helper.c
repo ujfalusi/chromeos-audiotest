@@ -284,19 +284,21 @@ int alsa_helper_set_hw_params(struct alsa_conformance_timer *timer,
 		return rc;
 	}
 
-	/* Set period size near, the period size may be changed if it's not
-     * supported */
-	rc = snd_pcm_hw_params_set_period_size_near(handle, params, period_size,
-						    &dir);
-	if (rc < 0) {
-		fprintf(stderr,
-			"snd_pcm_hw_params_set_period_size_near %lu: %s\n",
-			*period_size, snd_strerror(rc));
-		return rc;
+	/* If the period size is not zero, set period size near. The period size may
+	 * be changed if it's not supported. */
+	if (*period_size) {
+		rc = snd_pcm_hw_params_set_period_size_near(handle, params,
+							    period_size, &dir);
+		if (rc < 0) {
+			fprintf(stderr,
+				"snd_pcm_hw_params_set_period_size_near %lu: %s\n",
+				*period_size, snd_strerror(rc));
+			return rc;
+		}
 	}
 
 	/* TODO(yuhsuan): We should support setting buffer_size in the future.
-     * It's set automatically now.*/
+	 * It's set automatically now.*/
 
 	conformance_timer_start(timer, SND_PCM_HW_PARAMS);
 	rc = snd_pcm_hw_params(handle, params);

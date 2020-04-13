@@ -34,7 +34,8 @@ void show_usage(const char *name)
 	printf("\t-c, --channels <channels>: Set channels. (default: 2)\n");
 	printf("\t-f, --format <format>: Set format. (default: S16_LE)\n");
 	printf("\t-r, --rate <rate>: Set rate. (default: 48000)\n");
-	printf("\t-p, --period <period>: Set period. (default: 240)\n");
+	printf("\t-p, --period <period>: Set period size. If not set, the default"
+	       "value set in the driver will be used. \n");
 	printf("\t-d, --durations <duration>: "
 	       "Set durations(second). (default: 1.0)\n");
 	printf("\t-B, --block_size <block_size>: "

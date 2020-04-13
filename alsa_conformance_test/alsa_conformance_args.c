@@ -44,7 +44,7 @@ struct alsa_conformance_args *args_create()
 	args->channels = 2;
 	args->format = SND_PCM_FORMAT_S16_LE;
 	args->rate = 48000;
-	args->period_size = 240;
+	args->period_size = 0;
 	args->block_size = 240;
 	args->duration = 1.0;
 	args->device_file = NULL;
