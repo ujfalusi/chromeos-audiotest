@@ -23,6 +23,8 @@ struct dev_thread {
 	snd_pcm_t *handle;
 	snd_pcm_hw_params_t *params;
 	snd_pcm_hw_params_t *params_record;
+	snd_pcm_info_t *pcm_info;
+	snd_ctl_card_info_t *card_info;
 
 	char *dev_name;
 	snd_pcm_stream_t stream;
@@ -60,6 +62,8 @@ struct dev_thread *dev_thread_create()
 	thread->handle = NULL;
 	thread->params = NULL;
 	thread->params_record = NULL;
+	thread->pcm_info = NULL;
+	thread->card_info = NULL;
 	thread->dev_name = NULL;
 	thread->underrun_count = 0;
 	thread->overrun_count = 0;
@@ -77,6 +81,8 @@ struct dev_thread *dev_thread_create()
 void dev_thread_destroy(struct dev_thread *thread)
 {
 	snd_pcm_hw_params_free(thread->params_record);
+	snd_pcm_info_free(thread->pcm_info);
+	snd_ctl_card_info_free(thread->card_info);
 	conformance_timer_destroy(thread->timer);
 	recorder_list_destroy(thread->recorder_list);
 	free(thread->dev_name);
@@ -157,6 +163,14 @@ void dev_thread_open_device(struct dev_thread *thread)
 			      thread->dev_name, thread->stream);
 	if (rc < 0)
 		exit(EXIT_FAILURE);
+
+	/* Records pcm_info and card_info to show it on the result. */
+	if (thread->pcm_info == NULL)
+		snd_pcm_info_malloc(&thread->pcm_info);
+	if (thread->card_info == NULL)
+		snd_ctl_card_info_malloc(&thread->card_info);
+	alsa_helper_get_card_info(thread->handle, thread->pcm_info,
+				  thread->card_info);
 }
 
 /* Close device. */
@@ -566,6 +580,7 @@ void dev_thread_print_params(struct dev_thread *thread)
 	int rc;
 	assert(thread->params_record);
 	printf("PCM name: %s\n", thread->dev_name);
+	print_card_information(thread->pcm_info, thread->card_info);
 	printf("stream: %s\n", snd_pcm_stream_name(thread->stream));
 	printf("merge_threshold_t: %lf\n", thread->merge_threshold_t);
 	printf("merge_threshold_sz: %ld\n", thread->merge_threshold_sz);

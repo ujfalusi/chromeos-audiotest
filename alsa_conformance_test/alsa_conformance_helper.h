@@ -10,6 +10,29 @@
 #include <alsa/asoundlib.h>
 #include "alsa_conformance_timer.h"
 
+/*
+ * Print card information.
+ * Args:
+ *    pcm_info - The pointer storing pcm information.
+ *    card_info - The pointer storing card information.
+ * Prints to stdout:
+ *    card name - The name of the card.
+ */
+void print_card_information(snd_pcm_info_t *pcm_info,
+			    snd_ctl_card_info_t *card_info);
+
+/*
+ * Get card information from the device.
+ * Args:
+ *    handle - The open PCM to configure.
+ *    pcm_info - The allocated pointer to store the pcm information.
+ *    card_info - The allocated pointer to store the card information.
+ * Returns:
+ *    0 on success, negative error on failure.
+ */
+int alsa_helper_get_card_info(snd_pcm_t *handle, snd_pcm_info_t *pcm_info,
+			      snd_ctl_card_info_t *card_info);
+
 /* Print device information.
  * Args:
  *    handle - The open PCM to configure.

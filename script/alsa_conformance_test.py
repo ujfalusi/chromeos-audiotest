@@ -18,8 +18,8 @@ TEST_BINARY = 'alsa_conformance_test'
 Range = collections.namedtuple('Range', ['lower', 'upper'])
 
 DataDevInfo = collections.namedtuple('DataDevInfo', [
-    'name', 'stream', 'valid_formats', 'valid_rates', 'valid_channels',
-    'period_size_range', 'buffer_size_range'
+    'name', 'card', 'device', 'stream', 'valid_formats', 'valid_rates',
+    'valid_channels', 'period_size_range', 'buffer_size_range'
 ])
 
 DataParams = collections.namedtuple('DataParams', [
@@ -195,6 +195,8 @@ class DeviceInfoParser(Parser):
           ------DEVICE INFORMATION------
           PCM handle name: hw:0,0
           PCM type: HW
+          card: CardID [CardName]
+          device: DeviceID [DeviceName]
           stream: PLAYBACK
           available range: 1, 2
           available formats: S16_LE S32_LE
@@ -207,6 +209,7 @@ class DeviceInfoParser(Parser):
       Result
           DataDevInfo(
               name='hw:0,0',
+              card='soundcard',
               stream='PLAYBACK',
               valid_formats=['S16_LE', 'S32_LE'],
               valid_channels=['1', '2'],
@@ -225,6 +228,8 @@ class DeviceInfoParser(Parser):
 
     return DataDevInfo(
         self._get_value('PCM handle name'),
+        self._get_value('card'),
+        self._get_value('device'),
         self._get_value('stream'),
         self._get_list('available formats'),
         list(map(int, self._get_list('available rates'))),
@@ -407,6 +412,8 @@ class AlsaConformanceTester(object):
     """Prints device information."""
     print('Device Information')
     print('\tName:', self.dev_info.name)
+    print('\tCard:', self.dev_info.card)
+    print('\tDevice:', self.dev_info.device)
     print('\tStream:', self.dev_info.stream)
     print('\tFormat:', self.dev_info.valid_formats)
     print('\tChannels:', self.dev_info.valid_channels)

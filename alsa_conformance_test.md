@@ -119,6 +119,8 @@ params can be set correctly is necessary.
 ```
 ---------PRINT PARAMS---------
 PCM name: hw:0,0
+card: acpd7219m98357 [acpd7219m98357]
+device: Playback da7219-hifi-0 []
 stream: PLAYBACK
 access type: MMAP_INTERLEAVED
 format: S16_LE
@@ -364,6 +366,7 @@ The result will show pass or fail.
 11 passed, 0 failed
 Device Information
         Name: hw:0,0
+        Card: sof-glkda7219max
         Stream: PLAYBACK
         Format: ['S16_LE', 'S32_LE']
         Channels: [2]

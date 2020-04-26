@@ -10,22 +10,73 @@
 #include "alsa_conformance_helper.h"
 #include "alsa_conformance_timer.h"
 
-/* Print device information before setting params */
+void print_card_information(snd_pcm_info_t *pcm_info,
+			    snd_ctl_card_info_t *card_info)
+{
+	printf("card: %s [%s]\n", snd_ctl_card_info_get_id(card_info),
+	       snd_ctl_card_info_get_name(card_info));
+	printf("device: %s [%s]\n", snd_pcm_info_get_id(pcm_info),
+	       snd_pcm_info_get_name(pcm_info));
+}
+
+int alsa_helper_get_card_info(snd_pcm_t *handle, snd_pcm_info_t *pcm_info,
+			      snd_ctl_card_info_t *card_info)
+{
+	int card_idx;
+	char name[32];
+	snd_ctl_t *ctl_handle = NULL;
+	int rc;
+
+	assert(pcm_info);
+	assert(card_info);
+	rc = snd_pcm_info(handle, pcm_info);
+	if (rc < 0) {
+		fprintf(stderr, "snd_pcm_info: %s\n", snd_strerror(rc));
+		return rc;
+	}
+
+	card_idx = snd_pcm_info_get_card(pcm_info);
+	sprintf(name, "hw:%d", card_idx);
+
+	rc = snd_ctl_open(&ctl_handle, name, 0);
+	if (rc < 0) {
+		fprintf(stderr, "snd_ctl_open: %s\n", snd_strerror(rc));
+		return rc;
+	}
+
+	rc = snd_ctl_card_info(ctl_handle, card_info);
+	if (rc < 0) {
+		fprintf(stderr, "snd_ctl_card_info: %s\n", snd_strerror(rc));
+		return rc;
+	}
+
+	return 0;
+}
+
 int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 {
 	unsigned int min;
 	unsigned int max;
 	unsigned int i;
 	/* The min2 and max2 are for period size and buffer size. The type of
-     * snd_pcm_uframes_t is unsigned long.*/
+	 * snd_pcm_uframes_t is unsigned long.*/
 	snd_pcm_uframes_t min2;
 	snd_pcm_uframes_t max2;
 	int dir;
 	int rc;
+	snd_pcm_info_t *pcm_info;
+	snd_ctl_card_info_t *card_info;
 
 	printf("PCM handle name: %s\n", snd_pcm_name(handle));
 
 	printf("PCM type: %s\n", snd_pcm_type_name(snd_pcm_type(handle)));
+
+	snd_pcm_info_malloc(&pcm_info);
+	snd_ctl_card_info_malloc(&card_info);
+	alsa_helper_get_card_info(handle, pcm_info, card_info);
+	print_card_information(pcm_info, card_info);
+	snd_ctl_card_info_free(card_info);
+	snd_pcm_info_free(pcm_info);
 
 	printf("stream: %s\n", snd_pcm_stream_name(snd_pcm_stream(handle)));
 
