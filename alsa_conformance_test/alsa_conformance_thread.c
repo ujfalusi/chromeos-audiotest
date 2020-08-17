@@ -254,7 +254,7 @@ void dev_thread_start_playback(struct dev_thread *thread,
 	timer = thread->timer;
 	block_size = (snd_pcm_uframes_t)thread->block_size;
 
-	if (alsa_helper_prepare(handle) < 0)
+	if (alsa_helper_prepare(timer, handle) < 0)
 		exit(EXIT_FAILURE);
 
 	/* Get device buffer size. */
@@ -408,7 +408,7 @@ void dev_thread_start_capture(struct dev_thread *thread,
 	handle = thread->handle;
 	timer = thread->timer;
 	block_size = (snd_pcm_uframes_t)thread->block_size;
-	if (alsa_helper_prepare(handle) < 0)
+	if (alsa_helper_prepare(timer, handle) < 0)
 		exit(EXIT_FAILURE);
 
 	/* Get device buffer size. */

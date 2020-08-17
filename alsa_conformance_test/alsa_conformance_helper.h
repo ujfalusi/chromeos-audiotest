@@ -125,11 +125,13 @@ int alsa_helper_set_sw_param(struct alsa_conformance_timer *timer,
 
 /* Prepare an alsa device. A thin wrapper to snd_pcm_prepare.
  * Args:
+ *    timer - A pointer to timer which records the runtime of ALSA APIs.
  *    handle - The open PCM to configure.
  * Returns:
  *    0 on success, negative error on failure.
  */
-int alsa_helper_prepare(snd_pcm_t *handle);
+int alsa_helper_prepare(struct alsa_conformance_timer *timer,
+			snd_pcm_t *handle);
 
 /* Starts an alsa device. A thin wrapper to snd_pcm_start.
  * Args:

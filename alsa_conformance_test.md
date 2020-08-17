@@ -212,6 +212,7 @@ snd_pcm_open                       0.003351390                    1             
 snd_pcm_hw_params                  0.039304997                    1             0.039305
 snd_pcm_hw_params_any              0.000055113                    1             0.000055
 snd_pcm_sw_params                  0.000017586                    1             0.000018
+snd_pcm_prepare                    0.000007613                    1             0.000008
 snd_pcm_start                      0.000774880                    1             0.000775
 snd_pcm_avail                      0.807074662               246177             0.000003
 precision: 0.000000001

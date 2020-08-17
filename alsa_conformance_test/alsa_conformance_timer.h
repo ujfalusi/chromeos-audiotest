@@ -16,6 +16,7 @@ enum ALSA_API {
 	SND_PCM_HW_PARAMS,
 	SND_PCM_HW_PARAMS_ANY,
 	SND_PCM_SW_PARAMS,
+	SND_PCM_PREPARE,
 	SND_PCM_START,
 	SND_PCM_AVAIL,
 	ALSA_API_COUNT /* Keep it in the last line to count total amounts. */
@@ -32,6 +33,7 @@ static inline const char *alsa_api_str(enum ALSA_API api)
 		ENUM_STR(SND_PCM_HW_PARAMS)
 		ENUM_STR(SND_PCM_HW_PARAMS_ANY)
 		ENUM_STR(SND_PCM_SW_PARAMS)
+		ENUM_STR(SND_PCM_PREPARE)
 		ENUM_STR(SND_PCM_START)
 		ENUM_STR(SND_PCM_AVAIL)
 	default:

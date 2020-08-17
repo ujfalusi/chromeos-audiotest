@@ -420,10 +420,12 @@ int alsa_helper_set_sw_param(struct alsa_conformance_timer *timer,
 	return 0;
 }
 
-int alsa_helper_prepare(snd_pcm_t *handle)
+int alsa_helper_prepare(struct alsa_conformance_timer *timer, snd_pcm_t *handle)
 {
 	int rc;
+	conformance_timer_start(timer, SND_PCM_PREPARE);
 	rc = snd_pcm_prepare(handle);
+	conformance_timer_stop(timer, SND_PCM_PREPARE);
 	if (rc < 0) {
 		fprintf(stderr, "snd_pcm_prepare: %s\n", snd_strerror(rc));
 		return rc;
