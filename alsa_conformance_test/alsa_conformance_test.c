@@ -61,6 +61,8 @@ void show_usage(const char *name)
 	       "\t\t[name] [type] [channels] [format] [rate] [period] [block_size]"
 	       " [durations] # comment\n"
 	       "\t\teg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example\n");
+	printf("\t--merge_threshold_sz: "
+	       "Set frame merge threadhold size, auto computed if not set\n");
 }
 
 void set_dev_thread_args(struct dev_thread *thread,
@@ -75,6 +77,8 @@ void set_dev_thread_args(struct dev_thread *thread,
 	dev_thread_set_iterations(thread, args_get_iterations(args));
 	dev_thread_set_merge_threshold_t(thread,
 					 args_get_merge_threshold(args));
+	dev_thread_set_merge_threshold_size(thread,
+					 args_get_merge_threshold_sz(args));
 }
 
 struct dev_thread *create_playback_thread(struct alsa_conformance_args *args)
@@ -246,7 +250,8 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 		OPT_STRICT,
 		OPT_DEV_INFO_ONLY,
 		OPT_ITERATIONS,
-		OPT_MERGE_THRESHOLD
+		OPT_MERGE_THRESHOLD,
+		OPT_MERGE_THRESHOLD_SZ
 	};
 	int c;
 	const char *short_opt = "hP:C:c:f:r:p:B:d:D";
@@ -267,6 +272,8 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 		{ "iterations", required_argument, NULL, OPT_ITERATIONS },
 		{ "merge_threshold", required_argument, NULL,
 		  OPT_MERGE_THRESHOLD },
+		{ "merge_threshold_sz", required_argument, NULL,
+		  OPT_MERGE_THRESHOLD_SZ },
 		{ 0, 0, 0, 0 }
 	};
 	while (1) {
@@ -341,6 +348,10 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 						 (double)atof(optarg));
 			break;
 
+		case OPT_MERGE_THRESHOLD_SZ:
+			args_set_merge_threshold_sz(test_args,
+						 (int)atof(optarg));
+			break;
 		case ':':
 		case '?':
 			fprintf(stderr,

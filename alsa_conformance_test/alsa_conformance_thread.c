@@ -106,6 +106,12 @@ void dev_thread_set_merge_threshold_t(struct dev_thread *thread,
 	thread->merge_threshold_t = merge_threshold;
 }
 
+void dev_thread_set_merge_threshold_size(struct dev_thread *thread,
+					 snd_pcm_sframes_t merge_threshold_sz)
+{
+	thread->merge_threshold_sz = merge_threshold_sz;
+}
+
 void dev_thread_set_channels(struct dev_thread *thread, unsigned int channels)
 {
 	thread->channels = channels;
@@ -539,6 +545,9 @@ void dev_thread_set_merge_threshold_sz(struct dev_thread *thread)
 		thread->merge_threshold_sz = 0;
 		return;
 	}
+	/* Skip if user set */
+	if (thread->merge_threshold_sz)
+		return;
 
 	DEBUG_MODE = 0;
 	thread->merge_threshold_t = 0;

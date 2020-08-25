@@ -26,6 +26,7 @@ struct alsa_conformance_args {
 	int dev_info_only;
 	int iterations;
 	double merge_threshold;
+	snd_pcm_sframes_t merge_threshold_sz;
 };
 
 struct alsa_conformance_args *args_create()
@@ -51,6 +52,7 @@ struct alsa_conformance_args *args_create()
 	args->dev_info_only = false;
 	args->iterations = 1;
 	args->merge_threshold = 0.0001;
+	args->merge_threshold_sz = 0;
 
 	return args;
 }
@@ -121,6 +123,11 @@ int args_get_iterations(const struct alsa_conformance_args *args)
 double args_get_merge_threshold(const struct alsa_conformance_args *args)
 {
 	return args->merge_threshold;
+}
+
+snd_pcm_sframes_t args_get_merge_threshold_sz(const struct alsa_conformance_args *args)
+{
+	return args->merge_threshold_sz;
 }
 
 void args_set_playback_dev_name(struct alsa_conformance_args *args,
@@ -196,3 +203,10 @@ void args_set_merge_threshold(struct alsa_conformance_args *args,
 {
 	args->merge_threshold = merge_threshold;
 }
+
+void args_set_merge_threshold_sz(struct alsa_conformance_args *args,
+				 int merge_threshold_sz)
+{
+	args->merge_threshold_sz = (snd_pcm_sframes_t)merge_threshold_sz;
+}
+
