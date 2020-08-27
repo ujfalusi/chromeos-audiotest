@@ -360,7 +360,7 @@ class ResultParser(Parser):
 class AlsaConformanceTester(object):
   """Object which can set params and run alsa_conformance_test."""
 
-  def __init__(self, name, stream, criteria):
+  def __init__(self, name, stream, criteria, threshold):
     """Initializes an AlsaConformanceTester.
 
     Args:
@@ -374,6 +374,7 @@ class AlsaConformanceTester(object):
     self.channels = None
     self.rate = None
     self.period_size = None
+    self.merge_thld_size = threshold
     self.criteria = criteria
 
     output = self.run(['--dev_info_only'])
@@ -443,6 +444,9 @@ class AlsaConformanceTester(object):
       cmd += ['-f', str(self.format)]
     if self.period_size is not None:
       cmd += ['-p', str(self.period_size)]
+    if self.merge_thld_size is not None:
+      cmd += ['--merge_threshold_sz', str(self.merge_thld_size)]
+
     logging.info('Execute command: %s', ' '.join(cmd))
     p = subprocess.Popen(
         cmd,
@@ -734,6 +738,11 @@ def main():
       help='The pass criteria of rate error. (default: 10)',
       type=float, default=10)
   parser.add_argument(
+      '--merge-thld-size',
+      help=('Override the auto computed merge_threshold_sz. '
+            'See the Explaination of point merge in the doc for details.'),
+      type=int)
+  parser.add_argument(
       '--json', action='store_true', help='Print result in JSON format')
   parser.add_argument('--log-file', help='The file to save logs.')
   parser.add_argument(
@@ -759,10 +768,12 @@ def main():
     exit(1)
 
   if args.input_device:
-    tester = AlsaConformanceTester(args.input_device, 'CAPTURE', criteria)
+    tester = AlsaConformanceTester(args.input_device, 'CAPTURE', criteria,
+                                   args.merge_thld_size)
 
   if args.output_device:
-    tester = AlsaConformanceTester(args.output_device, 'PLAYBACK', criteria)
+    tester = AlsaConformanceTester(args.output_device, 'PLAYBACK', criteria,
+                                   args.merge_thld_size)
 
   tester.test(args.test_suites, args.json)
 
