@@ -29,7 +29,7 @@ class PlayClient {
   void Terminate();
 
   // Plays the given block of samples.
-  void Play(const void *buffer, size_t size);
+  void Play(const void *buffer, size_t size, bool *is_stopped);
 
  private:
   int child_pid_;

@@ -114,6 +114,7 @@ int CreateFIFO(bool direction, const std::string &fifo_name,
 void PlayClient::Start() {
   int other_side_fd;
   play_fd_ = CreateFIFO(FIFO_OUT, fifo_name_, &other_side_fd);
+  fcntl(play_fd_, F_SETFL, O_NONBLOCK);
   child_pid_ = StartProcess(command_, other_side_fd, -1);
 }
 
@@ -123,13 +124,16 @@ void PlayClient::Terminate() {
   kill(child_pid_, SIGKILL);
 }
 
-void PlayClient::Play(const void *buffer, size_t size) {
+void PlayClient::Play(const void *buffer, size_t size, bool *is_stopped) {
   int res;
   int byte_to_write = size;
   const uint8_t *ptr = static_cast<const uint8_t *>(buffer);
   // Keep writing to pipe until error or finishing.
-  while ((res = write(play_fd_, ptr, byte_to_write)) < byte_to_write) {
+  while (!*is_stopped &&
+          (res = write(play_fd_, ptr, byte_to_write)) < byte_to_write) {
     if (res < 0) {
+      if (errno == EAGAIN)
+        continue;
       perror("Failed to write to player.");
       exit(EXIT_FAILURE);
     }

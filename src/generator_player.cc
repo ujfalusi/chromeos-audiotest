@@ -40,7 +40,8 @@ void GeneratorPlayer::Run(ToneGenerator *generator) {
   while (!is_stopped_ && generator->HasMoreFrames()) {
     size_t frame_read = generator->GetFrames(
         format_, num_channels_, active_channels_, buffer_.get(), buf_size_);
-    player_->Play(buffer_.get(), frame_read * num_channels_ * format_.bytes());
+    player_->Play(buffer_.get(), frame_read * num_channels_ * format_.bytes(),
+	&is_stopped_);
   }
   is_stopped_ = true;
 }
