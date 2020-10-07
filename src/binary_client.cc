@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/prctl.h>
 
 #include <memory>
 
@@ -41,6 +42,7 @@ int StartProcess(const std::string &cmd, int stdin_fd, int stdout_fd) {
     perror("Failed to fork for player program");
     exit(EXIT_FAILURE);
   } else if (child_pid == 0) {  // child
+    prctl(PR_SET_PDEATHSIG, SIGHUP);
     if (stdin_fd > 0) {
       dup2(stdin_fd, STDIN_FILENO);
     }
