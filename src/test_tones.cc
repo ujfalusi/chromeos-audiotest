@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Simple playback test drivers.  Plays test tones using the native Alsa
+// Simple playback test drivers.  Plays test tones using the Alsa defined
 // API allowing for configuration of volume, frequency, channels of output,
 // etc.  See the output of PrintUsage() for instructions on how to use.
 

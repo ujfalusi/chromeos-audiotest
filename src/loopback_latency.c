@@ -114,7 +114,7 @@ static void generate_sine(const snd_pcm_channel_area_t *areas,
         if (to_unsigned)
             res ^= 1U << (format_bits - 1);
         for (chn = 0; chn < channels; chn++) {
-            /* Generate data in native endian format */
+            /* Generate data based on endian format */
             if (big_endian) {
                 for (i = 0; i < bps; i++)
                     *(samples[chn] + phys_bps - 1 - i) = (res >> i * 8) & 0xff;
