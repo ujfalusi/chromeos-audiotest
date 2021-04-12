@@ -39,7 +39,7 @@ Additional features in the tool:
 
 Additional features planned for inclusion very shortly:
 - Automatic test sequencing of multiple channels in a port.
-- Remote control, so a master can test ports in a Device Under Test.
+- Remote control, so a host can test ports in a Device Under Test.
 - Higher resolution sound capture with new hardware.
 
 ## Packages included
