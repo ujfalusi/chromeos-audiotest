@@ -87,7 +87,7 @@
 # Caveats:
 # - Directories or files with spaces in them DO NOT get along with GNU Make.
 #   If you need them, all uses of dir/notdir/etc will need to have magic
-#   wrappers.  Proceed at risk to your own sanity.
+#   wrappers.  Proceed at risk to your own judgement.
 # - External CXXFLAGS and CFLAGS should be passed via the environment since
 #   this file does not use 'override' to control them.
 # - Our version of GNU Make doesn't seem to support the 'private' variable
