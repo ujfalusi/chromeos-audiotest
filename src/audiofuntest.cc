@@ -16,33 +16,34 @@
 #include "include/sample_format.h"
 #include "include/tone_generators.h"
 
-constexpr static const char *short_options =
-    "a:m:d:n:o:w:P:f:R:F:r:t:c:C:T:l:g:i:x:hv";
+constexpr static const char* short_options =
+    "a:m:d:n:o:w:p:P:f:R:F:r:t:c:C:T:l:g:i:x:hv";
 
 constexpr static const struct option long_options[] = {
-  {"active-speaker-channels", 1, NULL, 'a'},
-  {"active-mic-channels", 1, NULL, 'm'},
-  {"allowed-delay", 1, NULL, 'd'},
-  {"fft-size", 1, NULL, 'n'},
-  {"confidence-threshold", 1, NULL, 'o'},
-  {"match-window-size", 1, NULL, 'w'},
-  {"player-command", 1, NULL, 'P'},
-  {"player-fifo", 1, NULL, 'f'},
-  {"recorder-command", 1, NULL, 'R'},
-  {"recorder-fifo", 1, NULL, 'F'},
-  {"sample-rate", 1, NULL, 'r'},
-  {"sample-format", 1, NULL, 't'},
-  {"num-mic-channels", 1, NULL, 'c'},
-  {"num-speaker-channels", 1, NULL, 'C'},
-  {"test-rounds", 1, NULL, 'T'},
-  {"tone-length", 1, NULL, 'l'},
-  {"volume-gain", 1, NULL, 'g'},
-  {"min-frequency", 1, NULL, 'i'},
-  {"max-frequency", 1, NULL, 'x'},
+    {"active-speaker-channels", 1, NULL, 'a'},
+    {"active-mic-channels", 1, NULL, 'm'},
+    {"allowed-delay", 1, NULL, 'd'},
+    {"fft-size", 1, NULL, 'n'},
+    {"power-threshold", 1, NULL, 'p'},
+    {"confidence-threshold", 1, NULL, 'o'},
+    {"match-window-size", 1, NULL, 'w'},
+    {"player-command", 1, NULL, 'P'},
+    {"player-fifo", 1, NULL, 'f'},
+    {"recorder-command", 1, NULL, 'R'},
+    {"recorder-fifo", 1, NULL, 'F'},
+    {"sample-rate", 1, NULL, 'r'},
+    {"sample-format", 1, NULL, 't'},
+    {"num-mic-channels", 1, NULL, 'c'},
+    {"num-speaker-channels", 1, NULL, 'C'},
+    {"test-rounds", 1, NULL, 'T'},
+    {"tone-length", 1, NULL, 'l'},
+    {"volume-gain", 1, NULL, 'g'},
+    {"min-frequency", 1, NULL, 'i'},
+    {"max-frequency", 1, NULL, 'x'},
 
-  // Other helper args.
-  {"help", 0, NULL, 'h'},
-  {"verbose", 0, NULL, 'v'},
+    // Other helper args.
+    {"help", 0, NULL, 'h'},
+    {"verbose", 0, NULL, 'v'},
 };
 
 // Parse the sample format. The input should be one of the string in
@@ -95,6 +96,9 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
           fprintf(stderr, "Match window size must be an odd value.\n");
           return false;
         }
+        break;
+      case 'p':
+        config->power_threshold = atof(optarg);
         break;
       case 'P':
         config->player_command = std::string(optarg);
@@ -213,6 +217,11 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "\t\tLonger fftsize has more carriers but longer latency."
           " Also, fftsize needs to be power of 2"
           "(def %d)\n", default_config.fft_size);
+  fprintf(fd,
+          "\t-p, --power-threshold:\n"
+          "\t\tThreshold of RMS value to pass evaluation "
+          "(def %.4f)\n",
+          default_config.power_threshold);
   fprintf(fd,
           "\t-o, --confidence-threshold:\n"
           "\t\tThreshold of accumulated confidence to pass evaluation "

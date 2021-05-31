@@ -47,6 +47,7 @@ struct AudioFunTestConfig {
       : allowed_delay_sec(1.5),
         fft_size(2048u),
         match_window_size(7),
+        power_threshold(0.01),
         confidence_threshold(3),
         sample_rate(64000),
         sample_format(SampleFormat::kPcmS16),
@@ -64,6 +65,7 @@ struct AudioFunTestConfig {
   double allowed_delay_sec;
   int fft_size;
   int match_window_size;
+  double power_threshold;
   double confidence_threshold;
   std::string player_command;
   std::string player_fifo;
