@@ -78,7 +78,7 @@ void FFT(std::vector<double> *data_ptr) {
 
 }  // namespace
 
-Evaluator::Evaluator(const AudioFunTestConfig &config)
+Evaluator::Evaluator(const AudioFunTestConfig& config)
     : filter_(config.match_window_size),
       half_window_size_(config.match_window_size / 2),
       num_channels_(config.num_mic_channels),
@@ -86,6 +86,7 @@ Evaluator::Evaluator(const AudioFunTestConfig &config)
       format_(config.sample_format),
       sample_rate_(config.sample_rate),
       bin_(config.match_window_size),
+      power_threshold_(config.power_threshold),
       confidence_threshold_(config.confidence_threshold),
       verbose_(config.verbose) {
   // Initializes original expected filter.
@@ -146,6 +147,24 @@ void Evaluator::Evaluate(int center_bin,
 
 double Evaluator::EstimateChannel(
     std::vector<double> *data, int center_bin) {
+  // Calculate RMS before FFT
+  // The |data| here is already formatted as double sized to store the result
+  // (read, imaginary) from FFT.
+  int data_size = data->size() / 2;
+  double rms = 0.0;
+  for (int t = 0; t < data_size; ++t) {
+    const double amplitude = (*data)[2 * t];
+    rms += amplitude * amplitude;
+  }
+  rms = sqrt(rms / data_size);
+  if (verbose_)
+    printf("rms: %0.4f\n", rms);
+
+  if (rms < power_threshold_) {
+    perror("The RMS level is too low.");
+    return 0.0;
+  }
+
   FFT(data);
 
   double confidence = 0.0, mean = 0.0, sigma = 0.0;
