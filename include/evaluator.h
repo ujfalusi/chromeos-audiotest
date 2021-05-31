@@ -40,6 +40,7 @@ class Evaluator {
   std::unique_ptr<uint8_t[]> buffer_;
   size_t buf_size_;
 
+  double power_threshold_;
   double confidence_threshold_;
   int max_trial_;
 
