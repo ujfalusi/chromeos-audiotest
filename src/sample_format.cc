@@ -125,8 +125,8 @@ void *ReadSample(SampleFormat format, void *data, double *sample) {
     *sample = ReadSample<>(*reinterpret_cast<uint8_t *>(data));
     return reinterpret_cast<uint8_t *>(data) + 1;
   } else if (format.type() == SampleFormat::kPcmS16) {
-    *sample = ReadSample<>(*reinterpret_cast<uint16_t *>(data));
-    return reinterpret_cast<uint16_t *>(data) + 1;
+    *sample = ReadSample<>(*reinterpret_cast<int16_t*>(data));
+    return reinterpret_cast<int16_t*>(data) + 1;
   } else if (format.type() == SampleFormat::kPcmS24) {
     int32_t value = 0;
     uint8_t *ptr = static_cast<uint8_t *>(data);
@@ -140,8 +140,8 @@ void *ReadSample(SampleFormat format, void *data, double *sample) {
     *sample = static_cast<double>(value) / (1 << 23);
     return ptr + 3;
   } else if (format.type() == SampleFormat::kPcmS32) {
-    *sample = ReadSample<>(*reinterpret_cast<uint32_t *>(data));
-    return reinterpret_cast<uint32_t *>(data) + 1;
+    *sample = ReadSample<>(*reinterpret_cast<int32_t*>(data));
+    return reinterpret_cast<int32_t*>(data) + 1;
   }
   assert(false);
   return NULL;
