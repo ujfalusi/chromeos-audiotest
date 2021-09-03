@@ -509,12 +509,13 @@ class AlsaConformanceTester(object):
       error = ''
     return result, error
 
-  def test(self, test_suites, use_json):
+  def test(self, test_suites, use_json, json_file):
     """Does testing.
 
     Args:
       test_suites: Indicate which tests will be run.
       use_json: If true, print result with json format.
+      json_file: If non empty, dump result in json format to the file
     """
     result = {}
     result['testSuites'] = []
@@ -526,6 +527,9 @@ class AlsaConformanceTester(object):
       result['testSuites'].append(self.test_all_pairs())
     result = self.summarize(result)
 
+    if json_file:
+      with open(json_file, 'w') as f:
+        json.dump(result, f, indent=4, sort_keys=True)
     if use_json:
       print(json.dumps(result, indent=4, sort_keys=True))
     else:
@@ -744,6 +748,9 @@ def main():
       type=int)
   parser.add_argument(
       '--json', action='store_true', help='Print result in JSON format')
+  parser.add_argument(
+      '--json-file', help='Dump result in JSON format to a file', type=str,
+      default="")
   parser.add_argument('--log-file', help='The file to save logs.')
   parser.add_argument(
       '--test-suites', nargs='+',
@@ -775,7 +782,7 @@ def main():
     tester = AlsaConformanceTester(args.output_device, 'PLAYBACK', criteria,
                                    args.merge_thld_size)
 
-  tester.test(args.test_suites, args.json)
+  tester.test(args.test_suites, args.json, args.json_file)
 
 if __name__ == '__main__':
   main()
