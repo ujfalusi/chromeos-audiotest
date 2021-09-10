@@ -181,6 +181,13 @@ class Parser(object):
 class DeviceInfoParser(Parser):
   """Object which can parse device info from alsa_conformance_test."""
 
+  def __init__(self, allow_rates=None):
+    """
+    Args:
+      allow_rates: Restrict the sample rates to be tested if specified.
+    """
+    self.allow_rates = set(allow_rates) if allow_rates else None
+
   def parse(self, context):
     """Parses device information.
 
@@ -226,13 +233,17 @@ class DeviceInfoParser(Parser):
 
     self._context = context
 
+    valid_rates = list(map(int, self._get_list('available rates')))
+    if self.allow_rates:
+      valid_rates = [r for r in valid_rates if r in self.allow_rates]
+
     return DataDevInfo(
         self._get_value('PCM handle name'),
         self._get_value('card'),
         self._get_value('device'),
         self._get_value('stream'),
         self._get_list('available formats'),
-        list(map(int, self._get_list('available rates'))),
+        valid_rates,
         list(map(int, self._get_list('available channels'))),
         self._get_range('period size range'),
         self._get_range('buffer size range'))
@@ -360,13 +371,14 @@ class ResultParser(Parser):
 class AlsaConformanceTester(object):
   """Object which can set params and run alsa_conformance_test."""
 
-  def __init__(self, name, stream, criteria, threshold):
+  def __init__(self, name, stream, criteria, threshold, allow_rates):
     """Initializes an AlsaConformanceTester.
 
     Args:
       name: PCM device for playback or capture.
       stream: The stream type. (PLAYBACK or CAPTURE)
       criteria: A Criteria object for pass criteria.
+      allow_rates: Restrict the sample rates to be tested if specified.
     """
     self.name = name
     self.stream = stream
@@ -382,7 +394,7 @@ class AlsaConformanceTester(object):
       print('Fail - {}'.format(output.err))
       exit()
 
-    self.dev_info = DeviceInfoParser().parse(output.out)
+    self.dev_info = DeviceInfoParser(allow_rates).parse(output.out)
 
   def init_params(self):
     """Sets the device params to the default values.
@@ -757,6 +769,12 @@ def main():
       help='Customize which test suites should be run. If not set, all suites '
            'will be run. See the test suites list for more information.',
       choices=TEST_SUITES, default=TEST_SUITES, metavar='TEST_SUITE')
+  parser.add_argument(
+    '--allow-rates', nargs='+', type=int,
+    help='Restrict the sample rates to be tested if specified. This can be '
+         'used to reduce test run time when there are too many sample rates '
+         'supported by the device.'
+  )
 
   args = parser.parse_args()
 
@@ -776,11 +794,11 @@ def main():
 
   if args.input_device:
     tester = AlsaConformanceTester(args.input_device, 'CAPTURE', criteria,
-                                   args.merge_thld_size)
+                                   args.merge_thld_size, args.allow_rates)
 
   if args.output_device:
     tester = AlsaConformanceTester(args.output_device, 'PLAYBACK', criteria,
-                                   args.merge_thld_size)
+                                   args.merge_thld_size, args.allow_rates)
 
   tester.test(args.test_suites, args.json, args.json_file)
 
