@@ -448,14 +448,14 @@ class AlsaConformanceTester(object):
       cmd += ['--merge_threshold_sz', str(self.merge_thld_size)]
 
     logging.info('Execute command: %s', ' '.join(cmd))
-    p = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        encoding='utf8')
-    rc = p.wait()
-    out, err = p.communicate()
-    return Output(rc, out, err[:-1])
+    # Replace stdout/stderr with capture_output=True when Python 3.7 is
+    # available
+    p = subprocess.run(
+      cmd,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      encoding='utf8')
+    return Output(p.returncode, p.stdout, p.stderr[:-1])
 
   def run_and_check(self, test_name, test_args, check_function):
     """Runs alsa_conformance_test and checks result.
