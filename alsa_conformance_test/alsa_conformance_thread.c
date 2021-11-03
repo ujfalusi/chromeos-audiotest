@@ -549,6 +549,10 @@ void dev_thread_set_merge_threshold_sz(struct dev_thread *thread)
 	if (thread->merge_threshold_sz)
 		return;
 
+	/* Skip if the duration is 0. */
+	if (!thread->duration)
+		return;
+
 	DEBUG_MODE = 0;
 	thread->merge_threshold_t = 0;
 	struct alsa_conformance_recorder *recorder =
