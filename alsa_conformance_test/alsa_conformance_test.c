@@ -25,6 +25,18 @@ int STRICT_MODE = false;
 
 void show_usage(const char *name)
 {
+	printf("Alsa Conformance Test\n\n"
+	       "This tool is used to verify the correctness and performance of "
+	       "audio drivers.\nIt can be also used to verify the quality of "
+	       "audio bringup and prevent regression.\n\nTo start with, first get "
+	       "the playback device via `aplay -l` or get the capture device with "
+	       "`arecord -l`.\nTo test the playback functionality with default "
+	       "arguments, please run `alsa_conformance_test -P hw:<sound_card>,"
+	       "<device>`.\nThis tool also supports testing playback and capture "
+	       "simultaneously.\n\nFor convenience, we provide a script called "
+	       "`alsa_conformance_test.py`. It runs this test with different "
+	       "parameter sets.\n\nFor more detailed documentation, please read:"
+	       "\n\n\thttps://chromium.googlesource.com/chromiumos/platform/audiotest/+/HEAD/alsa_conformance_test.md\n\n");
 	printf("Usage: %s [OPTIONS]\n", name);
 	printf("\t-h, --help: Print this help and exit.\n");
 	printf("\t-P, --playback_dev <device>: "
@@ -35,7 +47,7 @@ void show_usage(const char *name)
 	printf("\t-f, --format <format>: Set format. (default: S16_LE)\n");
 	printf("\t-r, --rate <rate>: Set rate. (default: 48000)\n");
 	printf("\t-p, --period <period>: Set period size. If not set, the default"
-	       "value set in the driver will be used. \n");
+	       " value set in the driver will be used. \n");
 	printf("\t-d, --durations <duration>: "
 	       "Set durations(second). (default: 1.0)\n");
 	printf("\t-B, --block_size <block_size>: "
@@ -60,6 +72,7 @@ void show_usage(const char *name)
 	       "File format:\n"
 	       "\t\t[name] [type] [channels] [format] [rate] [period] [block_size]"
 	       " [durations] # comment\n"
+	       "\t\t[type] could be either `PLAYBACK` or `CAPTURE`. # comment\n"
 	       "\t\teg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example\n");
 	printf("\t--merge_threshold_sz: "
 	       "Set frame merge threadhold size, auto computed if not set\n");

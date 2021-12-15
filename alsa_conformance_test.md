@@ -100,6 +100,7 @@ alsaucm -c kbl_r5514_5663_max set _verb HiFi set _enadev "Headphone"
 	+ Device file path. It will load devices from the file. File format:
 		```
 	  	[name] [type] [channels] [format] [rate] [period] [block_size] [durations] # comment
+      [type] could be either `PLAYBACK` or `CAPTURE` # comment
       	eg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example
 		```
 + --merge_threshold
