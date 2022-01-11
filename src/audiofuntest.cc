@@ -333,18 +333,6 @@ void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
     fprintf(fd, "\t** Verbose **.\n");
 }
 
-// Randomly picks an integer from the given range [min, max],
-// including both end points.
-inline int RandomPick(int min, int max) {
-  if (min > max) {
-    fprintf(stderr, "Range error: min > max\n");
-    assert(false);
-  }
-
-  static unsigned int seed = time(NULL) + getpid();
-  return (rand_r(&seed) % (max - min + 1)) + min;
-}
-
 // Controls the main process of audiofuntest.
 void ControlLoop(const AudioFunTestConfig &config,
                  Evaluator *evaluator,
@@ -354,6 +342,7 @@ void ControlLoop(const AudioFunTestConfig &config,
       static_cast<double>(config.sample_rate) / config.fft_size;
   const int min_bin = config.min_frequency / frequency_resolution;
   const int max_bin = config.max_frequency / frequency_resolution;
+  const int bin_interval = (max_bin - min_bin) / (config.test_rounds - 1);
 
   std::vector<int> passes(config.num_mic_channels);
   std::vector<bool> single_round_pass(config.num_mic_channels);
@@ -373,7 +362,7 @@ void ControlLoop(const AudioFunTestConfig &config,
 
   for (int round = 1; round <= config.test_rounds; ++round) {
     std::fill(single_round_pass.begin(), single_round_pass.end(), false);
-    int bin = RandomPick(min_bin, max_bin);
+    int bin = min_bin + (round - 1) * bin_interval;
     double frequency = bin * frequency_resolution;
 
     generator.Reset(frequency);
