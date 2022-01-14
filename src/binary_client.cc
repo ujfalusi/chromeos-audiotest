@@ -111,6 +111,20 @@ int CreateFIFO(bool direction, const std::string &fifo_name,
 
 }  // namespace
 
+PlayClient::PlayClient(const AudioFunTestConfig &config)
+    : command_(config.player_command), fifo_name_(config.player_fifo),
+      played_file_fp_(nullptr) {
+  const std::string &path = config.played_file_path;
+  if (!path.empty()) {
+    FILE *fp = fopen(path.c_str(), "wb");
+    if (fp == nullptr) {
+      fprintf(stderr, "Open file %s fail: %s\n", path.c_str(), strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    played_file_fp_ = fp;
+  }
+}
+
 void PlayClient::Start() {
   int other_side_fd;
   play_fd_ = CreateFIFO(FIFO_OUT, fifo_name_, &other_side_fd);
@@ -122,12 +136,19 @@ void PlayClient::Terminate() {
   close(play_fd_);
   // TODO(shunhsingou) terminate the process gracefully.
   kill(child_pid_, SIGKILL);
+  if (played_file_fp_ != nullptr) {
+    fclose(played_file_fp_);
+    played_file_fp_ = nullptr;
+  }
 }
 
 void PlayClient::Play(const void *buffer, size_t size, bool *is_stopped) {
   int res;
   int byte_to_write = size;
   const uint8_t *ptr = static_cast<const uint8_t *>(buffer);
+  // Let's just ignore the error code of fwrite for now.
+  if (played_file_fp_ != nullptr)
+    fwrite(ptr, sizeof(uint8_t), size, played_file_fp_);
   // Keep writing to pipe until error or finishing.
   while (!*is_stopped &&
           (res = write(play_fd_, ptr, byte_to_write)) < byte_to_write) {
