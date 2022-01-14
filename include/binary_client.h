@@ -18,9 +18,7 @@
 // Player client that uses a binary program to play audio.
 class PlayClient {
  public:
-  explicit PlayClient(const AudioFunTestConfig &config)
-      : command_(config.player_command),
-        fifo_name_(config.player_fifo) {}
+  explicit PlayClient(const AudioFunTestConfig &config);
 
   // Starts the client process.
   void Start();
@@ -36,6 +34,7 @@ class PlayClient {
   const std::string command_;
   const std::string fifo_name_;
   int play_fd_;
+  FILE *played_file_fp_;
 };
 
 // Recorder client that uses a binary program to record audio.

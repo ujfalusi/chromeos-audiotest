@@ -17,7 +17,7 @@
 #include "include/tone_generators.h"
 
 constexpr static const char* short_options =
-    "a:m:d:n:o:w:p:P:f:R:F:r:t:c:C:T:l:g:i:x:hv";
+    "a:m:d:n:o:w:p:P:f:R:F:r:t:c:C:T:l:g:i:x:y:hv";
 
 constexpr static const struct option long_options[] = {
     {"active-speaker-channels", 1, NULL, 'a'},
@@ -40,6 +40,7 @@ constexpr static const struct option long_options[] = {
     {"volume-gain", 1, NULL, 'g'},
     {"min-frequency", 1, NULL, 'i'},
     {"max-frequency", 1, NULL, 'x'},
+    {"played-file-path", 1, NULL, 'y'},
 
     // Other helper args.
     {"help", 0, NULL, 'h'},
@@ -154,6 +155,9 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
         break;
       case 'h':
         return false;
+      case 'y':
+        config->played_file_path = std::string(optarg);
+        break;
       default:
         fprintf(stderr, "Unknown arguments %c\n", opt);
         assert(false);
@@ -283,6 +287,10 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "\t-x, --max-frequency\n"
           "\t\tThe maximum frequency of generated audio frames."
           "(def %d)\n", default_config.max_frequency);
+  fprintf(fd,
+          "\t-y, --played-file-path\n"
+          "\t\tThe path of the played audio file."
+          "(def %s)\n", default_config.played_file_path.c_str());
 
   fprintf(fd,
           "\t-v, --verbose: Show debugging information.\n");
@@ -328,6 +336,12 @@ void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
   fprintf(fd, "\tVolume gain: %d\n", config.volume_gain);
   fprintf(fd, "\tMinimum frequency: %d\n", config.min_frequency);
   fprintf(fd, "\tMaximum frequency: %d\n", config.max_frequency);
+  fprintf(fd, "\tPlayed file path: %s\n", config.played_file_path.c_str());
+  if (!config.played_file_path.empty()) {
+    fprintf(fd, "\tUse '%s < %s' to replay the audio.\n",
+            config.player_command.c_str(),
+            config.played_file_path.c_str());
+  }
 
   if (config.verbose)
     fprintf(fd, "\t** Verbose **.\n");
