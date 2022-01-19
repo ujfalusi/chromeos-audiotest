@@ -59,6 +59,7 @@ struct AudioFunTestConfig {
         min_frequency(4000),
         max_frequency(10000),
         played_file_path(),
+        recorded_file_path(),
         verbose(false) {}
 
   std::set<int> active_speaker_channels;
@@ -82,6 +83,7 @@ struct AudioFunTestConfig {
   int min_frequency;
   int max_frequency;
   std::string played_file_path;
+  std::string recorded_file_path;
   bool verbose;
 };
 

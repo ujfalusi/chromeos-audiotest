@@ -17,7 +17,7 @@
 #include "include/tone_generators.h"
 
 constexpr static const char* short_options =
-    "a:m:d:n:o:w:p:P:f:R:F:r:t:c:C:T:l:g:i:x:y:hv";
+    "a:m:d:n:o:w:p:P:f:R:F:r:t:c:C:T:l:g:i:x:y:Y:hv";
 
 constexpr static const struct option long_options[] = {
     {"active-speaker-channels", 1, NULL, 'a'},
@@ -41,6 +41,7 @@ constexpr static const struct option long_options[] = {
     {"min-frequency", 1, NULL, 'i'},
     {"max-frequency", 1, NULL, 'x'},
     {"played-file-path", 1, NULL, 'y'},
+    {"recorded-file-path", 1, NULL, 'Y'},
 
     // Other helper args.
     {"help", 0, NULL, 'h'},
@@ -157,6 +158,9 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
         return false;
       case 'y':
         config->played_file_path = std::string(optarg);
+        break;
+      case 'Y':
+        config->recorded_file_path = std::string(optarg);
         break;
       default:
         fprintf(stderr, "Unknown arguments %c\n", opt);
@@ -291,6 +295,10 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "\t-y, --played-file-path\n"
           "\t\tThe path of the played audio file."
           "(def %s)\n", default_config.played_file_path.c_str());
+  fprintf(fd,
+          "\t-Y, --recorded-file-path\n"
+          "\t\tThe path of the recorded audio file."
+          "(def %s)\n", default_config.recorded_file_path.c_str());
 
   fprintf(fd,
           "\t-v, --verbose: Show debugging information.\n");
@@ -342,6 +350,7 @@ void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
             config.player_command.c_str(),
             config.played_file_path.c_str());
   }
+  fprintf(fd, "\tRecorded file path: %s\n", config.recorded_file_path.c_str());
 
   if (config.verbose)
     fprintf(fd, "\t** Verbose **.\n");
