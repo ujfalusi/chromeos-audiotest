@@ -163,6 +163,20 @@ void PlayClient::Play(const void *buffer, size_t size, bool *is_stopped) {
   }
 }
 
+RecordClient::RecordClient(const AudioFunTestConfig &config)
+    : command_(config.recorder_command), fifo_name_(config.recorder_fifo),
+      recorded_file_fp_(nullptr) {
+  const std::string &path = config.recorded_file_path;
+  if (!path.empty()) {
+    FILE *fp = fopen(path.c_str(), "wb");
+    if (fp == nullptr) {
+      fprintf(stderr, "Open file %s fail: %s\n", path.c_str(), strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+    recorded_file_fp_ = fp;
+  }
+}
+
 void RecordClient::Start() {
   int other_side_fd;
   record_fd_ = CreateFIFO(FIFO_IN, fifo_name_, &other_side_fd);
@@ -174,6 +188,7 @@ void RecordClient::Record(void *buffer, size_t size) {
   int byte_to_read = size;
 
   uint8_t *ptr = static_cast<uint8_t *>(buffer);
+  const uint8_t *start_ptr = ptr;
 
   while ((res = read(record_fd_, ptr, byte_to_read)) < byte_to_read) {
     if (res <= 0) {
@@ -183,10 +198,17 @@ void RecordClient::Record(void *buffer, size_t size) {
     ptr += res;
     byte_to_read -= res;
   }
+  // Let's just ignore the error code of fwrite for now.
+  if (recorded_file_fp_ != nullptr)
+    fwrite(start_ptr, sizeof(uint8_t), size, recorded_file_fp_);
 }
 
 void RecordClient::Terminate() {
   close(record_fd_);
   // TODO(shunhsingou) terminate the process gracefully.
   kill(child_pid_, SIGKILL);
+  if (recorded_file_fp_ != nullptr) {
+    fclose(recorded_file_fp_);
+    recorded_file_fp_ = nullptr;
+  }
 }
