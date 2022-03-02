@@ -84,7 +84,7 @@ Evaluator::Evaluator(const AudioFunTestConfig& config)
       num_channels_(config.num_mic_channels),
       active_mic_channels_(config.active_mic_channels),
       format_(config.sample_format),
-      sample_rate_(config.sample_rate),
+      sample_rate_(config.input_rate),
       bin_(config.match_window_size),
       power_threshold_(config.power_threshold),
       confidence_threshold_(config.confidence_threshold),

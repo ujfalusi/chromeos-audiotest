@@ -50,6 +50,8 @@ struct AudioFunTestConfig {
         power_threshold(0.01),
         confidence_threshold(3),
         sample_rate(64000),
+        input_rate(64000),
+        output_rate(64000),
         sample_format(SampleFormat::kPcmS16),
         num_mic_channels(2),
         num_speaker_channels(2),
@@ -74,6 +76,8 @@ struct AudioFunTestConfig {
   std::string recorder_command;
   std::string recorder_fifo;
   int sample_rate;
+  int input_rate;
+  int output_rate;
   SampleFormat sample_format;
   int num_mic_channels;
   int num_speaker_channels;

@@ -17,7 +17,7 @@
 #include "include/tone_generators.h"
 
 constexpr static const char* short_options =
-    "a:m:d:n:o:w:p:P:f:R:F:r:t:c:C:T:l:g:i:x:y:Y:hv";
+    "a:m:d:n:o:w:p:P:f:R:F:r:I:O:t:c:C:T:l:g:i:x:y:Y:hv";
 
 constexpr static const struct option long_options[] = {
     {"active-speaker-channels", 1, NULL, 'a'},
@@ -32,6 +32,8 @@ constexpr static const struct option long_options[] = {
     {"recorder-command", 1, NULL, 'R'},
     {"recorder-fifo", 1, NULL, 'F'},
     {"sample-rate", 1, NULL, 'r'},
+    {"input-rate", 1, NULL, 'I'},
+    {"output-rate", 1, NULL, 'O'},
     {"sample-format", 1, NULL, 't'},
     {"num-mic-channels", 1, NULL, 'c'},
     {"num-speaker-channels", 1, NULL, 'C'},
@@ -67,6 +69,8 @@ SampleFormat ParseSampleFormat(const char *arg) {
 bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
   int opt = 0;
   int optindex = -1;
+  bool input_rate_set_independently = false;
+  bool output_rate_set_independently = false;
 
   while ((opt = getopt_long(argc, argv, short_options,
                             long_options,
@@ -117,6 +121,14 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
       case 'r':
         config->sample_rate = atoi(optarg);
         break;
+      case 'I':
+        config->input_rate = atoi(optarg);
+        input_rate_set_independently = true;
+        break;
+      case 'O':
+        config->output_rate = atoi(optarg);
+        output_rate_set_independently = true;
+        break;
       case 't':
         config->sample_format = ParseSampleFormat(optarg);
         break;
@@ -166,6 +178,13 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
         fprintf(stderr, "Unknown arguments %c\n", opt);
         assert(false);
     }
+  }
+
+  if (!input_rate_set_independently) {
+    config->input_rate = config->sample_rate;
+  }
+  if (!output_rate_set_independently) {
+    config->output_rate = config->sample_rate;
   }
 
   if (config->player_command.empty()) {
@@ -256,8 +275,20 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "its stdout.\n");
   fprintf(fd,
           "\t-r, --sample-rate:\n"
-          "\t\tSample rate of generated wave in HZ "
-          "(def %d)\n", default_config.sample_rate);
+          "\t\tSample rate of generated wave in HZ, only applied if input_rate "
+          "or output_rate are not independently set "
+          "(def %d)\n",
+          default_config.sample_rate);
+  fprintf(fd,
+          "\t-I, --input-rate:\n"
+          "\t\tInput sample rate of captured wave in HZ "
+          "(def %d)\n",
+          default_config.input_rate);
+  fprintf(fd,
+          "\t-O, --output-rate:\n"
+          "\t\tOutput sample rate of played wave in HZ "
+          "(def %d)\n",
+          default_config.output_rate);
   fprintf(fd,
           "\t-t, --sample-format:\n"
           "\t\tFormat of recording & playing samples, should be one of u8, "
@@ -335,6 +366,8 @@ void PrintConfig(const AudioFunTestConfig &config, FILE *fd = stdout) {
   fprintf(fd, "\tRecorder FIFO name: %s\n", config.recorder_fifo.c_str());
   fprintf(fd, "\tSample format: %s\n", config.sample_format.to_string());
   fprintf(fd, "\tSample rate: %d\n", config.sample_rate);
+  fprintf(fd, "\tInput sample rate: %d\n", config.input_rate);
+  fprintf(fd, "\tOutput sample rate: %d\n", config.output_rate);
   fprintf(fd,
           "\tNumber of Microphone channels: %d\n", config.num_mic_channels);
   fprintf(fd, "\tNumber of Speaker channels: %d\n",
@@ -362,7 +395,7 @@ void ControlLoop(const AudioFunTestConfig &config,
                  PlayClient *player,
                  RecordClient *recorder) {
   const double frequency_resolution =
-      static_cast<double>(config.sample_rate) / config.fft_size;
+      static_cast<double>(config.input_rate) / config.fft_size;
   const int min_bin = config.min_frequency / frequency_resolution;
   const int max_bin = config.max_frequency / frequency_resolution;
   const int bin_interval = (max_bin - min_bin) / (config.test_rounds - 1);
@@ -373,9 +406,7 @@ void ControlLoop(const AudioFunTestConfig &config,
   size_t buf_size = config.fft_size * config.num_speaker_channels *
       config.sample_format.bytes();
   SineWaveGenerator generator(
-      config.sample_rate,
-      config.tone_length_sec,
-      config.volume_gain);
+      config.output_rate, config.tone_length_sec, config.volume_gain);
   GeneratorPlayer generatorPlayer(
       buf_size,
       config.num_speaker_channels,
