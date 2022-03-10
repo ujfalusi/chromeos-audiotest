@@ -33,6 +33,7 @@
 #define PLAYBACK_SILENT_COUNT   50
 #define PLAYBACK_TIMEOUT_COUNT 100
 #define TTY_OUTPUT_SIZE       1024
+#define PIN_DEVICE_UNSET        -1
 
 static double phase = M_PI / 2;
 static unsigned rate = 48000;
@@ -52,6 +53,7 @@ static int loop;
 static int cold;
 static int capture_count;
 static int playback_count;
+static int pin_capture_device = PIN_DEVICE_UNSET;
 static snd_pcm_sframes_t playback_delay_frames;
 static struct timeval sine_start_tv;
 
@@ -409,7 +411,13 @@ static int cras_add_stream(struct cras_client *client,
     if (params == NULL)
         return -ENOMEM;
 
-    rc = cras_client_add_stream(client, &stream_id, params);
+    if (direction == CRAS_STREAM_INPUT &&
+            pin_capture_device != PIN_DEVICE_UNSET) {
+        rc = cras_client_add_pinned_stream(
+            client, pin_capture_device, &stream_id, params);
+    } else {
+        rc = cras_client_add_stream(client, &stream_id, params);
+    }
     if (rc < 0) {
         fprintf(stderr, "Add a stream fail.\n");
         return rc;
@@ -708,7 +716,7 @@ int main (int argc, char *argv[])
     char *cap_dev = NULL;
 
     int arg;
-    while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:l:C")) != -1) {
+    while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:l:CP:")) != -1) {
     switch (arg) {
         case 'b':
             buffer_frames = atoi(optarg);
@@ -741,6 +749,12 @@ int main (int argc, char *argv[])
             break;
         case 'C':
             cold = 1;
+            break;
+        case 'P':
+            pin_capture_device = atoi(optarg);
+            fprintf(stderr,
+                "Pinning capture device %d\n",
+                pin_capture_device);
             break;
         default:
             return 1;
