@@ -49,8 +49,9 @@ cd audiotest
 make alsa_conformance_test
 ```
 The default binary is in `./alsa_conformance_test/alsa_conformance_test`.
-Set variable OUT to by `make alsa_conformance_test OUT=/path/to/builddir` change the build
-directory to change the output to `/path/to/builddir/alsa_conformance_test/alsa_conformance_test`.
+You can set the variable OUT to change the build directory.
+For example `make alsa_conformance_test OUT=/path/to/builddir` changes the
+output to `/path/to/builddir/alsa_conformance_test/alsa_conformance_test`.
 
 ## Run
 ```
