@@ -1,0 +1,4 @@
+*.d
+*.o
+*.o.depends
+/alsa_conformance_test/alsa_conformance_test
