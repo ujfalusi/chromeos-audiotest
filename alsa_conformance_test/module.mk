@@ -9,8 +9,6 @@ LDLIBS += -lm -lpthread
 
 ALSA_CFLAGS := $(shell $(PKG_CONFIG) --cflags alsa)
 ALSA_LIBS := $(shell $(PKG_CONFIG) --libs alsa)
-CRAS_CFLAGS := $(shell $(PKG_CONFIG) --cflags libcras)
-CRAS_LIBS := $(shell $(PKG_CONFIG) --libs libcras)
 
 
 
