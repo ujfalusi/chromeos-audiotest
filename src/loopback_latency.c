@@ -39,6 +39,7 @@ static double phase = M_PI / 2;
 static unsigned rate = 48000;
 static unsigned channels = 2;
 static snd_pcm_uframes_t buffer_frames = 480;
+static snd_pcm_uframes_t start_threshold = 0;
 static snd_pcm_uframes_t period_size = 240;
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 
@@ -133,12 +134,12 @@ static void generate_sine(const snd_pcm_channel_area_t *areas,
     *_phase = phase;
 }
 
-static void config_pcm(snd_pcm_t *handle,
-                       unsigned int rate,
-                       unsigned int channels,
-                       snd_pcm_format_t format,
-                       snd_pcm_uframes_t *buffer_size,
-                       snd_pcm_uframes_t *period_size)
+static void config_pcm_hw_params(snd_pcm_t *handle,
+                                 unsigned int rate,
+                                 unsigned int channels,
+                                 snd_pcm_format_t format,
+                                 snd_pcm_uframes_t *buffer_size,
+                                 snd_pcm_uframes_t *period_size)
 {
     int err;
     snd_pcm_hw_params_t *hw_params;
@@ -184,20 +185,20 @@ static void config_pcm(snd_pcm_t *handle,
 
     if ((err = snd_pcm_hw_params_set_buffer_size_near(
             handle, hw_params, buffer_size)) < 0) {
-        fprintf(stderr, "cannot set channel count (%s)\n",
+        fprintf(stderr, "cannot set buffer size (%s)\n",
                 snd_strerror(err));
         exit(1);
     }
 
     if ((err = snd_pcm_hw_params_set_period_size_near(
             handle, hw_params, period_size, 0)) < 0) {
-        fprintf(stderr, "cannot set channel count (%s)\n",
+        fprintf(stderr, "cannot set period size (%s)\n",
                 snd_strerror(err));
         exit(1);
     }
 
     if ((err = snd_pcm_hw_params(handle, hw_params)) < 0) {
-        fprintf(stderr, "cannot set parameters (%s)\n",
+        fprintf(stderr, "cannot set hardware parameters (%s)\n",
                 snd_strerror(err));
         exit(1);
     }
@@ -209,6 +210,42 @@ static void config_pcm(snd_pcm_t *handle,
                 snd_strerror(err));
         exit(1);
     }
+}
+
+static void config_pcm_sw_params(snd_pcm_t *handle,
+                                 snd_pcm_uframes_t start_threshold)
+{
+    int err;
+    snd_pcm_sw_params_t *sw_params;
+
+    if ((err = snd_pcm_sw_params_malloc(&sw_params)) < 0) {
+        fprintf(stderr, "cannot allocate software parameter structure (%s)\n",
+                snd_strerror(err));
+        exit(1);
+    }
+
+    if ((err = snd_pcm_sw_params_current(handle, sw_params)) < 0) {
+        fprintf(stderr, "cannot get current sw parameter structure (%s)\n",
+                snd_strerror(err));
+        exit(1);
+    }
+
+    if (start_threshold > 0) {
+        if ((err = snd_pcm_sw_params_set_start_threshold(handle,
+                sw_params, start_threshold)) < 0) {
+            fprintf(stderr, "cannot set start threshold (%s)\n",
+                    snd_strerror(err));
+            exit(1);
+        }
+    }
+
+    if (snd_pcm_sw_params(handle, sw_params) < 0) {
+        fprintf(stderr, "cannot set software parameters (%s)\n",
+                snd_strerror(err));
+        exit(1);
+    }
+
+    snd_pcm_sw_params_free(sw_params);
 }
 
 static int capture_some(snd_pcm_t *pcm, short *buf, unsigned len,
@@ -445,8 +482,8 @@ static void *alsa_play(void *arg) {
     for (num_buffers = 0; num_buffers < PLAYBACK_SILENT_COUNT; num_buffers++) {
         if ((err = snd_pcm_writei(handle, play_buf, period_size))
                 != period_size) {
-            fprintf(stderr, "write to audio interface failed (%s)\n",
-                    snd_strerror(err));
+            fprintf(stderr, "write %dth silent block to audio interface \
+                    failed (%s)\n", num_buffers, snd_strerror(err));
             exit(1);
         }
     }
@@ -684,8 +721,9 @@ void alsa_test_latency(char *play_dev, char *cap_dev)
                 play_dev, snd_strerror(err));
         exit(1);
     }
-    config_pcm(playback_handle, rate, channels, format, &buffer_frames,
-           &period_size);
+    config_pcm_hw_params(playback_handle, rate, channels, format,
+            &buffer_frames, &period_size);
+    config_pcm_sw_params(playback_handle, start_threshold);
 
     if ((err = snd_pcm_open(&capture_handle, cap_dev,
                 SND_PCM_STREAM_CAPTURE, 0)) < 0) {
@@ -693,8 +731,8 @@ void alsa_test_latency(char *play_dev, char *cap_dev)
                 cap_dev, snd_strerror(err));
         exit(1);
     }
-    config_pcm(capture_handle, rate, channels, format, &buffer_frames,
-            &period_size);
+    config_pcm_hw_params(capture_handle, rate, channels, format,
+            &buffer_frames, &period_size);
 
     pthread_mutex_init(&latency_test_mutex, NULL);
     pthread_cond_init(&sine_start, NULL);
@@ -716,7 +754,7 @@ int main (int argc, char *argv[])
     char *cap_dev = NULL;
 
     int arg;
-    while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:l:CP:")) != -1) {
+    while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:l:CP:s:")) != -1) {
     switch (arg) {
         case 'b':
             buffer_frames = atoi(optarg);
@@ -755,6 +793,9 @@ int main (int argc, char *argv[])
             fprintf(stderr,
                 "Pinning capture device %d\n",
                 pin_capture_device);
+            break;
+        case 's':
+            start_threshold = atoi(optarg);
             break;
         default:
             return 1;
