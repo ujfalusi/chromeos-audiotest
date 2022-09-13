@@ -17,6 +17,7 @@ CRAS_LIBS := $(shell $(PKG_CONFIG) --libs libcras)
 CC_BINARY(loopback_latency/loopback_latency): \
 	loopback_latency/args.o \
 	loopback_latency/common.o \
+	loopback_latency/alsa_helper.o \
 	loopback_latency/main.o
 CC_BINARY(loopback_latency/loopback_latency): \
 	CFLAGS += $(ALSA_CFLAGS) $(CRAS_CFLAGS)
