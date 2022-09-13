@@ -18,7 +18,6 @@
  *
  */
 
-#include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,113 +25,21 @@
 
 #include <alsa/asoundlib.h>
 
+#include "args.h"
+#include "common.h"
 #include "cras_client.h"
 
-#define CAPTURE_MORE_COUNT      50
-#define PLAYBACK_COUNT          50
-#define PLAYBACK_SILENT_COUNT   50
-#define PLAYBACK_TIMEOUT_COUNT 100
-#define TTY_OUTPUT_SIZE       1024
-#define PIN_DEVICE_UNSET        -1
-
-static double phase = M_PI / 2;
-static unsigned rate = 48000;
-static unsigned channels = 2;
-static snd_pcm_uframes_t buffer_frames = 480;
-static snd_pcm_uframes_t start_threshold = 0;
-static snd_pcm_uframes_t period_size = 240;
-static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
+#define TTY_OUTPUT_SIZE 1024
 
 static struct timeval *cras_play_time = NULL;
 static struct timeval *cras_cap_time = NULL;
-static int noise_threshold = 0x4000;
 static char *tty_output_dev = NULL;
 static FILE *tty_output = NULL;
 static const char tty_zeros_block[TTY_OUTPUT_SIZE] = {0};
+static pthread_cond_t terminate_test;
 
-static int loop;
-static int cold;
-static int capture_count;
-static int playback_count;
-static int pin_capture_device = PIN_DEVICE_UNSET;
 static snd_pcm_sframes_t playback_delay_frames;
 static struct timeval sine_start_tv;
-
-// Mutex and the variables to protect.
-static pthread_mutex_t latency_test_mutex;
-static pthread_cond_t terminate_test;
-static pthread_cond_t sine_start;
-static int terminate_playback;
-static int terminate_capture;
-static int sine_started = 0;
-
-static void generate_sine(const snd_pcm_channel_area_t *areas,
-                          snd_pcm_uframes_t offset, int count,
-                          double *_phase)
-{
-    static double max_phase = 2. * M_PI;
-    double phase = *_phase;
-    double step = max_phase * 1000 / (double)rate;
-    unsigned char *samples[channels];
-    int steps[channels];
-    unsigned int chn;
-    int format_bits = snd_pcm_format_width(format);
-    unsigned int maxval = (1 << (format_bits - 1)) - 1;
-    int bps = format_bits / 8;  /* bytes per sample */
-    int phys_bps = snd_pcm_format_physical_width(format) / 8;
-    int big_endian = snd_pcm_format_big_endian(format) == 1;
-    int to_unsigned = snd_pcm_format_unsigned(format) == 1;
-    int is_float = (format == SND_PCM_FORMAT_FLOAT_LE ||
-            format == SND_PCM_FORMAT_FLOAT_BE);
-
-    /* Verify and prepare the contents of areas */
-    for (chn = 0; chn < channels; chn++) {
-        if ((areas[chn].first % 8) != 0) {
-            fprintf(stderr, "areas[%i].first == %i, aborting...\n", chn,
-                    areas[chn].first);
-            exit(EXIT_FAILURE);
-        }
-        if ((areas[chn].step % 16) != 0) {
-            fprintf(stderr, "areas[%i].step == %i, aborting...\n", chn, areas
-                    [chn].step);
-            exit(EXIT_FAILURE);
-        }
-        steps[chn] = areas[chn].step / 8;
-        samples[chn] = ((unsigned char *)areas[chn].addr) +
-                (areas[chn].first / 8) + offset * steps[chn];
-    }
-
-    /* Fill the channel areas */
-    while (count-- > 0) {
-        union {
-            float f;
-            int i;
-        } fval;
-        int res, i;
-        if (is_float) {
-            fval.f = sin(phase) * maxval;
-            res = fval.i;
-        } else
-            res = sin(phase) * maxval;
-        if (to_unsigned)
-            res ^= 1U << (format_bits - 1);
-        for (chn = 0; chn < channels; chn++) {
-            /* Generate data based on endian format */
-            if (big_endian) {
-                for (i = 0; i < bps; i++)
-                    *(samples[chn] + phys_bps - 1 - i) = (res >> i * 8) & 0xff;
-            } else {
-                for (i = 0; i < bps; i++)
-                    *(samples[chn] + i) = (res >>  i * 8) & 0xff;
-            }
-            samples[chn] += steps[chn];
-        }
-        phase += step;
-        if (phase >= max_phase)
-            phase -= max_phase;
-    }
-    *_phase = phase;
-}
 
 static void config_pcm_hw_params(snd_pcm_t *handle,
                                  unsigned int rate,
@@ -266,39 +173,6 @@ static int capture_some(snd_pcm_t *pcm, short *buf, unsigned len,
     }
 
     return (int)frames;
-}
-
-/* Looks for the first sample in buffer whose absolute value exceeds
- * noise_threshold. Returns the index of found sample in frames, -1
- * if not found. */
-static int check_for_noise(short *buf, unsigned len, unsigned channels)
-{
-    unsigned int i;
-    for (i = 0; i < len * channels; i++)
-        if (abs(buf[i]) > noise_threshold)
-            return i / channels;
-    return -1;
-}
-
-static unsigned long subtract_timevals(const struct timeval *end,
-                                       const struct timeval *beg)
-{
-    struct timeval diff;
-    /* If end is before geb, return 0. */
-    if ((end->tv_sec < beg->tv_sec) ||
-            ((end->tv_sec == beg->tv_sec) && (end->tv_usec <= beg->tv_usec)))
-        diff.tv_sec = diff.tv_usec = 0;
-    else {
-        if (end->tv_usec < beg->tv_usec) {
-            diff.tv_sec = end->tv_sec - beg->tv_sec - 1;
-            diff.tv_usec =
-                end->tv_usec + 1000000L - beg->tv_usec;
-        } else {
-            diff.tv_sec = end->tv_sec - beg->tv_sec;
-            diff.tv_usec = end->tv_usec - beg->tv_usec;
-        }
-    }
-    return diff.tv_sec * 1000000 + diff.tv_usec;
 }
 
 static int cras_capture_tone(struct cras_client *client,
