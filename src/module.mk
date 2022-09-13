@@ -48,15 +48,6 @@ CC_BINARY(src/looptest): \
 clean: CLEAN(src/looptest)
 all: CC_BINARY(src/looptest)
 
-CC_BINARY(src/loopback_latency): \
-	src/loopback_latency.o
-CC_BINARY(src/loopback_latency): \
-	CFLAGS += $(ALSA_CFLAGS) $(CRAS_CFLAGS)
-CC_BINARY(src/loopback_latency): \
-	LDLIBS += $(ALSA_LIBS) $(CRAS_LIBS)
-clean: CLEAN(src/loopback_latency)
-all: CC_BINARY(src/loopback_latency)
-
 CC_BINARY(src/alsa_api_test): \
 	src/alsa_api_test.o
 CC_BINARY(src/alsa_api_test): \

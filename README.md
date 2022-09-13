@@ -58,7 +58,7 @@ output streaming and input streaming with a special designed algorithm.
 
 - [Loop Test](src/looptest.c) - Test loopback function for PCM devices.
 
-- [Loopback Latency](src/loopback_latency.c) - Test loopback latency for PCM devices.
+- [Loopback Latency](loopback_latency/main.c) - Test loopback latency for PCM devices.
 
 - [Test Tones](src/test_tones.cc) - A tool to play tone from PCM devices.
 

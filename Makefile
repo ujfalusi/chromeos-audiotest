@@ -10,11 +10,14 @@ all: CC_BINARY(src/alsa_api_test) \
      CXX_BINARY(src/audiofuntest) \
      CC_BINARY(src/cras_api_test) \
      CC_BINARY(src/looptest) \
-     CC_BINARY(src/loopback_latency) \
+     CC_BINARY(loopback_latency/loopback_latency) \
      CXX_BINARY(src/test_tones) \
      script
 
 alsa_conformance_test: CC_BINARY(alsa_conformance_test/alsa_conformance_test)
+
+
+loopback_latency: CC_BINARY(loopback_latency/loopback_latency)
 
 script:
 	mkdir -p $(OUT)/script
