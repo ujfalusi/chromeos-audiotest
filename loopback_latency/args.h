@@ -9,15 +9,15 @@
 
 #include <alsa/asoundlib.h>
 
-extern unsigned channels;
-extern snd_pcm_format_t format;
-extern snd_pcm_uframes_t buffer_frames;
-extern snd_pcm_uframes_t period_size;
-extern snd_pcm_uframes_t start_threshold;
-extern unsigned rate;
-extern int noise_threshold;
-extern int loop;
-extern int cold;
-extern int pin_capture_device;
+extern unsigned g_channels;
+extern snd_pcm_format_t g_format;
+extern snd_pcm_uframes_t g_buffer_frames;
+extern snd_pcm_uframes_t g_period_size;
+extern snd_pcm_uframes_t g_start_threshold;
+extern unsigned g_rate;
+extern int g_noise_threshold;
+extern int g_loop;
+extern int g_cold;
+extern int g_pin_capture_device;
 
 #endif  // LOOPBACK_LATENCY_ARGS_H_

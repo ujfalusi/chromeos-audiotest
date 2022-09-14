@@ -15,15 +15,15 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-extern double phase;
-extern pthread_mutex_t latency_test_mutex;
-extern pthread_cond_t sine_start;
-extern int terminate_playback;
-extern int terminate_capture;
-extern int sine_started;
+extern double g_phase;
+extern pthread_mutex_t g_latency_test_mutex;
+extern pthread_cond_t g_sine_start;
+extern int g_terminate_playback;
+extern int g_terminate_capture;
+extern int g_sine_started;
 
-extern int capture_count;
-extern int playback_count;
+extern int g_capture_count;
+extern int g_playback_count;
 
 void generate_sine(const snd_pcm_channel_area_t *areas,
                    snd_pcm_uframes_t offset, int count,

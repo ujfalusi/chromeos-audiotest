@@ -181,20 +181,20 @@ static int cras_capture_tone(struct cras_client *client,
                              const struct timespec *sample_time,
                              void *arg)
 {
-    assert(snd_pcm_format_physical_width(format) == 16);
+    assert(snd_pcm_format_physical_width(g_format) == 16);
 
     short *data = (short *)samples;
     int cap_frames_index;
 
-    if (!sine_started || terminate_capture) {
+    if (!g_sine_started || g_terminate_capture) {
         return frames;
     }
 
-    if ((cap_frames_index = check_for_noise(data, frames, channels)) >= 0) {
+    if ((cap_frames_index = check_for_noise(data, frames, g_channels)) >= 0) {
         fprintf(stderr, "Got noise\n");
 
         struct timespec shifted_time = *sample_time;
-        shifted_time.tv_nsec += 1000000000L / rate * cap_frames_index;
+        shifted_time.tv_nsec += 1000000000L / g_rate * cap_frames_index;
         while (shifted_time.tv_nsec > 1000000000L) {
             shifted_time.tv_sec++;
             shifted_time.tv_nsec -= 1000000000L;
@@ -204,10 +204,10 @@ static int cras_capture_tone(struct cras_client *client,
         gettimeofday(cras_cap_time, NULL);
 
         // Terminate the test since noise got captured.
-        pthread_mutex_lock(&latency_test_mutex);
-        terminate_capture = 1;
+        pthread_mutex_lock(&g_latency_test_mutex);
+        g_terminate_capture = 1;
         pthread_cond_signal(&terminate_test);
-        pthread_mutex_unlock(&latency_test_mutex);
+        pthread_mutex_unlock(&g_latency_test_mutex);
     }
 
     return frames;
@@ -226,40 +226,40 @@ static int cras_play_tone(struct cras_client *client,
     int chn;
     size_t sample_bytes;
 
-    sample_bytes = snd_pcm_format_physical_width(format) / 8;
+    sample_bytes = snd_pcm_format_physical_width(g_format) / 8;
 
-    areas = calloc(channels, sizeof(snd_pcm_channel_area_t));
-    for (chn = 0; chn < channels; chn++) {
+    areas = calloc(g_channels, sizeof(snd_pcm_channel_area_t));
+    for (chn = 0; chn < g_channels; chn++) {
         areas[chn].addr = samples + chn * sample_bytes;
         areas[chn].first = 0;
-        areas[chn].step = channels *
-                snd_pcm_format_physical_width(format);
+        areas[chn].step = g_channels *
+                snd_pcm_format_physical_width(g_format);
     }
 
-    if (cold)
+    if (g_cold)
         goto play_tone;
 
     /* Write zero first when playback_count < PLAYBACK_SILENT_COUNT
      * or noise got captured. */
-    if (playback_count < PLAYBACK_SILENT_COUNT) {
-        memset(samples, 0, sample_bytes * frames * channels);
-    } else if (playback_count > PLAYBACK_TIMEOUT_COUNT) {
+    if (g_playback_count < PLAYBACK_SILENT_COUNT) {
+        memset(samples, 0, sample_bytes * frames * g_channels);
+    } else if (g_playback_count > PLAYBACK_TIMEOUT_COUNT) {
         // Timeout, terminate test.
-        pthread_mutex_lock(&latency_test_mutex);
-        terminate_capture = 1;
+        pthread_mutex_lock(&g_latency_test_mutex);
+        g_terminate_capture = 1;
         pthread_cond_signal(&terminate_test);
-        pthread_mutex_unlock(&latency_test_mutex);
+        pthread_mutex_unlock(&g_latency_test_mutex);
 
         /* for loop mode: to avoid underrun */
-        memset(samples, 0, sample_bytes * frames * channels);
+        memset(samples, 0, sample_bytes * frames * g_channels);
     } else {
 play_tone:
-        generate_sine(areas, 0, frames, &phase);
+        generate_sine(areas, 0, frames, &g_phase);
 
-        if (!sine_started) {
+        if (!g_sine_started) {
             /* Signal that sine tone started playing and update playback time
              * and latency at first played frame. */
-            sine_started = 1;
+            g_sine_started = 1;
             cras_client_calc_playback_latency(sample_time,
                     (struct timespec *)arg);
             cras_play_time =
@@ -273,7 +273,7 @@ play_tone:
         }
     }
 
-    playback_count++;
+    g_playback_count++;
     return frames;
 }
 
@@ -295,12 +295,12 @@ static int cras_add_stream(struct cras_client *client,
     struct cras_audio_format *aud_format;
     cras_playback_cb_t aud_cb;
     cras_error_cb_t error_cb;
-    size_t cb_threshold = buffer_frames;
-    size_t min_cb_level = buffer_frames;
+    size_t cb_threshold = g_buffer_frames;
+    size_t min_cb_level = g_buffer_frames;
     int rc = 0;
     cras_stream_id_t stream_id = 0;
 
-    aud_format = cras_audio_format_create(format, rate, channels);
+    aud_format = cras_audio_format_create(g_format, g_rate, g_channels);
     if (aud_format == NULL)
         return -ENOMEM;
 
@@ -310,7 +310,7 @@ static int cras_add_stream(struct cras_client *client,
             : cras_capture_tone;
     error_cb = stream_error;
     params = cras_client_stream_params_create(direction,
-            buffer_frames,
+            g_buffer_frames,
             cb_threshold,
             min_cb_level,
             0,
@@ -323,9 +323,9 @@ static int cras_add_stream(struct cras_client *client,
         return -ENOMEM;
 
     if (direction == CRAS_STREAM_INPUT &&
-            pin_capture_device != PIN_DEVICE_UNSET) {
+            g_pin_capture_device != PIN_DEVICE_UNSET) {
         rc = cras_client_add_pinned_stream(
-            client, pin_capture_device, &stream_id, params);
+            client, g_pin_capture_device, &stream_id, params);
     } else {
         rc = cras_client_add_stream(client, &stream_id, params);
     }
@@ -344,25 +344,25 @@ static void *alsa_play(void *arg) {
     unsigned int chn, num_buffers;
     int err;
 
-    play_buf = calloc(buffer_frames * channels, sizeof(play_buf[0]));
-    areas = calloc(channels, sizeof(snd_pcm_channel_area_t));
+    play_buf = calloc(g_buffer_frames * g_channels, sizeof(play_buf[0]));
+    areas = calloc(g_channels, sizeof(snd_pcm_channel_area_t));
 
-    for (chn = 0; chn < channels; chn++) {
+    for (chn = 0; chn < g_channels; chn++) {
         areas[chn].addr = play_buf;
-        areas[chn].first = chn * snd_pcm_format_physical_width(format);
-        areas[chn].step = channels * snd_pcm_format_physical_width(format);
+        areas[chn].first = chn * snd_pcm_format_physical_width(g_format);
+        areas[chn].step = g_channels * snd_pcm_format_physical_width(g_format);
     }
 
     for (num_buffers = 0; num_buffers < PLAYBACK_SILENT_COUNT; num_buffers++) {
-        if ((err = snd_pcm_writei(handle, play_buf, period_size))
-                != period_size) {
+        if ((err = snd_pcm_writei(handle, play_buf, g_period_size))
+                != g_period_size) {
             fprintf(stderr, "write %dth silent block to audio interface \
                     failed (%s)\n", num_buffers, snd_strerror(err));
             exit(1);
         }
     }
 
-    generate_sine(areas, 0, period_size, &phase);
+    generate_sine(areas, 0, g_period_size, &g_phase);
     snd_pcm_delay(handle, &playback_delay_frames);
     gettimeofday(&sine_start_tv, NULL);
 
@@ -371,24 +371,24 @@ static void *alsa_play(void *arg) {
 
     /* Play a sine wave and look for it on capture thread.
      * This will fail for latency > 500mS. */
-    while (!terminate_playback && num_buffers < PLAYBACK_COUNT) {
+    while (!g_terminate_playback && num_buffers < PLAYBACK_COUNT) {
         avail_frames = snd_pcm_avail(handle);
-        if (avail_frames >= period_size) {
-            pthread_mutex_lock(&latency_test_mutex);
-            if (!sine_started) {
-                sine_started = 1;
-                pthread_cond_signal(&sine_start);
+        if (avail_frames >= g_period_size) {
+            pthread_mutex_lock(&g_latency_test_mutex);
+            if (!g_sine_started) {
+                g_sine_started = 1;
+                pthread_cond_signal(&g_sine_start);
             }
-            pthread_mutex_unlock(&latency_test_mutex);
-            if ((err = snd_pcm_writei(handle, play_buf, period_size))
-                    != period_size) {
+            pthread_mutex_unlock(&g_latency_test_mutex);
+            if ((err = snd_pcm_writei(handle, play_buf, g_period_size))
+                    != g_period_size) {
                 fprintf(stderr, "write to audio interface failed (%s)\n",
                         snd_strerror(err));
             }
             num_buffers++;
         }
     }
-    terminate_playback = 1;
+    g_terminate_playback = 1;
 
     if (num_buffers == PLAYBACK_COUNT)
         fprintf(stdout, "Audio not detected.\n");
@@ -406,13 +406,13 @@ static void *alsa_capture(void *arg) {
     int num_cap, noise_delay_frames;
 
 
-    cap_buf = calloc(buffer_frames * channels, sizeof(cap_buf[0]));
+    cap_buf = calloc(g_buffer_frames * g_channels, sizeof(cap_buf[0]));
 
-    pthread_mutex_lock(&latency_test_mutex);
-    while (!sine_started) {
-        pthread_cond_wait(&sine_start, &latency_test_mutex);
+    pthread_mutex_lock(&g_latency_test_mutex);
+    while (!g_sine_started) {
+        pthread_cond_wait(&g_sine_start, &g_latency_test_mutex);
     }
-    pthread_mutex_unlock(&latency_test_mutex);
+    pthread_mutex_unlock(&g_latency_test_mutex);
 
     /* Begin capture. */
     if ((err = snd_pcm_start(capture_handle)) < 0) {
@@ -421,12 +421,12 @@ static void *alsa_capture(void *arg) {
         exit(1);
     }
 
-    while (!terminate_capture) {
+    while (!g_terminate_capture) {
         num_cap = capture_some(capture_handle, cap_buf,
-                               buffer_frames, &cap_delay_frames);
+                               g_buffer_frames, &cap_delay_frames);
 
         if (num_cap > 0 && (noise_delay_frames = check_for_noise(cap_buf,
-                num_cap, channels)) >= 0) {
+                num_cap, g_channels)) >= 0) {
             struct timeval cap_time;
             unsigned long latency_us;
             gettimeofday(&cap_time, NULL);
@@ -445,16 +445,16 @@ static void *alsa_capture(void *arg) {
             fprintf(stdout, "Measured Latency: %lu uS\n", latency_us);
 
             latency_us = (playback_delay_frames + cap_delay_frames -
-                    noise_delay_frames) * 1000000 / rate;
+                    noise_delay_frames) * 1000000 / g_rate;
             fprintf(stdout, "Reported Latency: %lu uS\n", latency_us);
 
             // Noise captured, terminate both threads.
-            terminate_playback = 1;
-            terminate_capture = 1;
+            g_terminate_playback = 1;
+            g_terminate_capture = 1;
         } else {
             // Capture some more buffers after playback thread has terminated.
-            if (terminate_playback && capture_count++ < CAPTURE_MORE_COUNT)
-                terminate_capture = 1;
+            if (g_terminate_playback && g_capture_count++ < CAPTURE_MORE_COUNT)
+                g_terminate_capture = 1;
         }
     }
 
@@ -494,8 +494,8 @@ void cras_test_latency()
                     tty_output_dev);
     }
 
-    pthread_mutex_init(&latency_test_mutex, NULL);
-    pthread_cond_init(&sine_start, NULL);
+    pthread_mutex_init(&g_latency_test_mutex, NULL);
+    pthread_cond_init(&g_sine_start, NULL);
     pthread_cond_init(&terminate_test, NULL);
 
     cras_client_run_thread(client);
@@ -523,11 +523,11 @@ void cras_test_latency()
     }
 
 again:
-    pthread_mutex_lock(&latency_test_mutex);
-    while (!terminate_capture) {
-        pthread_cond_wait(&terminate_test, &latency_test_mutex);
+    pthread_mutex_lock(&g_latency_test_mutex);
+    while (!g_terminate_capture) {
+        pthread_cond_wait(&terminate_test, &g_latency_test_mutex);
     }
-    pthread_mutex_unlock(&latency_test_mutex);
+    pthread_mutex_unlock(&g_latency_test_mutex);
 
     if (cras_cap_time && cras_play_time) {
         unsigned long playback_latency_us, capture_latency_us;
@@ -552,19 +552,19 @@ again:
         fprintf(stdout, "Audio not detected.\n");
     }
 
-    if (--loop > 0) {
+    if (--g_loop > 0) {
         if (cras_play_time)
             free(cras_play_time);
         if (cras_cap_time)
             free(cras_cap_time);
         usleep(50000);
         cras_play_time = cras_cap_time = NULL;
-        playback_count = 0;
+        g_playback_count = 0;
 
-        pthread_mutex_lock(&latency_test_mutex);
-        terminate_capture = 0;
-        sine_started = 0;
-        pthread_mutex_unlock(&latency_test_mutex);
+        pthread_mutex_lock(&g_latency_test_mutex);
+        g_terminate_capture = 0;
+        g_sine_started = 0;
+        pthread_mutex_unlock(&g_latency_test_mutex);
         goto again;
     }
 
@@ -595,9 +595,9 @@ void alsa_test_latency(char *play_dev, char *cap_dev)
                 play_dev, snd_strerror(err));
         exit(1);
     }
-    config_pcm_hw_params(playback_handle, rate, channels, format,
-            &buffer_frames, &period_size);
-    config_pcm_sw_params(playback_handle, start_threshold);
+    config_pcm_hw_params(playback_handle, g_rate, g_channels, g_format,
+            &g_buffer_frames, &g_period_size);
+    config_pcm_sw_params(playback_handle, g_start_threshold);
 
     if ((err = snd_pcm_open(&capture_handle, cap_dev,
                 SND_PCM_STREAM_CAPTURE, 0)) < 0) {
@@ -605,11 +605,11 @@ void alsa_test_latency(char *play_dev, char *cap_dev)
                 cap_dev, snd_strerror(err));
         exit(1);
     }
-    config_pcm_hw_params(capture_handle, rate, channels, format,
-            &buffer_frames, &period_size);
+    config_pcm_hw_params(capture_handle, g_rate, g_channels, g_format,
+            &g_buffer_frames, &g_period_size);
 
-    pthread_mutex_init(&latency_test_mutex, NULL);
-    pthread_cond_init(&sine_start, NULL);
+    pthread_mutex_init(&g_latency_test_mutex, NULL);
+    pthread_cond_init(&g_sine_start, NULL);
 
     pthread_create(&playback_thread, NULL, alsa_play, playback_handle);
     pthread_create(&capture_thread, NULL, alsa_capture, capture_handle);
@@ -631,7 +631,7 @@ int main (int argc, char *argv[])
     while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:l:CP:s:")) != -1) {
     switch (arg) {
         case 'b':
-            buffer_frames = atoi(optarg);
+            g_buffer_frames = atoi(optarg);
             break;
         case 'c':
             cras_only = 1;
@@ -641,42 +641,42 @@ int main (int argc, char *argv[])
             fprintf(stderr, "Assign cap_dev %s\n", cap_dev);
             break;
         case 'n':
-            noise_threshold = atoi(optarg);
+            g_noise_threshold = atoi(optarg);
             break;
         case 'r':
-            rate = atoi(optarg);
+            g_rate = atoi(optarg);
             break;
         case 'o':
             play_dev = optarg;
             fprintf(stderr, "Assign play_dev %s\n", play_dev);
             break;
         case 'p':
-            period_size = atoi(optarg);
+            g_period_size = atoi(optarg);
             break;
         case 't':
             tty_output_dev = optarg;
             break;
         case 'l':
-            loop = atoi(optarg);
+            g_loop = atoi(optarg);
             break;
         case 'C':
-            cold = 1;
+            g_cold = 1;
             break;
         case 'P':
-            pin_capture_device = atoi(optarg);
+            g_pin_capture_device = atoi(optarg);
             fprintf(stderr,
                 "Pinning capture device %d\n",
-                pin_capture_device);
+                g_pin_capture_device);
             break;
         case 's':
-            start_threshold = atoi(optarg);
+            g_start_threshold = atoi(optarg);
             break;
         default:
             return 1;
         }
     }
 
-    if (loop && cold) {
+    if (g_loop && g_cold) {
         fprintf(stderr, "Cold and loop are exclusive.\n");
         exit(1);
     }

@@ -9,15 +9,15 @@
 
 #include "args.h"
 
-double phase = M_PI / 2;
-pthread_mutex_t latency_test_mutex;
-pthread_cond_t sine_start;
-int terminate_playback;
-int terminate_capture;
-int sine_started;
+double g_phase = M_PI / 2;
+pthread_mutex_t g_latency_test_mutex;
+pthread_cond_t g_sine_start;
+int g_terminate_playback;
+int g_terminate_capture;
+int g_sine_started;
 
-int capture_count;
-int playback_count;
+int g_capture_count;
+int g_playback_count;
 
 void generate_sine(const snd_pcm_channel_area_t *areas,
                    snd_pcm_uframes_t offset, int count,
@@ -25,21 +25,21 @@ void generate_sine(const snd_pcm_channel_area_t *areas,
 {
     static double max_phase = 2. * M_PI;
     double phase = *_phase;
-    double step = max_phase * 1000 / (double)rate;
-    unsigned char *samples[channels];
-    int steps[channels];
+    double step = max_phase * 1000 / (double)g_rate;
+    unsigned char *samples[g_channels];
+    int steps[g_channels];
     unsigned int chn;
-    int format_bits = snd_pcm_format_width(format);
+    int format_bits = snd_pcm_format_width(g_format);
     unsigned int maxval = (1 << (format_bits - 1)) - 1;
     int bps = format_bits / 8;  /* bytes per sample */
-    int phys_bps = snd_pcm_format_physical_width(format) / 8;
-    int big_endian = snd_pcm_format_big_endian(format) == 1;
-    int to_unsigned = snd_pcm_format_unsigned(format) == 1;
-    int is_float = (format == SND_PCM_FORMAT_FLOAT_LE ||
-            format == SND_PCM_FORMAT_FLOAT_BE);
+    int phys_bps = snd_pcm_format_physical_width(g_format) / 8;
+    int big_endian = snd_pcm_format_big_endian(g_format) == 1;
+    int to_unsigned = snd_pcm_format_unsigned(g_format) == 1;
+    int is_float = (g_format == SND_PCM_FORMAT_FLOAT_LE ||
+            g_format == SND_PCM_FORMAT_FLOAT_BE);
 
     /* Verify and prepare the contents of areas */
-    for (chn = 0; chn < channels; chn++) {
+    for (chn = 0; chn < g_channels; chn++) {
         if ((areas[chn].first % 8) != 0) {
             fprintf(stderr, "areas[%i].first == %i, aborting...\n", chn,
                     areas[chn].first);
@@ -69,7 +69,7 @@ void generate_sine(const snd_pcm_channel_area_t *areas,
             res = sin(phase) * maxval;
         if (to_unsigned)
             res ^= 1U << (format_bits - 1);
-        for (chn = 0; chn < channels; chn++) {
+        for (chn = 0; chn < g_channels; chn++) {
             /* Generate data based on endian format */
             if (big_endian) {
                 for (i = 0; i < bps; i++)
@@ -94,7 +94,7 @@ int check_for_noise(short *buf, unsigned len, unsigned channels)
 {
     unsigned int i;
     for (i = 0; i < len * channels; i++)
-        if (abs(buf[i]) > noise_threshold)
+        if (abs(buf[i]) > g_noise_threshold)
             return i / channels;
     return -1;
 }
