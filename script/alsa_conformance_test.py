@@ -39,7 +39,7 @@ DEFAULT_PARAMS = DataParams(
     format='S16_LE',
     channels=2,
     rate=48000,
-    period_size=240,
+    period_size=480,
     buffer_size=None)
 
 Criteria = collections.namedtuple('PassCriteria', [
@@ -108,12 +108,12 @@ class Parser(object):
           format: S16_LE
           channels: 4
           rate: 48000 fps
-          period size: 240 frames
+          period size: 480 frames
       '''
       _get_value('format') = 'S16_LE'
       _get_value('channels') = '4'
       _get_value('rate', 'fps') = '48000'
-      _get_value('period size', 'frames') = '240'
+      _get_value('period size', 'frames') = '480'
 
     Raises:
       ValueError: Can not find the key in context or finds an
@@ -270,7 +270,7 @@ class ParamsParser(Parser):
           channels: 2
           rate: 48000 fps
           period time: 5000 us
-          period size: 240 frames
+          period size: 480 frames
           buffer time: 160000 us
           buffer size: 7680 frames
           ------------------------------
@@ -283,7 +283,7 @@ class ParamsParser(Parser):
               format='S16_LE',
               channels=2,
               rate=48000,
-              period_size=240,
+              period_size=480,
               buffer_size=7680
           )
 
