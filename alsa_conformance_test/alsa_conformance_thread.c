@@ -505,8 +505,7 @@ void dev_thread_start_capture(struct dev_thread *thread,
 }
 
 /* Start device thread for playback or capture. */
-struct alsa_conformance_recorder *dev_thread_run_once(struct dev_thread *thread,
-						      int dryrun)
+struct alsa_conformance_recorder *dev_thread_run_once(struct dev_thread *thread)
 {
 	struct alsa_conformance_recorder *recorder;
 	recorder = recorder_create(thread->merge_threshold_t,
@@ -516,20 +515,19 @@ struct alsa_conformance_recorder *dev_thread_run_once(struct dev_thread *thread,
 	else if (thread->stream == SND_PCM_STREAM_CAPTURE)
 		dev_thread_start_capture(thread, recorder);
 
-	if (!dryrun)
-		recorder_list_add_recorder(thread->recorder_list, recorder);
+	recorder_list_add_recorder(thread->recorder_list, recorder);
 	return recorder;
 }
 
 struct alsa_conformance_recorder *
-dev_thread_run_one_iteration(struct dev_thread *thread, int dryrun)
+dev_thread_run_one_iteration(struct dev_thread *thread)
 {
 	struct alsa_conformance_recorder *recorder = NULL;
 	dev_thread_open_device(thread);
 	dev_thread_set_params(thread);
 	/* If duration is zero, it won't run playback or capture. */
 	if (thread->duration)
-		recorder = dev_thread_run_once(thread, dryrun);
+		recorder = dev_thread_run_once(thread);
 	dev_thread_close_device(thread);
 	return recorder;
 }
@@ -544,7 +542,7 @@ void *dev_thread_run_iterations(void *arg)
 	for (i = 0; i < thread->iterations; i++) {
 		if (SINGLE_THREAD && thread->iterations != 1)
 			printf("Run %d iteration...\n", i + 1);
-		dev_thread_run_one_iteration(thread, 0);
+		dev_thread_run_one_iteration(thread);
 	}
 	return 0;
 }

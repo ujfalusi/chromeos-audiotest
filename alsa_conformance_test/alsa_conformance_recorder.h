@@ -18,12 +18,6 @@
 struct alsa_conformance_recorder *
 recorder_create(double merge_threshold_t, snd_pcm_sframes_t merge_threshold_sz);
 
-/* Compute the median of steps. */
-void recorder_compute_step_median(struct alsa_conformance_recorder *recorder);
-
-/* Query step median */
-snd_pcm_sframes_t get_step_median(struct alsa_conformance_recorder *recorder);
-
 /* Destroys recorder object. */
 void recorder_destroy(struct alsa_conformance_recorder *recorder);
 

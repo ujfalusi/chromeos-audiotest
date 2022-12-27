@@ -63,9 +63,7 @@ void show_usage(const char *name)
 	       "Number of times to run the tests specified. (default: 1)\n");
 	printf("\t--merge_threshold: "
 	       "Set merge_threshold_t. (default: 0.0001)\n"
-	       "\t\tIf the value is not zero, there will be a dryrun to set the\n"
-	       "\t\tmerge_threshold_sz as the median of frame diff. Points with\n"
-	       "\t\tTIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less\n"
+	       "\t\tPoints with TIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less\n"
 	       "\t\tthan merge_threshold_sz will be merged.\n");
 	printf("\t--device_file:\n"
 	       "\t\tDevice file path. It will load devices from the file. "
@@ -75,7 +73,9 @@ void show_usage(const char *name)
 	       "\t\t[type] could be either `PLAYBACK` or `CAPTURE`. # comment\n"
 	       "\t\teg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example\n");
 	printf("\t--merge_threshold_sz: "
-	       "Set frame merge threadhold size, set to period size if not set\n");
+	       "Set frame merge threadhold size, set to period size if not set\n"
+	       "\t\tPoints with TIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less\n"
+	       "\t\tthan merge_threshold_sz will be merged.\n");
 }
 
 void set_dev_thread_args(struct dev_thread *thread,
