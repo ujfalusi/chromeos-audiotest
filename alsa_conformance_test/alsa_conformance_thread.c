@@ -534,13 +534,43 @@ dev_thread_run_one_iteration(struct dev_thread *thread, int dryrun)
 	return recorder;
 }
 
+/* Dry run the test to get step_median */
+void dev_thread_set_merge_threshold_sz(struct dev_thread *thread)
+{
+	int old_debug_mode = DEBUG_MODE;
+	double old_merge_threshold_t = thread->merge_threshold_t;
+
+	/* Skip when the merge_threshold_t is 0. */
+	if (!thread->merge_threshold_t) {
+		thread->merge_threshold_sz = 0;
+		return;
+	}
+	/* Skip if user set */
+	if (thread->merge_threshold_sz)
+		return;
+
+	/* Skip if the duration is 0. */
+	if (!thread->duration)
+		return;
+
+	DEBUG_MODE = 0;
+	thread->merge_threshold_t = 0;
+	struct alsa_conformance_recorder *recorder =
+		dev_thread_run_one_iteration(thread, 1);
+
+	recorder_compute_step_median(recorder);
+	thread->merge_threshold_sz = get_step_median(recorder);
+	recorder_destroy(recorder);
+	DEBUG_MODE = old_debug_mode;
+	thread->merge_threshold_t = old_merge_threshold_t;
+}
+
 void *dev_thread_run_iterations(void *arg)
 {
 	struct dev_thread *thread = arg;
 	int i;
 
-	if (!thread->merge_threshold_sz)
-		thread->merge_threshold_sz = thread->period_size;
+	dev_thread_set_merge_threshold_sz(thread);
 	for (i = 0; i < thread->iterations; i++) {
 		if (SINGLE_THREAD && thread->iterations != 1)
 			printf("Run %d iteration...\n", i + 1);

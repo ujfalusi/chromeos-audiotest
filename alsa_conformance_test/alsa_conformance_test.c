@@ -75,7 +75,7 @@ void show_usage(const char *name)
 	       "\t\t[type] could be either `PLAYBACK` or `CAPTURE`. # comment\n"
 	       "\t\teg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example\n");
 	printf("\t--merge_threshold_sz: "
-	       "Set frame merge threadhold size, set to period size if not set\n");
+	       "Set frame merge threadhold size, auto computed if not set\n");
 }
 
 void set_dev_thread_args(struct dev_thread *thread,
