@@ -108,11 +108,9 @@ alsaucm -c kbl_r5514_5663_max set _verb HiFi set _enadev "Headphone"
 		```
 + --merge_threshold
 	+ Set merge_threshold_t. (default: 0.0001)
-	  Points with TIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less
-	  than merge_threshold_sz will be merged.
-+ --merge_threshold_sz
-	+ If the value is not zero, the default merge_threshold_sz will be the period size.
-	  Points with TIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less
+	+ If the value is not zero, there will be a dryrun to set the
+	  merge_threshold_sz as the median of frame diff. Points with
+	  TIME_DIFF less than merge_threshold_t and SAMPLES_DIFF less
 	  than merge_threshold_sz will be merged.
 
 ## Results
