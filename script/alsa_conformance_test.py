@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2018 The Chromium OS Authors. All rights reserved.
+# Copyright 2018 The ChromiumOS Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Tool to run alsa_conformance_test automatically."""
@@ -19,7 +19,7 @@ Range = collections.namedtuple('Range', ['lower', 'upper'])
 
 DataDevInfo = collections.namedtuple('DataDevInfo', [
     'name', 'card', 'device', 'stream', 'valid_formats', 'valid_rates',
-    'valid_channels', 'period_size_range', 'buffer_size_range'
+    'valid_channels', 'period_size_range', 'buffer_size_range', 'mixers'
 ])
 
 DataParams = collections.namedtuple('DataParams', [
@@ -51,17 +51,18 @@ Test basic funtion of alsa pcm device automatically.
 It is a script for alsa_conformance_test.
 """
 
-TEST_SUITES = ['test_params', 'test_rates', 'test_all_pairs']
+TEST_SUITES = ['test_card_name', 'test_params', 'test_rates', 'test_all_pairs', 'test_usb_mixer']
 
 TEST_SUITES_DESCRIPTION = """
 test suites list:
+  test_card_name        Check whether card name is in the block list.
   test_params           Check whether all parameters can be set correctly.
   test_rates            Check whether all estimated rates are the same as what
                         it set.
   test_all_pairs        Check whether the audio is still stable when mixing
                         different params.
+  test_usb_mixer        Check whether USB mixer set correctly. This will run if the device is USB audio.
 """
-
 
 class Output(object):
   """The output from alsa_conformance_test.
@@ -127,7 +128,32 @@ class Parser(object):
         msg += ' with unit {}'.format(unit)
       raise ValueError(msg)
     return search.group(1).strip()
+  def _get_pair(self, key):
+    """Finds the key in context and returns its content as a pair.
 
+    Args:
+      key: String representing the key.
+
+    Returns:
+      The pair following the key. For example:
+
+      _context = '''
+          Card: Wired [Zone Wired]
+          Device: USB Audio [USB Audio]
+      '''
+      _get_pair('Card') = ('Wired', 'Zone Wired')
+      _get_pair('Device') = ('USB Audio', 'USB Audio')
+
+    Raises:
+      ValueError: Can not find the key in context.
+      ValueError: Can find the key in context, but format is incorrect.
+    """
+    content = self._get_value(key)
+    match = re.match("(?P<_0>.*) \[(?P<_1>.*)\]", content)
+    if not match:
+      msg = 'Wrong format of content:{}'.format(content)
+      raise ValueError(msg)
+    return match.group(1), match.group(2)
   def _get_list(self, key):
     """Finds the key in context and returns its content as a list.
 
@@ -188,6 +214,57 @@ class DeviceInfoParser(Parser):
     """
     self.allow_rates = set(allow_rates) if allow_rates else None
 
+  def _parse_mixer(self):
+    """
+    Parse multi mixers into a list in json format.
+    context = '''
+      ------DEVICE INFORMATION------
+      PCM handle name: hw:1,0
+      PCM type: HW
+      card: Wired [Zone Wired]
+      device: USB Audio [USB Audio]
+      stream: PLAYBACK
+      available channels: 2
+      available formats: S16_LE S24_3LE
+      rate range: [44100, 96000]
+      available rates: 44100 48000 96000
+      period size range: [45, 131072]
+      buffer size range: [90, 262144]
+      mixer: name:PCM index:0 has_volume:1 db_range:[-6562, 0] volume_range:[0, 175]
+      mixer: name:Headset index:0 has_volume:1 db_range:[-1000, 0] volume_range:[0, 15]
+      ------------------------------
+    '''
+    Result
+      mixers=[{
+                'name': 'PCM',
+                'index': 0,
+                'has_volume': 1,
+                'db_range': Range(lower=-6562, upper=0),
+                'volume_range': Range(lower=0, upper=175),
+              },
+              {
+                'name': 'Headset',
+                'index': 0,
+                'has_volume': 1,
+                'db_range': Range(lower=-1000, upper=0),
+                'volume_range': Range(lower=0, upper=15),
+              }]
+    """
+    mixers = []
+    for raw in re.finditer("mixer: (.*)", self._context):
+      mixer = {}
+      result = re.match(
+          'name:(?P<_0>.+) index:(?P<_1>.+) has_volume:(?P<_2>.+) db_range:\[(?P<_3>.+), (?P<_4>.+)\] volume_range:\[(?P<_5>.+), (?P<_6>.+)\]',
+          raw.group(1),
+      )
+      mixer['name'] = result.group(1)
+      mixer['index'] = int(result.group(2))
+      mixer['has_volume'] = int(result.group(3))
+      mixer['db_range'] = Range(int(result.group(4)), int(result.group(5)))
+      mixer['volume_range'] = Range(int(result.group(6)), int(result.group(7)))
+      mixers.append(mixer)
+    return mixers
+
   def parse(self, context):
     """Parses device information.
 
@@ -211,6 +288,8 @@ class DeviceInfoParser(Parser):
           available rates: 44100 48000 96000 192000
           period size range: [16, 262144]
           buffer size range: [32, 524288]
+          mixer: name:PCM index:0 has_volume:1 db_range:[-6562, 0] volume_range:[0, 175]
+          mixer: name:Headset index:0 has_volume:1 db_range:[-1000, 0] volume_range:[0, 15]
           ------------------------------
       '''
       Result
@@ -222,7 +301,20 @@ class DeviceInfoParser(Parser):
               valid_channels=['1', '2'],
               valid_rates=[44100, 48000, 96000, 192000],
               period_size_range=Range(lower=16, upper=262144),
-              buffer_size_range=Range(lower=32, upper=524288)
+              buffer_size_range=Range(lower=32, upper=524288),
+              mixers=[{
+                'name': 'PCM',
+                'index': 0,
+                'has_volume': 1,
+                'db_range': Range(lower=-6562, upper=0),
+                'volume_range': Range(lower=0, upper=175),
+              },{
+                'name': 'Headset',
+                'index': 0,
+                'has_volume': 1,
+                'db_range': Range(lower=-1000, upper=0),
+                'volume_range': Range(lower=0, upper=15),
+              }]
           )
 
     Raises:
@@ -239,14 +331,16 @@ class DeviceInfoParser(Parser):
 
     return DataDevInfo(
         self._get_value('PCM handle name'),
-        self._get_value('card'),
-        self._get_value('device'),
+        self._get_pair('card'),
+        self._get_pair('device'),
         self._get_value('stream'),
         self._get_list('available formats'),
         valid_rates,
         list(map(int, self._get_list('available channels'))),
         self._get_range('period size range'),
-        self._get_range('buffer size range'))
+        self._get_range('buffer size range'),
+        self._parse_mixer(),
+        )
 
 
 class ParamsParser(Parser):
@@ -368,6 +462,60 @@ class ResultParser(Parser):
         int(self._get_value('number of overrun')))
 
 
+class USBMixerChecker:
+  """Object which can check usb device mixer info from alsa_conformance_test."""
+
+  @staticmethod
+  def check_mixer_num(mixers):
+    """
+    check number of mixer == 1
+    """
+    result = 'pass'
+    error = ''
+    if len(mixers) != 1:
+      result = 'fail'
+      error = 'incorrect number of mixer[{}] should be [{}]'.format(len(mixers), 1)
+    return result, error
+
+  @staticmethod
+  def check_has_volume_control(mixer):
+    """
+    check has volume == 1
+    """
+    result = 'pass'
+    error = ''
+    if(mixer['has_volume'] != 1):
+      result = 'fail'
+      error = 'error: mixer name[{}] has_volume[{}] can only be {}'.format(mixer['name'], mixer['has_volume'], 1)
+    return result, error
+
+  @staticmethod
+  def check_playback_db_range(mixer):
+    """
+    check 500 <= max_db - min_db <= 20000
+    """
+    result = 'pass'
+    error = ''
+    if not (500 <= mixer['db_range'].upper - mixer['db_range'].lower <= 20000):
+      result = 'fail'
+      error = 'error: mixer name[{}] db_range[{}, {}] ' \
+        'incorrect. Should be {} <= db_range_max - db_range_min <= {}'.format(mixer['name'], mixer['db_range'].lower, mixer['db_range'].upper, 500, 20000)
+    return result, error
+
+  @staticmethod
+  def check_playback_volume_range(mixer):
+    """
+    playback volume_range_max - volume_range_min >= 10
+    """
+    result = 'pass'
+    error = ''
+    if not (10 <= mixer['db_range'].upper - mixer['db_range'].lower):
+      result = 'fail'
+      error = 'error: mixer name[{}] playback volume_range[{}, {}] ' \
+        'incorrect. Should be {} <= db_range_max - db_range_min'.format(mixer['name'], mixer['volume_range'].lower, mixer['volume_range'].upper, 10)
+    return result, error
+
+
 class AlsaConformanceTester(object):
   """Object which can set params and run alsa_conformance_test."""
 
@@ -425,14 +573,21 @@ class AlsaConformanceTester(object):
     """Prints device information."""
     print('Device Information')
     print('\tName:', self.dev_info.name)
-    print('\tCard:', self.dev_info.card)
-    print('\tDevice:', self.dev_info.device)
+    print('\tCard: {}[{}]'.format(self.dev_info.card[0], self.dev_info.card[1]))
+    print('\tDevice: {}[{}]'.format(self.dev_info.device[0], self.dev_info.device[1]))
     print('\tStream:', self.dev_info.stream)
     print('\tFormat:', self.dev_info.valid_formats)
     print('\tChannels:', self.dev_info.valid_channels)
     print('\tRate:', self.dev_info.valid_rates)
     print('\tPeriod_size range:', list(self.dev_info.period_size_range))
     print('\tBuffer_size range:', list(self.dev_info.buffer_size_range))
+    for mixer in self.dev_info.mixers:
+        print('\tMixer:')
+        print('\t\tMixer name:', mixer['name'])
+        print('\t\tMixer index:', mixer['index'])
+        print('\t\tMixer has_volume:', mixer['has_volume'])
+        print('\t\tMixer db_range:', list(mixer['db_range']))
+        print('\t\tMixer volume_range:', list(mixer['volume_range']))
 
   def run(self, arg):
     """Runs alsa_conformance_test.
@@ -469,6 +624,36 @@ class AlsaConformanceTester(object):
       encoding='utf8')
     return Output(p.returncode, p.stdout, p.stderr[:-1])
 
+  def do_check(self, test_name, check_function, *args):
+    """Check result with check_function.
+
+      Args:
+        test_name: The name of test.
+        check_function: The function to check the result.
+        args: arguments for check function.
+
+      Returns:
+        The data or result. For example:
+
+        {'name': The name of the test.
+        'result': The first return value from check_function.
+                  It should be 'pass' or 'fail'.
+        'error': The second return value from check_function.}
+    """
+    data = {}
+    data['name'] = test_name
+    logging.info(test_name)
+    result, error = check_function(*args)
+    data['result'] = result
+    data['error'] = error
+
+    logging_msg = result
+    if result == 'fail':
+      logging_msg += ' - ' + error
+    logging.info(logging_msg)
+
+    return data
+
   def run_and_check(self, test_name, test_args, check_function):
     """Runs alsa_conformance_test and checks result.
 
@@ -487,20 +672,8 @@ class AlsaConformanceTester(object):
                  It should be 'pass' or 'fail'.
        'error': The second return value from check_function.}
     """
-    data = {}
-    data['name'] = test_name
-    logging.info(test_name)
     output = self.run(test_args)
-    result, error = check_function(output)
-    data['result'] = result
-    data['error'] = error
-
-    logging_msg = result
-    if result == 'fail':
-      logging_msg += ' - ' + error
-    logging.info(logging_msg)
-
-    return data
+    return self.do_check(test_name, check_function, output)
 
   @staticmethod
   def _default_check_function(output):
@@ -531,12 +704,16 @@ class AlsaConformanceTester(object):
     """
     result = {}
     result['testSuites'] = []
+    if 'test_card_name' in test_suites:
+      result['testSuites'].append(self.test_card_name())
     if 'test_params' in test_suites:
       result['testSuites'].append(self.test_params())
     if 'test_rates' in test_suites:
       result['testSuites'].append(self.test_rates())
     if 'test_all_pairs' in test_suites:
       result['testSuites'].append(self.test_all_pairs())
+    if 'test_usb_mixer' in test_suites:
+      result['testSuites'].append(self.test_usb_mixer())
     result = self.summarize(result)
 
     if json_file:
@@ -669,6 +846,80 @@ class AlsaConformanceTester(object):
 
     return result
 
+  def _check_card_name(self):
+      """
+      check card name cannot be in block list.
+
+      A specific UCM configuration file is sometimes required for a USB audio device.
+      If the card name is the default USB card name, like 'USB Audio Device'
+      it will not be possible to add a UCM configuration file because UCM files are matched by card name.
+      """
+      result = 'pass'
+      error = ''
+      block_list = ['USB Audio Device']
+      card_id, card_name = self.dev_info.card
+      for name in block_list:
+        if name == card_name:
+          result = 'fail'
+          error = 'error: card name[{}] cannot be [{}]'.format(name, card_name)
+          break
+      return result, error
+
+  def test_card_name(self):
+    """Checks card name whether in the block list
+    """
+    result = {}
+    result['name'] = 'Test card name'
+    result['tests'] = []
+    test_name = 'Test card name is not in the block list'
+    data = self.do_check(test_name, self._check_card_name)
+    result['tests'].append(data)
+    return result
+
+  def test_usb_mixer(self):
+    """Checks whether USB mixer expose it's interface correctly.
+    This test will run if the device is USB audio.
+    """
+    result = {}
+    result['name'] = 'Test USB mixer'
+    result['tests'] = []
+
+    usb_device_id, usb_device_name = self.dev_info.device
+
+    if usb_device_name != 'USB Audio':
+      result['name'] += ' - skip'
+      return result
+
+    self.init_params()
+
+    mixers = self.dev_info.mixers
+
+    usb_device_id, usb_device_name = self.dev_info.device
+
+    if(usb_device_name != 'USB Audio'):
+      result['name'] += ' - skip'
+      return result
+
+    self.init_params()
+
+    mixers = self.dev_info.mixers
+    is_input = self.dev_info.stream == 'CAPTURE'
+    test_name = 'Test usb mixer number correctness'
+    data = self.do_check(test_name, USBMixerChecker.check_mixer_num, mixers)
+    result['tests'].append(data)
+    for mixer in mixers:
+      test_name = 'Test usb mixer has_volume correctness'
+      data = self.do_check(test_name, USBMixerChecker.check_has_volume_control, mixer)
+      result['tests'].append(data)
+      if not is_input:
+        test_name = 'Test usb mixer playback db range correctness'
+        data = self.do_check(test_name, USBMixerChecker.check_playback_db_range, mixer)
+        result['tests'].append(data)
+        test_name = 'Test usb mixer playback volume range correctness'
+        data = self.do_check(test_name, USBMixerChecker.check_playback_volume_range, mixer)
+        result['tests'].append(data)
+    return result
+
   def summarize(self, result):
     """Summarizes the test results.
 
@@ -678,23 +929,23 @@ class AlsaConformanceTester(object):
     Returns:
       The result with counts of pass and fail. For example:
       {
-          "pass": 4,
-          "fail": 1,
-          "testSuites": [
+          'pass': 4,
+          'fail': 1,
+          'testSuites': [
               {
-                  "name": "Test Params",
-                  "pass": 4,
-                  "fail": 1,
-                  "tests": [
+                  'name': 'Test Params',
+                  'pass': 4,
+                  'fail': 1,
+                  'tests': [
                       {
-                          "name": "Set channels 2",
-                          "result": "pass",
-                          "error": ""
+                          'name': 'Set channels 2',
+                          'result': 'pass',
+                          'error': ''
                       },
                       {
-                          "name": "Set rate 48000",
-                          "result": "fail",
-                          "error": "Set rate 48000 but got 44100"
+                          'name': 'Set rate 48000',
+                          'result': 'fail',
+                          'error': 'Set rate 48000 but got 44100'
                       }
                   ]
               }

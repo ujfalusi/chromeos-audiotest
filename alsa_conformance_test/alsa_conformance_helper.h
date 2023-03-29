@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 The Chromium OS Authors. All rights reserved.
+ * Copyright 2018 The ChromiumOS Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
@@ -32,6 +32,17 @@ void print_card_information(snd_pcm_info_t *pcm_info,
  */
 int alsa_helper_get_card_info(snd_pcm_t *handle, snd_pcm_info_t *pcm_info,
 			      snd_ctl_card_info_t *card_info);
+/*
+ * Print usb mixer information.
+ * Args:
+ *    handle - The open PCM to configure.
+ *    params - The allocated hardware params object.
+ *    card_name - soundcard name e.x. "hw:0"
+ * Returns:
+ *    0 on success, negative error on failure.
+ */
+int print_usb_mixer_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params,
+				const char *card_name);
 
 /* Print device information.
  * Args:
@@ -47,6 +58,7 @@ int alsa_helper_get_card_info(snd_pcm_t *handle, snd_pcm_info_t *pcm_info,
  *    available rates - The available rates supported by device.
  *    period size range - The range of period size supported by device.
  *    buffer size range - The range of buffer size supported by device.
+ *    mixer - mixer information belong to the device.
  * Returns:
  *    0 on success, negative error on failure.
  * */

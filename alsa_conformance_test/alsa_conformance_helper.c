@@ -1,14 +1,19 @@
 /*
- * Copyright 2018 The Chromium OS Authors. All rights reserved.
+ * Copyright 2018 The ChromiumOS Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
 
-#include <alsa/asoundlib.h>
 #include <stdint.h>
+
+#include <alsa/asoundlib.h>
+#include <alsa/pcm.h>
+
+#include "include/utlist.h"
 
 #include "alsa_conformance_helper.h"
 #include "alsa_conformance_timer.h"
+#include "alsa_conformance_mixer.h"
 
 void print_card_information(snd_pcm_info_t *pcm_info,
 			    snd_ctl_card_info_t *card_info)
@@ -53,6 +58,39 @@ int alsa_helper_get_card_info(snd_pcm_t *handle, snd_pcm_info_t *pcm_info,
 	return 0;
 }
 
+int print_usb_mixer_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params,
+				const char *card_name)
+{
+	struct alsa_mixer *amixer;
+	struct alsa_mixer_control *c;
+
+	assert(handle);
+	assert(params);
+	assert(card_name);
+
+	amixer = alsa_usb_mixer_create(card_name);
+	assert(amixer);
+	if (snd_pcm_stream(handle) == SND_PCM_STREAM_PLAYBACK) {
+		DL_FOREACH (amixer->output_controls, c) {
+			printf("mixer: name:%s index:%d has_volume:%d db_range:[%ld, %ld]"
+			       " volume_range:[%ld, %ld]\n",
+			       c->name, c->index, c->has_volume,
+			       c->min_volume_dB, c->max_volume_dB,
+			       c->volume_range_min, c->volume_range_max);
+		}
+	} else if (snd_pcm_stream(handle) == SND_PCM_STREAM_CAPTURE) {
+		DL_FOREACH (amixer->input_controls, c) {
+			printf("mixer: name:%s index:%d has_volume:%d db_range:[%ld, %ld]"
+			       " volume_range:[%ld, %ld]\n",
+			       c->name, c->index, c->has_volume,
+			       c->min_volume_dB, c->max_volume_dB,
+			       c->volume_range_min, c->volume_range_max);
+		}
+	}
+	alsa_usb_mixer_control_destroy(amixer);
+	return 0;
+}
+
 int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 {
 	unsigned int min;
@@ -63,7 +101,9 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	snd_pcm_uframes_t min2;
 	snd_pcm_uframes_t max2;
 	int dir;
-	int rc;
+	int rc = 0;
+	char card_name[32];
+
 	snd_pcm_info_t *pcm_info;
 	snd_ctl_card_info_t *card_info;
 
@@ -75,8 +115,6 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	snd_ctl_card_info_malloc(&card_info);
 	alsa_helper_get_card_info(handle, pcm_info, card_info);
 	print_card_information(pcm_info, card_info);
-	snd_ctl_card_info_free(card_info);
-	snd_pcm_info_free(pcm_info);
 
 	printf("stream: %s\n", snd_pcm_stream_name(snd_pcm_stream(handle)));
 
@@ -84,14 +122,14 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	if (rc < 0) {
 		fprintf(stderr, "hw_params_get_channels_min: %s\n",
 			snd_strerror(rc));
-		return rc;
+		goto clean_up;
 	}
 
 	rc = snd_pcm_hw_params_get_channels_max(params, &max);
 	if (rc < 0) {
 		fprintf(stderr, "hw_params_get_channels_max: %s\n",
 			snd_strerror(rc));
-		return rc;
+		goto clean_up;
 	}
 
 	printf("available channels:");
@@ -115,14 +153,14 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	if (rc < 0) {
 		fprintf(stderr, "hw_params_get_rate_min: %s\n",
 			snd_strerror(rc));
-		return rc;
+		goto clean_up;
 	}
 
 	rc = snd_pcm_hw_params_get_rate_max(params, &max, &dir);
 	if (rc < 0) {
 		fprintf(stderr, "hw_params_get_rate_max: %s\n",
 			snd_strerror(rc));
-		return rc;
+		goto clean_up;
 	}
 
 	printf("rate range: [%u, %u]\n", min, max);
@@ -139,14 +177,14 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	if (rc < 0) {
 		fprintf(stderr, "hw_params_get_period_size_min: %s\n",
 			snd_strerror(rc));
-		return rc;
+		goto clean_up;
 	}
 
 	rc = snd_pcm_hw_params_get_period_size_max(params, &max2, &dir);
 	if (rc < 0) {
 		fprintf(stderr, "hw_params_get_period_size_max: %s\n",
 			snd_strerror(rc));
-		return rc;
+		goto clean_up;
 	}
 
 	printf("period size range: [%lu, %lu]\n", min2, max2);
@@ -155,18 +193,30 @@ int print_device_information(snd_pcm_t *handle, snd_pcm_hw_params_t *params)
 	if (rc < 0) {
 		fprintf(stderr, "hw_params_get_buffer_size_min: %s\n",
 			snd_strerror(rc));
-		return rc;
+		goto clean_up;
 	}
 
 	rc = snd_pcm_hw_params_get_buffer_size_max(params, &max2);
 	if (rc < 0) {
 		fprintf(stderr, "hw_params_get_buffer_size_max: %s\n",
 			snd_strerror(rc));
-		return rc;
+		goto clean_up;
 	}
 
 	printf("buffer size range: [%lu, %lu]\n", min2, max2);
-	return 0;
+	// print usb mixer if the device is USB audio
+	if (!strcmp(snd_pcm_info_get_id(pcm_info), "USB Audio")) {
+		sprintf(card_name, "hw:%d", snd_pcm_info_get_card(pcm_info));
+		rc = print_usb_mixer_information(handle, params, card_name);
+		if (rc < 0) {
+			goto clean_up;
+		}
+	}
+
+clean_up:
+	snd_ctl_card_info_free(card_info);
+	snd_pcm_info_free(pcm_info);
+	return rc;
 }
 
 int print_params(snd_pcm_hw_params_t *params)
