@@ -136,6 +136,94 @@ buffer time: 160000 us
 buffer size: 7680 frames
 ```
 
+### Correctness of card name
+A specific UCM configuration file is sometimes required for a USB audio device.
+If the card name is the default USB card name, like 'USB Audio Device'
+it will not be possible to add a UCM configuration file because UCM files are matched by card name.
+```
+Device Information
+	Name: hw:3,0
+	Card: Device [USB Audio Device]
+	Device: USB Audio [USB Audio]
+	Stream: PLAYBACK
+	Format: ['S16_LE']
+	Channels: [2]
+	Rate: [44100, 48000]
+	Period_size range: [45, 48000]
+	Buffer_size range: [90, 96000]
+	Mixer:
+		Mixer name: PCM
+		Mixer index: 0
+		Mixer has_volume: 1
+		Mixer db_range: [-9999999, 0]
+		Mixer volume_range: [0, 37]
+```
+
+### Correctness of usb audio mixer control
+
+If the device is a USB audio device, it is very important that the USB audio mixer control exposes reasonable values. Otherwise, applications may rely on incorrect values and lead to undefined behavior.
+
+#### Mixer name
+The following are the requirements for the USB audio mixer control name for playback:
+
+* Headphone
+* Headset
+* Headset Earphone
+* Speaker
+* PCM
+* Master
+* Digital
+
+The following are the requirements for the USB audio mixer control name for capture:
+
+* Capture
+* Digital Capture
+* Mic
+* Microphone
+* Headset
+
+#### Number of mixers
+Device can only have one playback/capture mixer control system can recognize. Otherwise system will fail to know which control should be select in the system.
+
+#### Mixer volume control ability
+If the mixer control does not have the ability to control volume, there is likely something wrong with it. The main function of a mixer control for a USB audio device is to control volume.
+
+#### Mixer volume db range
+The volume db range must be within a reasonable range. If the volume db range is not reasonable, the system may use it as a basis for its actions, which could cause incorrect behavior.
+
+* The playback pass criteria are: 500 <= db_range_max - db_range_min <= 20000.
+
+#### Mixer playback volume range
+The system will use the playback volume range to calculate the percentage of volume that should be increased with one volume up/down event. If the value is less than 10, it will cause incorrect behavior. The minimum value for the volume range is 10.
+
+#### Example
+This headset is `Cyber Acoustics`, and the device info is
+
+```
+Device Information
+	Name: hw:3,0
+	Card: Device [USB Audio Device]
+	Device: USB Audio [USB Audio]
+	Stream: PLAYBACK
+	Format: ['S16_LE']
+	Channels: [2]
+	Rate: [44100, 48000]
+	Period_size range: [45, 48000]
+	Buffer_size range: [90, 96000]
+	Mixer:
+		Mixer name: PCM
+		Mixer index: 0
+		Mixer has_volume: 1
+		Mixer db_range: [-9999999, 0]
+		Mixer volume_range: [0, 37]
+```
+
+* number of mixer is 1 - pass
+* The mixer name "PCM" is a valid name. - pass
+* This mixer has volume control, which is indicated by the has_volume value of 1. - pass
+* The mixer's db_range is 9999999, which is outside the acceptable range of 500-20000. - fail
+* Mixer volume_range is 37, is >= 10 - pass
+
 ### Stability of rate
 The number of samples consumed / time must be the same as the sampling rate.
 For short-term, it can be checked every time when writing a block into the
@@ -352,6 +440,8 @@ alsa_conformance_test.py [-h] [-C INPUT_DEVICE] [-P OUTPUT_DEVICE]
       be run. See next section for more information.
 
 ### Test Suites
++ test_card_name
+    + Check whether card name is in the block list.
 + test_params
     + Check whether all parameters can be set correctly.
 + test_rates
@@ -360,11 +450,16 @@ alsa_conformance_test.py [-h] [-C INPUT_DEVICE] [-P OUTPUT_DEVICE]
     + Check whether the audio is still stable when mixing different params.
       The test will check if rates meet our expectation when testing all
       combinations of channels, sample rates and formats.
++ test_usb_mixer
+    + Check whether the usb device exposes the required alsa mixer controls.
+    If the device is not a usb audio device, this test will be skiped.
 
 ### Results
 The result will show pass or fail.
 
 ### Example
+
+#### Internal device example
 
 ```
 > alsa_conformance_test.py -P hw:0,0
@@ -378,6 +473,8 @@ Device Information
         Rate: [44100, 48000, 96000, 192000]
         Period_size range: [16, 8192]
         Buffer_size range: [32, 16384]
+Test card name
+        Test card name is not in the block list: pass
 Test Params
         Set channels 2: pass
         Set format S16_LE: pass
@@ -400,8 +497,57 @@ Test All Pairs
         Set channels 2, format S32_LE, rate 48000: pass
         Set channels 2, format S32_LE, rate 96000: pass
         Set channels 2, format S32_LE, rate 192000: pass
+Test USB mixer - skip
 ```
 
+#### USB device example
+
+```
+> alsa_conformance_test.py -P hw:1,0
+20 passed, 0 failed
+Device Information
+        Name: hw:1,0
+        Card: Wired [Zone Wired]
+        Device: USB Audio [USB Audio]
+        Stream: PLAYBACK
+        Format: ['S16_LE', 'S24_3LE']
+        Channels: [2]
+        Rate: [44100, 48000, 96000]
+        Period_size range: [45, 131072]
+        Buffer_size range: [90, 262144]
+        Mixer:
+                Mixer name: PCM
+                Mixer index: 0
+                Mixer has_volume: 1
+                Mixer db_range: [-6562, 0]
+                Mixer volume_range: [0, 175]
+Test card name
+        Test card name is not in the block list: pass
+Test Params
+        Set channels 2: pass
+        Set format S16_LE: pass
+        Set format S24_3LE: pass
+        Set rate 44100: pass
+        Set rate 48000: pass
+        Set rate 96000: pass
+Test Rates
+        Set rate 44100: pass
+        Set rate 48000: pass
+        Set rate 96000: pass
+Test All Pairs
+        Set channels 2, format S16_LE, rate 44100: pass
+        Set channels 2, format S16_LE, rate 48000: pass
+        Set channels 2, format S16_LE, rate 96000: pass
+        Set channels 2, format S24_3LE, rate 44100: pass
+        Set channels 2, format S24_3LE, rate 48000: pass
+        Set channels 2, format S24_3LE, rate 96000: pass
+Test USB mixer
+        Test usb mixer number correctness: pass
+        Test usb mixer has_volume correctness: pass
+        Test usb mixer playback db range correctness: pass
+        Test usb mixer playback volume range correctness: pass
+
+```
 ## Bugs we found
 + Unsupported channel number on Octopus. ([Issue](http://b/122867610), [Fix](http://crrev.com/c/1440921))
 + Incorrect sample rate and params on Octopus. ([Issue](http://b/119390555), [Fix](http://crrev.com/c/1391434))
