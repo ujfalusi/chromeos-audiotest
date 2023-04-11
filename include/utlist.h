@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2007-2011, Troy D. Hanson   http://uthash.sourceforge.net
+Copyright 2007-2011, Troy D. Hanson   http://uthash.sourceforge.net
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
