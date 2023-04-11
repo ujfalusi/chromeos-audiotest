@@ -37,7 +37,7 @@ int SampleFormatToFrameBytes(SampleFormat format, int channels);
  * indicating there is data to read. Otherwise LockCellToRead() will block until
  * write_index_ is increased and UnlockCellToWrite() is called.
  */
-template<typename T>
+template <typename T>
 class CircularBuffer {
  public:
   CircularBuffer(int count, int size)
@@ -63,8 +63,9 @@ class CircularBuffer {
   /* Lock mutex, return cell pointer
    * MUST call UnlockCellToWrite(); after work is done.
    */
-  T *LockCellToWrite(int *index = NULL) {
-    if (index) *index = write_index_;
+  T* LockCellToWrite(int* index = NULL) {
+    if (index)
+      *index = write_index_;
     pthread_mutex_lock(&mutexes_[write_index_]);
     return cell_[write_index_];
   }
@@ -80,8 +81,9 @@ class CircularBuffer {
   /* Lock mutex and return cell pointer.
    * MUST call UnlockCellToRead(); after work is done.
    */
-  T *LockCellToRead(int *index = NULL) {
-    if (index) *index = read_index_;
+  T* LockCellToRead(int* index = NULL) {
+    if (index)
+      *index = read_index_;
     pthread_mutex_lock(&mutexes_[read_index_]);
     while (read_index_ == write_index_) {
       pthread_cond_wait(&has_data_[read_index_], &mutexes_[read_index_]);
@@ -96,7 +98,7 @@ class CircularBuffer {
     pthread_mutex_unlock(&mutexes_[last]);
   }
 
-  void Print(FILE *fp) {
+  void Print(FILE* fp) {
     fprintf(fp, "    buffer_count_ = %d\n", buffer_count_);
     fprintf(fp, "    buffer_size_ = %d\n", buffer_size_);
     fprintf(fp, "    write_index_ = %d\n", write_index_);
@@ -109,13 +111,13 @@ class CircularBuffer {
   int buffer_count_;
   int buffer_size_;
   int write_index_, read_index_;
-  std::vector<T *> cell_;
+  std::vector<T*> cell_;
   std::vector<T> data_;
   std::vector<pthread_mutex_t> mutexes_;
   std::vector<pthread_cond_t> has_data_;
 };
 
-inline size_t NumFrames(const CircularBuffer<char> &buffers,
+inline size_t NumFrames(const CircularBuffer<char>& buffers,
                         SampleFormat format,
                         int num_channels) {
   return buffers.Size() / SampleFormatToFrameBytes(format, num_channels);
@@ -134,8 +136,8 @@ class AlsaPlaybackClient {
   class PlaybackParam {
     friend class AlsaPlaybackClient;
     PlaybackParam() : chunk_(nullptr), num_frames_(0), frame_bytes_(0) {}
-    int Init(_snd_pcm *handle, SampleFormat format, int num_channels);
-    void Print(FILE *fp);
+    int Init(_snd_pcm* handle, SampleFormat format, int num_channels);
+    void Print(FILE* fp);
 
     std::unique_ptr<char[]> chunk_;
     size_t num_frames_;
@@ -143,20 +145,20 @@ class AlsaPlaybackClient {
   };
 
   AlsaPlaybackClient();
-  explicit AlsaPlaybackClient(const std::string &playback_device);
+  explicit AlsaPlaybackClient(const std::string& playback_device);
   virtual ~AlsaPlaybackClient();
 
-  virtual void Print(FILE *fp);
-  void SetPlayObj(ToneGenerator *gen) { generator_ = gen; }
-  ToneGenerator *PlayObj() { return generator_; }
+  virtual void Print(FILE* fp);
+  void SetPlayObj(ToneGenerator* gen) { generator_ = gen; }
+  ToneGenerator* PlayObj() { return generator_; }
 
   virtual bool Init(int sample_rate,
                     SampleFormat format,
                     int num_channels,
-                    std::set<int> *act_chs,
+                    std::set<int>* act_chs,
                     int period_size = 0);
   virtual void PlayTones();
-  virtual void Play(std::shared_ptr<CircularBuffer<char> > buffers);
+  virtual void Play(std::shared_ptr<CircularBuffer<char>> buffers);
 
   // Trivial accessors/mutators.
   virtual void set_state(State state) { state_ = state; }
@@ -165,18 +167,18 @@ class AlsaPlaybackClient {
   virtual int SampRate() const { return sample_rate_; }
   virtual int NumChannel() const { return num_channels_; }
   virtual SampleFormat Format() const { return format_; }
-  virtual std::set<int> *ActiveChannels() const { return active_channels_; }
+  virtual std::set<int>* ActiveChannels() const { return active_channels_; }
 
  private:
   static const unsigned kDefaultLatencyMs = 50;
 
-  _snd_pcm *pcm_out_handle_;
+  _snd_pcm* pcm_out_handle_;
   int sample_rate_;
   int num_channels_;
   SampleFormat format_;
   unsigned int latency_ms_;
   PlaybackParam pb_param_;
-  std::set<int> *active_channels_;
+  std::set<int>* active_channels_;
 
   // Our abstracted version of the connection state.
   State state_;
@@ -188,9 +190,8 @@ class AlsaPlaybackClient {
   std::string playback_device_;
 
   // snd_pcm_set_params() argument when PlayThreadEntry() calls PlayTones()
-  ToneGenerator *generator_;
+  ToneGenerator* generator_;
 };
-
 
 class AlsaCaptureClient {
  public:
@@ -203,32 +204,35 @@ class AlsaCaptureClient {
   };
 
   AlsaCaptureClient();
-  explicit AlsaCaptureClient(const std::string &capture_device);
+  explicit AlsaCaptureClient(const std::string& capture_device);
   virtual ~AlsaCaptureClient();
 
-  virtual bool Init(int sample_rate, SampleFormat format, int num_channels,
-                    int buffer_count, int period_size = 0);
-  virtual void Print(FILE *fp);
+  virtual bool Init(int sample_rate,
+                    SampleFormat format,
+                    int num_channels,
+                    int buffer_count,
+                    int period_size = 0);
+  virtual void Print(FILE* fp);
 
   virtual int Capture();
 
   // Trivial accessors/mutators.
-  virtual snd_pcm_hw_params_t *get_hw_params() const { return hwparams_; }
+  virtual snd_pcm_hw_params_t* get_hw_params() const { return hwparams_; }
   virtual void set_state(State state) { state_ = state; }
   virtual State state() const { return state_; }
   virtual int last_error() const { return last_error_; }
   virtual int SampRate() const { return sample_rate_; }
   virtual int NumChannel() const { return num_channels_; }
   virtual SampleFormat Format() const { return format_; }
-  virtual std::shared_ptr<CircularBuffer<char> > Buffer() const {
+  virtual std::shared_ptr<CircularBuffer<char>> Buffer() const {
     return circular_buffer_;
   }
 
  private:
   static const unsigned kDefaultLatencyMs = 50;
 
-  _snd_pcm *pcm_capture_handle_;
-  snd_pcm_hw_params_t *hwparams_;
+  _snd_pcm* pcm_capture_handle_;
+  snd_pcm_hw_params_t* hwparams_;
   unsigned int sample_rate_;
   int num_channels_;
   SampleFormat format_;
@@ -244,7 +248,7 @@ class AlsaCaptureClient {
   std::string capture_device_;
 
   // Circular buffer to write captured data
-  std::shared_ptr<CircularBuffer<char> > circular_buffer_;
+  std::shared_ptr<CircularBuffer<char>> circular_buffer_;
 };
 
 #endif  // INCLUDE_ALSA_CLIENT_H_

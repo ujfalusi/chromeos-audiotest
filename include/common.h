@@ -27,8 +27,7 @@ struct TestConfig {
         sample_rate(44100),
         start_volume(1.0f),
         end_volume(1.0f),
-        channels(2) {
-  }
+        channels(2) {}
 
   TestType type;
   std::string alsa_device;
@@ -93,6 +92,6 @@ struct AudioFunTestConfig {
 
 // Parse the active channel list. The input should be a comma separated list of
 // integer. The output would be a set of integers.
-void ParseActiveChannels(const char *arg, std::set<int> *output);
+void ParseActiveChannels(const char* arg, std::set<int>* output);
 
 #endif  // INCLUDE_COMMON_H_

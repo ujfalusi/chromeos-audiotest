@@ -7,10 +7,10 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/prctl.h>
 
 #include <memory>
 
@@ -23,16 +23,17 @@ namespace {
 //   stdout_fd: the fd to be set as child's stdout. Ignored if <= 0.
 // Returns:
 //   The child's pid.
-int StartProcess(const std::string &cmd, int stdin_fd, int stdout_fd) {
+int StartProcess(const std::string& cmd, int stdin_fd, int stdout_fd) {
   // Parse command into execvp accepted format.
-  std::vector<char *> args;
-  char *token;
+  std::vector<char*> args;
+  char* token;
   std::unique_ptr<char[]> buf(new char[cmd.size() + 1]);
   strncpy(buf.get(), cmd.c_str(), cmd.size() + 1);
-  for (char *ptr = buf.get(), *saveptr; ; ptr = NULL) {
+  for (char *ptr = buf.get(), *saveptr;; ptr = NULL) {
     token = strtok_r(ptr, " ", &saveptr);
     args.push_back(token);
-    if (token == NULL) break;
+    if (token == NULL)
+      break;
   }
 
   // fork process;
@@ -49,7 +50,7 @@ int StartProcess(const std::string &cmd, int stdin_fd, int stdout_fd) {
     if (stdout_fd > 0) {
       dup2(stdout_fd, STDOUT_FILENO);
     }
-    int res = execvp(args[0], (char * const *) &args[0]);
+    int res = execvp(args[0], (char* const*)&args[0]);
     if (res < 0) {
       perror("Failed to exec client");
       kill(getppid(), SIGKILL);
@@ -79,12 +80,13 @@ const bool FIFO_OUT = false;
 // `other_side_fd` would be set to -1.
 //
 // Returns the fd of the channel.
-int CreateFIFO(bool direction, const std::string &fifo_name,
-               int *other_side_fd) {
+int CreateFIFO(bool direction,
+               const std::string& fifo_name,
+               int* other_side_fd) {
   int fd = -1;
   *other_side_fd = -1;
   if (!fifo_name.empty()) {  // Create named pipe.
-    const char *name = fifo_name.c_str();
+    const char* name = fifo_name.c_str();
     mkfifo(name, 0600);
     fd = open(name, direction == FIFO_IN ? O_RDONLY : O_WRONLY);
     if (fd < 0) {
@@ -111,12 +113,13 @@ int CreateFIFO(bool direction, const std::string &fifo_name,
 
 }  // namespace
 
-PlayClient::PlayClient(const AudioFunTestConfig &config)
-    : command_(config.player_command), fifo_name_(config.player_fifo),
+PlayClient::PlayClient(const AudioFunTestConfig& config)
+    : command_(config.player_command),
+      fifo_name_(config.player_fifo),
       played_file_fp_(nullptr) {
-  const std::string &path = config.played_file_path;
+  const std::string& path = config.played_file_path;
   if (!path.empty()) {
-    FILE *fp = fopen(path.c_str(), "wb");
+    FILE* fp = fopen(path.c_str(), "wb");
     if (fp == nullptr) {
       fprintf(stderr, "Open file %s fail: %s\n", path.c_str(), strerror(errno));
       exit(EXIT_FAILURE);
@@ -142,16 +145,16 @@ void PlayClient::Terminate() {
   }
 }
 
-void PlayClient::Play(const void *buffer, size_t size, bool *is_stopped) {
+void PlayClient::Play(const void* buffer, size_t size, bool* is_stopped) {
   int res;
   int byte_to_write = size;
-  const uint8_t *ptr = static_cast<const uint8_t *>(buffer);
+  const uint8_t* ptr = static_cast<const uint8_t*>(buffer);
   // Let's just ignore the error code of fwrite for now.
   if (played_file_fp_ != nullptr)
     fwrite(ptr, sizeof(uint8_t), size, played_file_fp_);
   // Keep writing to pipe until error or finishing.
   while (!*is_stopped &&
-          (res = write(play_fd_, ptr, byte_to_write)) < byte_to_write) {
+         (res = write(play_fd_, ptr, byte_to_write)) < byte_to_write) {
     if (res < 0) {
       if (errno == EAGAIN)
         continue;
@@ -163,12 +166,13 @@ void PlayClient::Play(const void *buffer, size_t size, bool *is_stopped) {
   }
 }
 
-RecordClient::RecordClient(const AudioFunTestConfig &config)
-    : command_(config.recorder_command), fifo_name_(config.recorder_fifo),
+RecordClient::RecordClient(const AudioFunTestConfig& config)
+    : command_(config.recorder_command),
+      fifo_name_(config.recorder_fifo),
       recorded_file_fp_(nullptr) {
-  const std::string &path = config.recorded_file_path;
+  const std::string& path = config.recorded_file_path;
   if (!path.empty()) {
-    FILE *fp = fopen(path.c_str(), "wb");
+    FILE* fp = fopen(path.c_str(), "wb");
     if (fp == nullptr) {
       fprintf(stderr, "Open file %s fail: %s\n", path.c_str(), strerror(errno));
       exit(EXIT_FAILURE);
@@ -183,12 +187,12 @@ void RecordClient::Start() {
   child_pid_ = StartProcess(command_, -1, other_side_fd);
 }
 
-void RecordClient::Record(void *buffer, size_t size) {
+void RecordClient::Record(void* buffer, size_t size) {
   int res;
   int byte_to_read = size;
 
-  uint8_t *ptr = static_cast<uint8_t *>(buffer);
-  const uint8_t *start_ptr = ptr;
+  uint8_t* ptr = static_cast<uint8_t*>(buffer);
+  const uint8_t* start_ptr = ptr;
 
   while ((res = read(record_fd_, ptr, byte_to_read)) < byte_to_read) {
     if (res <= 0) {

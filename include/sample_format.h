@@ -23,9 +23,9 @@ class SampleFormat {
   explicit SampleFormat(Type type);
   void set_type(Type type);
   Type type() const;
-  const char *to_string() const;
+  const char* to_string() const;
   size_t bytes() const;
-  inline bool operator==(const SampleFormat &format) const;
+  inline bool operator==(const SampleFormat& format) const;
 
  private:
   Type type_;
@@ -33,9 +33,9 @@ class SampleFormat {
 
 // Writes sample into the buffer with the specific format.
 // Returns the next position after writing.
-void *WriteSample(double sample, SampleFormat format, void *buf);
+void* WriteSample(double sample, SampleFormat format, void* buf);
 
-void *ReadSample(SampleFormat format, void *data, double *sample);
+void* ReadSample(SampleFormat format, void* data, double* sample);
 
 // Unpack the data read from recorder.
 // The input data is a byte array with interlaced data (usually the raw data
@@ -46,9 +46,10 @@ void *ReadSample(SampleFormat format, void *data, double *sample);
 // 2. Normalize each sample into -1.0 ~ 1.0.
 //
 // Returns number of frames processed.
-int Unpack(void *data, size_t data_size,
-           SampleFormat format, int num_channels,
-           std::vector<std::vector<double> > *output);
-
+int Unpack(void* data,
+           size_t data_size,
+           SampleFormat format,
+           int num_channels,
+           std::vector<std::vector<double>>* output);
 
 #endif  // INCLUDE_SAMPLE_FORMAT_H_

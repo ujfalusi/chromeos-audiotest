@@ -6,8 +6,8 @@
 
 #include "include/libaudiodev.h"
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <alsa/asoundlib.h>
 
@@ -21,14 +21,14 @@ static size_t bits_per_sample;
 static size_t bits_per_frame;
 unsigned int chunk_size;
 
-void free_device_list(audio_device_info_list_t *list) {
+void free_device_list(audio_device_info_list_t* list) {
   int i;
 
-  for (i=0; i < list->count; i++) {
-    free((void *)list->devs[i].dev_id);
-    free((void *)list->devs[i].dev_name);
-    free((void *)list->devs[i].pcm_id);
-    free((void *)list->devs[i].pcm_name);
+  for (i = 0; i < list->count; i++) {
+    free((void*)list->devs[i].dev_id);
+    free((void*)list->devs[i].dev_name);
+    free((void*)list->devs[i].pcm_id);
+    free((void*)list->devs[i].pcm_name);
   }
 
   free(list->devs);
@@ -41,8 +41,8 @@ int get_device_count(snd_pcm_stream_t direction) {
   int ret;
   int dev;
   char hwname[MAX_HWNAME_SIZE];
-  snd_ctl_t *handle;
-  snd_ctl_card_info_t *info;
+  snd_ctl_t* handle;
+  snd_ctl_card_info_t* info;
 
   snd_ctl_card_info_malloc(&info);
 
@@ -62,8 +62,8 @@ int get_device_count(snd_pcm_stream_t direction) {
 
     ret = snd_ctl_card_info(handle, info);
     if (ret < 0) {
-      fprintf(stderr, "Could not get info for card %d: %s",
-              cid, snd_strerror(ret));
+      fprintf(stderr, "Could not get info for card %d: %s", cid,
+              snd_strerror(ret));
       snd_ctl_close(handle);
       continue;
     }
@@ -73,7 +73,7 @@ int get_device_count(snd_pcm_stream_t direction) {
     if (ret >= 0 && dev == -1) {
       fprintf(stderr, "Warning: No devices found on card %d\n", cid);
     }
-    for (;dev != -1 && ret >= 0; ret = snd_ctl_pcm_next_device(handle, &dev)) {
+    for (; dev != -1 && ret >= 0; ret = snd_ctl_pcm_next_device(handle, &dev)) {
       count++;
     }
     if (ret == -1) {
@@ -93,21 +93,21 @@ int get_device_count(snd_pcm_stream_t direction) {
 /*
  * Refresh the list of playback or capture devices as specified by direction.
  */
-audio_device_info_list_t *get_device_list(snd_pcm_stream_t direction) {
+audio_device_info_list_t* get_device_list(snd_pcm_stream_t direction) {
   int i = 0;
   int cid = -1;
   int ret;
   int dev;
   char hwname[MAX_HWNAME_SIZE];
-  snd_ctl_t *handle;
-  snd_ctl_card_info_t *info;
-  snd_pcm_info_t *pcminfo;
-  audio_device_info_list_t *list = (audio_device_info_list_t *)malloc(
-      sizeof(audio_device_info_list_t));
+  snd_ctl_t* handle;
+  snd_ctl_card_info_t* info;
+  snd_pcm_info_t* pcminfo;
+  audio_device_info_list_t* list =
+      (audio_device_info_list_t*)malloc(sizeof(audio_device_info_list_t));
 
   list->count = get_device_count(direction);
-  list->devs = (audio_device_info_t *)malloc(
-      list->count * sizeof(audio_device_info_t));
+  list->devs =
+      (audio_device_info_t*)malloc(list->count * sizeof(audio_device_info_t));
 
   snd_ctl_card_info_malloc(&info);
   snd_pcm_info_malloc(&pcminfo);
@@ -127,8 +127,8 @@ audio_device_info_list_t *get_device_list(snd_pcm_stream_t direction) {
 
     ret = snd_ctl_card_info(handle, info);
     if (ret < 0) {
-      fprintf(stderr, "Could not get info for card %d: %s",
-              cid, snd_strerror(ret));
+      fprintf(stderr, "Could not get info for card %d: %s", cid,
+              snd_strerror(ret));
       snd_ctl_close(handle);
       continue;
     }
@@ -138,14 +138,14 @@ audio_device_info_list_t *get_device_list(snd_pcm_stream_t direction) {
     if (ret >= 0 && dev == -1) {
       fprintf(stderr, "Warning: No devices found on card %d\n", cid);
     }
-    for (;dev != -1 && ret >= 0; ret = snd_ctl_pcm_next_device(handle, &dev)) {
+    for (; dev != -1 && ret >= 0; ret = snd_ctl_pcm_next_device(handle, &dev)) {
       snd_pcm_info_set_device(pcminfo, dev);
       snd_pcm_info_set_subdevice(pcminfo, 0);
       snd_pcm_info_set_stream(pcminfo, direction);
       ret = snd_ctl_pcm_info(handle, pcminfo);
       if (ret < 0) {
-        fprintf(stderr, "error getting device info [%d, %d]: %s\n",
-                cid, dev, snd_strerror(ret));
+        fprintf(stderr, "error getting device info [%d, %d]: %s\n", cid, dev,
+                snd_strerror(ret));
         continue;
       }
 
@@ -182,7 +182,7 @@ audio_device_info_list_t *get_device_list(snd_pcm_stream_t direction) {
   return list;
 }
 
-void close_sound_handle(audio_device_t *device) {
+void close_sound_handle(audio_device_t* device) {
   if (!device || !device->handle)
     return;
 
@@ -195,9 +195,10 @@ void close_sound_handle(audio_device_t *device) {
  * Helper to create_sound_handle. Used to set hardware parameters like
  * sample rate, channels, interleaving, etc.
  */
-static int set_hw_params(audio_device_t *device, int buffer_size,
-                         snd_output_t *log) {
-  snd_pcm_hw_params_t *hwparams;
+static int set_hw_params(audio_device_t* device,
+                         int buffer_size,
+                         snd_output_t* log) {
+  snd_pcm_hw_params_t* hwparams;
   unsigned int rate_set;
 
   snd_pcm_hw_params_malloc(&hwparams);
@@ -226,8 +227,8 @@ static int set_hw_params(audio_device_t *device, int buffer_size,
 
   /* Try to set rate. Check to see if rate is actually what we requested. */
   rate_set = SAMPLE_RATE;
-  if (snd_pcm_hw_params_set_rate_near(device->handle,
-                                      hwparams, &rate_set, 0) < 0) {
+  if (snd_pcm_hw_params_set_rate_near(device->handle, hwparams, &rate_set, 0) <
+      0) {
     fprintf(stderr, "Could not set bitrate near %u for PCM device %s\n",
             SAMPLE_RATE, device->hwdevname);
     return 5;
@@ -238,9 +239,7 @@ static int set_hw_params(audio_device_t *device, int buffer_size,
             rate_set, SAMPLE_RATE);
 
   snd_pcm_hw_params_set_periods(device->handle, hwparams, 2, 0);
-  snd_pcm_hw_params_set_period_size(device->handle,
-                                    hwparams,
-                                    buffer_size / 2,
+  snd_pcm_hw_params_set_period_size(device->handle, hwparams, buffer_size / 2,
                                     0);
 
   if (snd_pcm_hw_params(device->handle, hwparams) < 0) {
@@ -256,14 +255,14 @@ static int set_hw_params(audio_device_t *device, int buffer_size,
  * Helper to create_sound_handle. Set software parameters. There are
  * very few that are not deprecated.
  */
-static int set_sw_params(audio_device_t *device, int buffer_size,
-                         snd_output_t *log) {
-  snd_pcm_sw_params_t *swparams;
+static int set_sw_params(audio_device_t* device,
+                         int buffer_size,
+                         snd_output_t* log) {
+  snd_pcm_sw_params_t* swparams;
   snd_pcm_sw_params_malloc(&swparams);
   snd_pcm_sw_params_current(device->handle, swparams);
 
-  snd_pcm_sw_params_set_avail_min(device->handle, swparams,
-                                  buffer_size / 2);
+  snd_pcm_sw_params_set_avail_min(device->handle, swparams, buffer_size / 2);
   snd_pcm_sw_params_set_start_threshold(device->handle, swparams,
                                         buffer_size / 8);
 
@@ -279,20 +278,20 @@ static int set_sw_params(audio_device_t *device, int buffer_size,
 /*
  * Try to open a sound handle and set all required parameters.
  */
-int create_sound_handle(audio_device_t *device, int buffer_size) {
+int create_sound_handle(audio_device_t* device, int buffer_size) {
   int ret;
-  static snd_output_t *log;
+  static snd_output_t* log;
 
   if (!device || device->handle)
     return 1;
 
   snd_output_stdio_attach(&log, stderr, 0);
 
-  ret = snd_pcm_open(&device->handle, device->hwdevname,
-                     device->direction, NON_BLOCKING);
+  ret = snd_pcm_open(&device->handle, device->hwdevname, device->direction,
+                     NON_BLOCKING);
   if (ret < 0) {
-    fprintf(stderr, "Could not open sound device %s: %s\n",
-            device->hwdevname, snd_strerror(ret));
+    fprintf(stderr, "Could not open sound device %s: %s\n", device->hwdevname,
+            snd_strerror(ret));
     snd_output_close(log);
     return 2;
   }
@@ -322,7 +321,7 @@ int create_sound_handle(audio_device_t *device, int buffer_size) {
   return 0;
 }
 
-ssize_t pcm_io(audio_device_t *device, unsigned char *data, size_t count) {
+ssize_t pcm_io(audio_device_t* device, unsigned char* data, size_t count) {
   ssize_t completed;
   ssize_t result = 0;
   int res;
@@ -349,7 +348,7 @@ ssize_t pcm_io(audio_device_t *device, unsigned char *data, size_t count) {
     } else if (completed < 0) {
       fprintf(stderr, "I/O error in %s: %s, %lu\n",
               snd_pcm_stream_name(device->direction), snd_strerror(completed),
-          (long unsigned int)completed);
+              (long unsigned int)completed);
     } else {
       result += completed;
       count -= completed;

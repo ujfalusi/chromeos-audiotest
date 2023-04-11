@@ -8,11 +8,11 @@
 
 #include <memory>
 
-void ParseActiveChannels(const char *arg, std::set<int> *output) {
+void ParseActiveChannels(const char* arg, std::set<int>* output) {
   std::unique_ptr<char[]> buf(new char[strlen(arg) + 1]);
   strncpy(buf.get(), arg, strlen(arg) + 1);
-  char *token;
-  for (char *ptr = buf.get(), *saveptr; ; ptr = NULL) {
+  char* token;
+  for (char *ptr = buf.get(), *saveptr;; ptr = NULL) {
     token = strtok_r(ptr, ",", &saveptr);
     if (!token)
       break;

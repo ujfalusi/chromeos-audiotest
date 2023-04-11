@@ -20,19 +20,14 @@
 #include "include/tone_generators.h"
 
 static struct option long_options[] = {
-  {"test-type", 1, NULL, 't'},
-  {"alsa-device", 1, NULL, 'd'},
-  {"tone-length", 1, NULL, 'l'},
-  {"frequency", 1, NULL, 'h'},
-  {"format", 1, NULL, 'f'},
-  {"sample-rate", 1, NULL, 'r'},
-  {"start-volume", 1, NULL, 's'},
-  {"end-volume", 1, NULL, 'e'},
-  {"channels", 1, NULL, 'c'},
-  {"active-channels", 1, NULL, 'a'},
+    {"test-type", 1, NULL, 't'},    {"alsa-device", 1, NULL, 'd'},
+    {"tone-length", 1, NULL, 'l'},  {"frequency", 1, NULL, 'h'},
+    {"format", 1, NULL, 'f'},       {"sample-rate", 1, NULL, 'r'},
+    {"start-volume", 1, NULL, 's'}, {"end-volume", 1, NULL, 'e'},
+    {"channels", 1, NULL, 'c'},     {"active-channels", 1, NULL, 'a'},
 };
 
-TestConfig::TestType ParseTestType(const char *option) {
+TestConfig::TestType ParseTestType(const char* option) {
   if (strcmp(option, "scale") == 0) {
     return TestConfig::kASharpMinorScale;
   } else if (strcmp(option, "tone") == 0) {
@@ -41,7 +36,7 @@ TestConfig::TestType ParseTestType(const char *option) {
   return TestConfig::kInvalid;
 }
 
-SampleFormat ParseFormat(const char *arg) {
+SampleFormat ParseFormat(const char* arg) {
   if (strcmp(arg, "u8") == 0) {
     return SampleFormat(SampleFormat::kPcmU8);
   } else if (strcmp(arg, "s16") == 0) {
@@ -55,11 +50,10 @@ SampleFormat ParseFormat(const char *arg) {
   }
 }
 
-bool ParseOptions(int argc, char *argv[], TestConfig *config) {
+bool ParseOptions(int argc, char* argv[], TestConfig* config) {
   int opt = 0;
   int optindex = -1;
-  while ((opt = getopt_long(argc, argv, "t:d:l:f:h:r:s:e:c:a:",
-                            long_options,
+  while ((opt = getopt_long(argc, argv, "t:d:l:f:h:r:s:e:c:a:", long_options,
                             &optindex)) != -1) {
     switch (opt) {
       case 't':
@@ -128,14 +122,15 @@ bool ParseOptions(int argc, char *argv[], TestConfig *config) {
   return true;
 }
 
-void PrintUsage(FILE *out, const char *name) {
+void PrintUsage(FILE* out, const char* name) {
   TestConfig default_config;
 
   fprintf(out, "Usage: %s [options]\n", name);
   fprintf(out, "\t-t, --test-type: \"scale\" or \"tone\"\n");
-  fprintf(out, "\t-d, --alsa-device: "
-               "Name of alsa device to use (def %s).\n",
-               default_config.alsa_device.c_str());
+  fprintf(out,
+          "\t-d, --alsa-device: "
+          "Name of alsa device to use (def %s).\n",
+          default_config.alsa_device.c_str());
   fprintf(out,
           "\t-l, --tone-length: "
           "Decimal value of tone length in secs (def %0.2lf).\n",
@@ -167,12 +162,13 @@ void PrintUsage(FILE *out, const char *name) {
   fprintf(out,
           "\t-a, --active-channels: "
           "Comma-separated list of channels to play on. (def all channels)\n");
-  fprintf(out, "\nThe volume of the sample will be a linear ramp over the "
+  fprintf(out,
+          "\nThe volume of the sample will be a linear ramp over the "
           "duration of playback. The tone length, in scale mode, is the "
           "length of each individual tone in the scale.\n\n");
 }
 
-void PrintConfig(FILE *out, const TestConfig &config) {
+void PrintConfig(FILE* out, const TestConfig& config) {
   fprintf(out, "Config Values:\n");
   if (config.type == TestConfig::kASharpMinorScale) {
     fprintf(out, "\tType: A#Minor Scale\n");
@@ -191,14 +187,13 @@ void PrintConfig(FILE *out, const TestConfig &config) {
 
   fprintf(out, "\tActive Channels: ");
   for (std::set<int>::const_iterator it = config.active_channels.begin();
-       it != config.active_channels.end();
-       ++it) {
+       it != config.active_channels.end(); ++it) {
     fprintf(out, "%d ", *it);
   }
   fprintf(out, "\n");
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   TestConfig config;
 
   if (!ParseOptions(argc, argv, &config)) {
@@ -210,12 +205,9 @@ int main(int argc, char *argv[]) {
   PrintConfig(stdout, config);
 
   AlsaPlaybackClient client(config.alsa_device);
-  if (!client.Init(config.sample_rate,
-                   config.format,
-                   config.channels,
+  if (!client.Init(config.sample_rate, config.format, config.channels,
                    &config.active_channels)) {
-    fprintf(stderr, "Unable to initialize Alsa: %d\n",
-            client.last_error());
+    fprintf(stderr, "Unable to initialize Alsa: %d\n", client.last_error());
     return 1;
   }
 
@@ -227,7 +219,7 @@ int main(int argc, char *argv[]) {
     client.PlayTones();
   } else {
     MultiToneGenerator tone_generator(config.sample_rate,
-                                       config.tone_length_sec);
+                                      config.tone_length_sec);
     tone_generator.SetVolumes(config.start_volume, config.end_volume);
     tone_generator.Reset(config.frequency);
     client.SetPlayObj(&tone_generator);

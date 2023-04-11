@@ -71,6 +71,6 @@ void dev_thread_set_merge_threshold_t(struct dev_thread *thread,
 
 /* Set merge threshold_size. */
 void dev_thread_set_merge_threshold_size(struct dev_thread *thread,
-				         snd_pcm_sframes_t merge_threshold_sz);
+					 snd_pcm_sframes_t merge_threshold_sz);
 
 #endif /* INCLUDE_ALSA_CONFORMANCE_THREAD_H_ */

@@ -49,7 +49,7 @@ int SampleFormatToFrameBytes(SampleFormat format, int channels) {
   }
 }
 
-template<typename T>
+template <typename T>
 double SampleToMagnitude(T sample) {
   double val = static_cast<double>(sample) / std::numeric_limits<T>::max();
   if (std::numeric_limits<T>::min() == 0) {
@@ -58,23 +58,23 @@ double SampleToMagnitude(T sample) {
   return val;
 }
 
-int AlsaPlaybackClient::PlaybackParam::Init(_snd_pcm *handle,
+int AlsaPlaybackClient::PlaybackParam::Init(_snd_pcm* handle,
                                             SampleFormat format,
                                             int num_channels) {
   int last_error;
   snd_pcm_uframes_t buffer_size = 0;
   snd_pcm_uframes_t period_size = 0;
-  if ((last_error = snd_pcm_get_params(handle, &buffer_size,
-                                       &period_size)) < 0) {
+  if ((last_error = snd_pcm_get_params(handle, &buffer_size, &period_size)) <
+      0) {
     return last_error;
   }
-  num_frames_  = static_cast<size_t>(period_size);
+  num_frames_ = static_cast<size_t>(period_size);
   frame_bytes_ = SampleFormatToFrameBytes(format, num_channels);
   chunk_.reset(new char[num_frames_ * frame_bytes_]);
   return 0;
 }
 
-void AlsaPlaybackClient::PlaybackParam::Print(FILE *fp) {
+void AlsaPlaybackClient::PlaybackParam::Print(FILE* fp) {
   fprintf(fp, "    num_frames_  = %d\n", static_cast<int>(num_frames_));
   fprintf(fp, "    frame_bytes_ = %d\n", frame_bytes_);
 }
@@ -89,7 +89,7 @@ AlsaPlaybackClient::AlsaPlaybackClient()
       last_error_(0),
       playback_device_("default") {}
 
-AlsaPlaybackClient::AlsaPlaybackClient(const std::string &playback_device)
+AlsaPlaybackClient::AlsaPlaybackClient(const std::string& playback_device)
     : pcm_out_handle_(NULL),
       sample_rate_(64000),
       num_channels_(2),
@@ -104,8 +104,10 @@ AlsaPlaybackClient::~AlsaPlaybackClient() {
     snd_pcm_close(pcm_out_handle_);
 }
 
-bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
-                              int num_channels, std::set<int> *active_channels,
+bool AlsaPlaybackClient::Init(int sample_rate,
+                              SampleFormat format,
+                              int num_channels,
+                              std::set<int>* active_channels,
                               int period_size) {
   sample_rate_ = sample_rate;
   format_ = format;
@@ -115,10 +117,8 @@ bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
   /* Open pcm handle */
   if (pcm_out_handle_)
     snd_pcm_close(pcm_out_handle_);
-  if ((last_error_ = snd_pcm_open(&pcm_out_handle_,
-                                  playback_device_.c_str(),
-                                  SND_PCM_STREAM_PLAYBACK,
-                                  0)) < 0) {
+  if ((last_error_ = snd_pcm_open(&pcm_out_handle_, playback_device_.c_str(),
+                                  SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
     pcm_out_handle_ = NULL;
     return false;
   }
@@ -129,49 +129,45 @@ bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
   }
 
   /* Set format, access, num_channels, sample rate */
-  char const *hwdevname = playback_device_.c_str();
+  char const* hwdevname = playback_device_.c_str();
   unsigned int rate_set;
   int soft_resample = 1;
-  snd_pcm_hw_params_t *hwparams_;
+  snd_pcm_hw_params_t* hwparams_;
 
   snd_pcm_hw_params_malloc(&hwparams_);
 
   if ((last_error_ = snd_pcm_hw_params_any(pcm_out_handle_, hwparams_)) < 0) {
-    fprintf(stderr, "No config available for PCM device %s\n",
-            hwdevname);
+    fprintf(stderr, "No config available for PCM device %s\n", hwdevname);
     goto set_hw_err;
   }
 
-  if ((last_error_ = snd_pcm_hw_params_set_rate_resample(pcm_out_handle_,
-       hwparams_, soft_resample)) < 0) {
-    fprintf(stderr, "Resampling not available on PCM device %s\n",
-            hwdevname);
+  if ((last_error_ = snd_pcm_hw_params_set_rate_resample(
+           pcm_out_handle_, hwparams_, soft_resample)) < 0) {
+    fprintf(stderr, "Resampling not available on PCM device %s\n", hwdevname);
     goto set_hw_err;
   }
 
-  if ((last_error_ = snd_pcm_hw_params_set_access(pcm_out_handle_, hwparams_,
-       SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
-    fprintf(stderr, "Access type not available on PCM device %s\n",
-            hwdevname);
+  if ((last_error_ = snd_pcm_hw_params_set_access(
+           pcm_out_handle_, hwparams_, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+    fprintf(stderr, "Access type not available on PCM device %s\n", hwdevname);
     goto set_hw_err;
   }
 
-  if ((last_error_ = snd_pcm_hw_params_set_format(pcm_out_handle_, hwparams_,
-       SampleFormatToAlsaFormat(format))) < 0) {
+  if ((last_error_ = snd_pcm_hw_params_set_format(
+           pcm_out_handle_, hwparams_, SampleFormatToAlsaFormat(format))) < 0) {
     fprintf(stderr, "Could not set format for device %s\n", hwdevname);
     goto set_hw_err;
   }
 
   if ((last_error_ = snd_pcm_hw_params_set_channels(pcm_out_handle_, hwparams_,
-       num_channels)) < 0) {
-    fprintf(stderr, "Could not set channel count for device %s\n",
-            hwdevname);
+                                                    num_channels)) < 0) {
+    fprintf(stderr, "Could not set channel count for device %s\n", hwdevname);
     goto set_hw_err;
   }
 
   rate_set = static_cast<unsigned int>(sample_rate);
-  if ((last_error_ = snd_pcm_hw_params_set_rate_near(pcm_out_handle_,
-       hwparams_, &rate_set, 0)) < 0) {
+  if ((last_error_ = snd_pcm_hw_params_set_rate_near(pcm_out_handle_, hwparams_,
+                                                     &rate_set, 0)) < 0) {
     fprintf(stderr, "Could not set bitrate near %u for PCM device %s\n",
             sample_rate, hwdevname);
     goto set_hw_err;
@@ -179,24 +175,20 @@ bool AlsaPlaybackClient::Init(int sample_rate, SampleFormat format,
 
   if (rate_set != static_cast<unsigned int>(sample_rate))
     fprintf(stderr, "Warning: Actual rate(%u) != Requested rate(%u)\n",
-            rate_set,
-            sample_rate);
+            rate_set, sample_rate);
 
   snd_pcm_hw_params_set_periods(pcm_out_handle_, hwparams_, 2, 0);
-  snd_pcm_hw_params_set_period_size(pcm_out_handle_,
-                                    hwparams_,
-                                    period_size * num_channels,
-                                    0);
+  snd_pcm_hw_params_set_period_size(pcm_out_handle_, hwparams_,
+                                    period_size * num_channels, 0);
 
   if ((last_error_ = snd_pcm_hw_params(pcm_out_handle_, hwparams_)) < 0) {
     fprintf(stderr, "Unable to install hw params\n");
     goto set_hw_err;
   }
 
-
   /* Init playback parameter (a buffer with num_frame_ and frame_bytes) */
-  if ((last_error_ = pb_param_.Init(pcm_out_handle_, format_,
-                                    num_channels_)) < 0) {
+  if ((last_error_ = pb_param_.Init(pcm_out_handle_, format_, num_channels_)) <
+      0) {
     return false;
   }
   set_state(kReady);
@@ -207,8 +199,7 @@ set_hw_err:
   return last_error_ == 0;
 }
 
-void AlsaPlaybackClient::Play(
-    std::shared_ptr<CircularBuffer<char> > buffers) {
+void AlsaPlaybackClient::Play(std::shared_ptr<CircularBuffer<char>> buffers) {
   if (state() != kReady)
     return;
 
@@ -219,14 +210,14 @@ void AlsaPlaybackClient::Play(
 
   int num_frames = NumFrames(*buffers, format_, num_channels_);
 
-  char *cell_to_read;
+  char* cell_to_read;
 
   do {
     cell_to_read = buffers->LockCellToRead();
 
-    last_error_ = snd_pcm_writei(pcm_out_handle_,
-                                 static_cast<void *>(cell_to_read),
-                                 static_cast<snd_pcm_uframes_t>(num_frames));
+    last_error_ =
+        snd_pcm_writei(pcm_out_handle_, static_cast<void*>(cell_to_read),
+                       static_cast<snd_pcm_uframes_t>(num_frames));
     buffers->UnlockCellToRead();
     if (last_error_ < 0)
       break;
@@ -240,8 +231,7 @@ void AlsaPlaybackClient::Play(
          pb_param_.num_frames_ * pb_param_.frame_bytes_);
   while (silent_chunk_count--) {
     last_error_ = snd_pcm_writei(
-        pcm_out_handle_,
-        static_cast<void *>(pb_param_.chunk_.get()),
+        pcm_out_handle_, static_cast<void*>(pb_param_.chunk_.get()),
         static_cast<snd_pcm_uframes_t>(pb_param_.num_frames_));
   }
   set_state(kComplete);
@@ -268,8 +258,7 @@ void AlsaPlaybackClient::PlayTones() {
       memset(pb_param_.chunk_.get() + written, 0, (to_write - written));
 
     last_error_ = snd_pcm_writei(
-        pcm_out_handle_,
-        static_cast<void *>(pb_param_.chunk_.get()),
+        pcm_out_handle_, static_cast<void*>(pb_param_.chunk_.get()),
         static_cast<snd_pcm_uframes_t>(pb_param_.num_frames_));
     if (last_error_ < 0)
       break;
@@ -283,8 +272,7 @@ void AlsaPlaybackClient::PlayTones() {
          pb_param_.num_frames_ * pb_param_.frame_bytes_);
   while (silent_chunk_count--) {
     last_error_ = snd_pcm_writei(
-        pcm_out_handle_,
-        static_cast<void *>(pb_param_.chunk_.get()),
+        pcm_out_handle_, static_cast<void*>(pb_param_.chunk_.get()),
         static_cast<snd_pcm_uframes_t>(pb_param_.num_frames_));
   }
   set_state(kComplete);
@@ -292,7 +280,7 @@ void AlsaPlaybackClient::PlayTones() {
   fprintf(stderr, "Stop play tone\n");
 }
 
-void AlsaPlaybackClient::Print(FILE *fp) {
+void AlsaPlaybackClient::Print(FILE* fp) {
   fprintf(fp, "AlsaPlaybackClient::Print()\n");
   fprintf(fp, "  sample_rate_  = %d\n", sample_rate_);
   fprintf(fp, "  num_channels_ = %d\n", num_channels_);
@@ -315,7 +303,7 @@ AlsaCaptureClient::AlsaCaptureClient()
       last_error_(0),
       capture_device_("default") {}
 
-AlsaCaptureClient::AlsaCaptureClient(const std::string &capture_device)
+AlsaCaptureClient::AlsaCaptureClient(const std::string& capture_device)
     : pcm_capture_handle_(NULL),
       sample_rate_(64000),
       num_channels_(2),
@@ -332,8 +320,10 @@ AlsaCaptureClient::~AlsaCaptureClient() {
     snd_pcm_hw_params_free(hwparams_);
 }
 
-bool AlsaCaptureClient::Init(int sample_rate, SampleFormat format,
-                             int num_channels, int buffer_count,
+bool AlsaCaptureClient::Init(int sample_rate,
+                             SampleFormat format,
+                             int num_channels,
+                             int buffer_count,
                              int period_size) {
   sample_rate_ = sample_rate;
   format_ = format;
@@ -343,8 +333,7 @@ bool AlsaCaptureClient::Init(int sample_rate, SampleFormat format,
   if (pcm_capture_handle_)
     snd_pcm_close(pcm_capture_handle_);
 
-  last_error_ = snd_pcm_open(&pcm_capture_handle_,
-                             capture_device_.c_str(),
+  last_error_ = snd_pcm_open(&pcm_capture_handle_, capture_device_.c_str(),
                              SND_PCM_STREAM_CAPTURE, 0);
   if (last_error_ < 0) {
     pcm_capture_handle_ = NULL;
@@ -357,50 +346,44 @@ bool AlsaCaptureClient::Init(int sample_rate, SampleFormat format,
   }
 
   /* Set format, access, num_channels, sample rate, period, resample */
-  char const *hwdevname = capture_device_.c_str();
+  char const* hwdevname = capture_device_.c_str();
 
   unsigned int rate_set;
 
   snd_pcm_hw_params_malloc(&hwparams_);
 
   if (snd_pcm_hw_params_any(pcm_capture_handle_, hwparams_) < 0) {
-    fprintf(stderr, "No config available for PCM device %s\n",
-            hwdevname);
+    fprintf(stderr, "No config available for PCM device %s\n", hwdevname);
     return false;
   }
 
   int soft_resample = 1;
   if (snd_pcm_hw_params_set_rate_resample(pcm_capture_handle_, hwparams_,
-      soft_resample) < 0) {
-    fprintf(stderr, "Resampling not available on PCM device %s\n",
-            hwdevname);
+                                          soft_resample) < 0) {
+    fprintf(stderr, "Resampling not available on PCM device %s\n", hwdevname);
     return false;
   }
 
   if (snd_pcm_hw_params_set_access(pcm_capture_handle_, hwparams_,
-      SND_PCM_ACCESS_RW_INTERLEAVED) < 0) {
-    fprintf(stderr, "Access type not available on PCM device %s\n",
-            hwdevname);
+                                   SND_PCM_ACCESS_RW_INTERLEAVED) < 0) {
+    fprintf(stderr, "Access type not available on PCM device %s\n", hwdevname);
     return false;
   }
 
   if (snd_pcm_hw_params_set_format(pcm_capture_handle_, hwparams_,
-      SampleFormatToAlsaFormat(format)) < 0) {
+                                   SampleFormatToAlsaFormat(format)) < 0) {
     fprintf(stderr, "Could not set format for device %s\n", hwdevname);
     return false;
   }
 
   if (snd_pcm_hw_params_set_channels(pcm_capture_handle_, hwparams_,
-         num_channels) < 0) {
-    fprintf(stderr, "Could not set channel count for device %s\n",
-            hwdevname);
+                                     num_channels) < 0) {
+    fprintf(stderr, "Could not set channel count for device %s\n", hwdevname);
     return false;
   }
 
   rate_set = static_cast<unsigned int>(sample_rate);
-  if (snd_pcm_hw_params_set_rate_near(pcm_capture_handle_,
-                                      hwparams_,
-                                      &rate_set,
+  if (snd_pcm_hw_params_set_rate_near(pcm_capture_handle_, hwparams_, &rate_set,
                                       0) < 0) {
     fprintf(stderr, "Could not set bitrate near %u for PCM device %s\n",
             sample_rate, hwdevname);
@@ -409,14 +392,11 @@ bool AlsaCaptureClient::Init(int sample_rate, SampleFormat format,
 
   if (rate_set != static_cast<unsigned int>(sample_rate))
     fprintf(stderr, "Warning: Actual rate(%u) != Requested rate(%u)\n",
-            rate_set,
-            sample_rate);
+            rate_set, sample_rate);
 
   snd_pcm_hw_params_set_periods(pcm_capture_handle_, hwparams_, 3, 0);
-  snd_pcm_hw_params_set_period_size(pcm_capture_handle_,
-                                    hwparams_,
-                                    period_size * num_channels,
-                                    0);
+  snd_pcm_hw_params_set_period_size(pcm_capture_handle_, hwparams_,
+                                    period_size * num_channels, 0);
 
   if (snd_pcm_hw_params(pcm_capture_handle_, hwparams_) < 0) {
     fprintf(stderr, "Unable to install hw params\n");
@@ -429,15 +409,15 @@ bool AlsaCaptureClient::Init(int sample_rate, SampleFormat format,
   snd_pcm_uframes_t actual_buffer_size = 0;
   snd_pcm_uframes_t actual_period_size = 0;
   if ((last_error_ = snd_pcm_get_params(
-      pcm_capture_handle_, &actual_buffer_size, &actual_period_size)) < 0) {
+           pcm_capture_handle_, &actual_buffer_size, &actual_period_size)) <
+      0) {
     return false;
   }
-  circular_buffer_.reset(
-      new CircularBuffer<char>(buffer_count,
+  circular_buffer_.reset(new CircularBuffer<char>(
+      buffer_count,
       actual_period_size * SampleFormatToFrameBytes(format, num_channels)));
   return true;
 }
-
 
 int AlsaCaptureClient::Capture() {
   ssize_t completed;
@@ -457,21 +437,18 @@ int AlsaCaptureClient::Capture() {
     fprintf(stderr, "Prepare error: %s", snd_strerror(res));
     return 3;
   }
-  char *cell_to_write;
+  char* cell_to_write;
   while (state() == kReady) {
     snd_pcm_wait(pcm_capture_handle_, 100);
 
     cell_to_write = circular_buffer_->LockCellToWrite();
-    completed = snd_pcm_readi(pcm_capture_handle_,
-                              cell_to_write,
-                              num_frames);
+    completed = snd_pcm_readi(pcm_capture_handle_, cell_to_write, num_frames);
     circular_buffer_->UnlockCellToWrite();
 
     if (completed < 0) {
       fprintf(stderr, "I/O error in %s: %s, %zu\n",
               snd_pcm_stream_name(SND_PCM_STREAM_CAPTURE),
-              snd_strerror(completed),
-              completed);
+              snd_strerror(completed), completed);
       return 4;
     }
   }
@@ -480,7 +457,7 @@ int AlsaCaptureClient::Capture() {
   return 0;
 }
 
-void AlsaCaptureClient::Print(FILE *fp) {
+void AlsaCaptureClient::Print(FILE* fp) {
   fprintf(fp, "AlsaCaptureClient::Print()\n");
   fprintf(fp, "  sample_rate_  = %d\n", sample_rate_);
   fprintf(fp, "  num_channels_ = %d\n", num_channels_);
