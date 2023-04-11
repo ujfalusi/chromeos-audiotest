@@ -62,6 +62,8 @@ output streaming and input streaming with a special designed algorithm.
 
 - [Test Tones](src/test_tones.cc) - A tool to play tone from PCM devices.
 
+- [Check Recorded Frequency](check_recorded_frequency.md) - A tool to compare recorded audio with golden frequency played. (migrated from autotest)
+
 ## Miscellaneous Notes
 
 Properties of the DFT
