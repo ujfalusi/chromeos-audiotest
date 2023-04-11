@@ -39,8 +39,8 @@ class ToneGenerator {
   // 1.
   virtual size_t GetFrames(SampleFormat format,
                            int num_channels,
-                           const std::set<int> &active_channels,
-                           void *data,
+                           const std::set<int>& active_channels,
+                           void* data,
                            size_t buf_size) = 0;
 
   // Returns whether or not the FrameGenerator is able to produce more frames.
@@ -61,8 +61,8 @@ class SineWaveGenerator : public ToneGenerator {
   void Reset(double frequency);
   virtual size_t GetFrames(SampleFormat format,
                            int num_channels,
-                           const std::set<int> &active_channels,
-                           void *data,
+                           const std::set<int>& active_channels,
+                           void* data,
                            size_t buf_size);
   virtual bool HasMoreFrames() const;
 
@@ -75,22 +75,22 @@ class SineWaveGenerator : public ToneGenerator {
   int volume_gain_;
 };
 
-
 class MultiToneGenerator : public ToneGenerator {
  public:
   MultiToneGenerator(int sample_rate, double length_sec);
   virtual ~MultiToneGenerator();
 
   void SetVolumes(double start_vol, double end_vol);
-  virtual void Reset(const std::vector<double> &frequencies,
+  virtual void Reset(const std::vector<double>& frequencies,
                      bool reset_timer = false);
-  virtual void Reset(const double *frequencies, int num_tones,
+  virtual void Reset(const double* frequencies,
+                     int num_tones,
                      bool reset_timer = false);
   virtual void Reset(double frequency, bool reset_timer = false);
   virtual size_t GetFrames(SampleFormat format,
                            int num_channels,
-                           const std::set<int> &active_channels,
-                           void *data,
+                           const std::set<int>& active_channels,
+                           void* data,
                            size_t buf_size);
   virtual bool HasMoreFrames() const;
 
@@ -110,7 +110,6 @@ class MultiToneGenerator : public ToneGenerator {
   pthread_mutex_t param_mutex;
 };
 
-
 class ASharpMinorGenerator : public ToneGenerator {
  public:
   ASharpMinorGenerator(int sample_rate, double tone_length_sec);
@@ -120,8 +119,8 @@ class ASharpMinorGenerator : public ToneGenerator {
   virtual void Reset();
   virtual size_t GetFrames(SampleFormat format,
                            int num_channels,
-                           const std::set<int> &active_channels,
-                           void *data,
+                           const std::set<int>& active_channels,
+                           void* data,
                            size_t buf_size);
   virtual bool HasMoreFrames() const;
 

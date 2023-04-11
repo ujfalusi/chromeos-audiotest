@@ -91,7 +91,7 @@ void set_dev_thread_args(struct dev_thread *thread,
 	dev_thread_set_merge_threshold_t(thread,
 					 args_get_merge_threshold(args));
 	dev_thread_set_merge_threshold_size(thread,
-					 args_get_merge_threshold_sz(args));
+					    args_get_merge_threshold_sz(args));
 }
 
 struct dev_thread *create_playback_thread(struct alsa_conformance_args *args)
@@ -363,7 +363,7 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 
 		case OPT_MERGE_THRESHOLD_SZ:
 			args_set_merge_threshold_sz(test_args,
-						 (int)atof(optarg));
+						    (int)atof(optarg));
 			break;
 		case ':':
 		case '?':

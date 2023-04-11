@@ -125,7 +125,8 @@ double args_get_merge_threshold(const struct alsa_conformance_args *args)
 	return args->merge_threshold;
 }
 
-snd_pcm_sframes_t args_get_merge_threshold_sz(const struct alsa_conformance_args *args)
+snd_pcm_sframes_t
+args_get_merge_threshold_sz(const struct alsa_conformance_args *args)
 {
 	return args->merge_threshold_sz;
 }
@@ -209,4 +210,3 @@ void args_set_merge_threshold_sz(struct alsa_conformance_args *args,
 {
 	args->merge_threshold_sz = (snd_pcm_sframes_t)merge_threshold_sz;
 }
-

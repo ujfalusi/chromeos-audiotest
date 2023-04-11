@@ -119,14 +119,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define LL_SEARCH_SCALAR(head, out, field, val) \
   do {                                          \
-    LL_FOREACH (head, out)                      \
-      if ((out)->field == (val))                \
-        break;                                  \
+    LL_FOREACH(head, out)                       \
+    if ((out)->field == (val))                  \
+      break;                                    \
   } while (0)
 
 #define LL_SEARCH_SCALAR_WITH_CAST(head, out, nout, field, val) \
   do {                                                          \
-    LL_FOREACH (head, out) {                                    \
+    LL_FOREACH(head, out) {                                     \
       (nout) = (__typeof(nout))out;                             \
       if ((nout)->field == (val))                               \
         break;                                                  \
@@ -136,9 +136,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define LL_SEARCH(head, out, elt, cmp) \
   do {                                 \
-    LL_FOREACH (head, out)             \
-      if ((cmp(out, elt)) == 0)        \
-        break;                         \
+    LL_FOREACH(head, out)              \
+    if ((cmp(out, elt)) == 0)          \
+      break;                           \
   } while (0)
 
 /******************************************************************************
@@ -223,7 +223,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* This version creates a temporary variable to to make it safe for deleting the
  * elements during iteration. */
 #define DL_FOREACH(head, el) \
-  DL_FOREACH_INTERNAL (head, el, MAKE_NAME(_dl_foreach_))
+  DL_FOREACH_INTERNAL(head, el, MAKE_NAME(_dl_foreach_))
 #define DL_FOREACH_INTERNAL(head, el, tmp) \
   __typeof__(el) tmp;                      \
   for ((el) = (head); (el) && (tmp = (el)->next, 1); (el) = tmp)

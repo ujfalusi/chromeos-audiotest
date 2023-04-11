@@ -54,7 +54,8 @@ int args_get_iterations(const struct alsa_conformance_args *args);
 double args_get_merge_threshold(const struct alsa_conformance_args *args);
 
 /* Return merge threshold size. */
-snd_pcm_sframes_t args_get_merge_threshold_sz(const struct alsa_conformance_args *args);
+snd_pcm_sframes_t
+args_get_merge_threshold_sz(const struct alsa_conformance_args *args);
 
 /* Set playback device name. */
 void args_set_playback_dev_name(struct alsa_conformance_args *args,

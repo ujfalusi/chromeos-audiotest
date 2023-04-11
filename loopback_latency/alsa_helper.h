@@ -6,6 +6,6 @@
 #define LOOPBACK_LATENCY_ALSA_HELPER_H_
 
 /* Measure latency from play_dev to cap_dev */
-void alsa_test_latency(char *play_dev, char *cap_dev);
+void alsa_test_latency(char* play_dev, char* cap_dev);
 
 #endif  // LOOPBACK_LATENCY_ALSA_HELPER_H_

@@ -12,7 +12,7 @@ inline double SquareAbs(const double real, const double imaginary) {
   return real * real + imaginary * imaginary;
 }
 
-void ToComplex(const std::vector<double> &data, std::vector<double> *output) {
+void ToComplex(const std::vector<double>& data, std::vector<double>* output) {
   if (output->size() != data.size() * 2)
     output->resize(data.size() * 2);
   auto it = output->begin();
@@ -23,8 +23,8 @@ void ToComplex(const std::vector<double> &data, std::vector<double> *output) {
 }
 
 // One dimension fast fourier transform using Danielson-Lanczos lemma.
-void FFT(std::vector<double> *data_ptr) {
-  auto &data = *data_ptr;
+void FFT(std::vector<double>* data_ptr) {
+  auto& data = *data_ptr;
   unsigned order, pos = 1, size = data.size();
 
   // Reverses binary reindexing.
@@ -97,46 +97,43 @@ Evaluator::Evaluator(const AudioFunTestConfig& config)
   // Normalization.
   mean /= filter_.size();
   sigma = sqrt(sigma / filter_.size() - mean * mean);
-  for (auto &x : filter_) {
+  for (auto& x : filter_) {
     x = (x - mean) / sigma;
   }
 
   // Estimates max trial.
   // max_trial_ is the reverse of allowed delay plus the threshold to pass.
   // And +2 is for the acceptable variation.
-  max_trial_ =
-      config.allowed_delay_sec * sample_rate_ / config.fft_size
-      + confidence_threshold_ + 2;
+  max_trial_ = config.allowed_delay_sec * sample_rate_ / config.fft_size +
+               confidence_threshold_ + 2;
 
   buf_size_ = num_channels_ * config.fft_size * format_.bytes();
   buffer_.reset(new uint8_t[buf_size_]);
 }
 
 void Evaluator::Evaluate(int center_bin,
-                         RecordClient *recorder,
-                         std::vector<bool> *result) {
+                         RecordClient* recorder,
+                         std::vector<bool>* result) {
   bool all_pass = false;
   std::vector<double> accum_confidence(num_channels_);
 
-  for (int trial = 1;
-       trial <= max_trial_ && !all_pass;
-       ++trial) {
+  for (int trial = 1; trial <= max_trial_ && !all_pass; ++trial) {
     all_pass = true;
     recorder->Record(buffer_.get(), buf_size_);
 
-    std::vector<std::vector<double> > data;
-    int num_frames = Unpack(
-        buffer_.get(), buf_size_, format_, num_channels_, &data);
+    std::vector<std::vector<double>> data;
+    int num_frames =
+        Unpack(buffer_.get(), buf_size_, format_, num_channels_, &data);
 
     std::vector<double> complex_data(num_frames * 2);
 
     // Evaluates all channels.
-    for (int channel: active_mic_channels_) {
+    for (int channel : active_mic_channels_) {
       if (accum_confidence[channel] >= confidence_threshold_)
         continue;
       ToComplex(data[channel], &complex_data);
-      accum_confidence[channel] += std::max(
-          EstimateChannel(&complex_data, center_bin), 0.0);
+      accum_confidence[channel] +=
+          std::max(EstimateChannel(&complex_data, center_bin), 0.0);
       if (accum_confidence[channel] < confidence_threshold_)
         all_pass = false;
       else
@@ -145,8 +142,7 @@ void Evaluator::Evaluate(int center_bin,
   }
 }
 
-double Evaluator::EstimateChannel(
-    std::vector<double> *data, int center_bin) {
+double Evaluator::EstimateChannel(std::vector<double>* data, int center_bin) {
   // Calculate RMS before FFT
   // The |data| here is already formatted as double sized to store the result
   // (read, imaginary) from FFT.
@@ -170,11 +166,10 @@ double Evaluator::EstimateChannel(
   double confidence = 0.0, mean = 0.0, sigma = 0.0;
 
   for (int bin = (center_bin - half_window_size_);
-       bin <= center_bin + half_window_size_;
-       ++bin) {
+       bin <= center_bin + half_window_size_; ++bin) {
     int index = bin - (center_bin - half_window_size_);
-    bin_[index] = SquareAbs(
-        (*data)[2 * bin], (*data)[2 * bin + 1]) / data->size();
+    bin_[index] =
+        SquareAbs((*data)[2 * bin], (*data)[2 * bin + 1]) / data->size();
     if (verbose_)
       printf("%e ", bin_[index]);
     confidence += bin_[index] * filter_[index];

@@ -1,0 +1,4 @@
+BasedOnStyle: Chromium
+
+ForEachMacros:
+  - 'DL_FOREACH'

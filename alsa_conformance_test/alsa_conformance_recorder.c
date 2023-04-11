@@ -150,8 +150,8 @@ int recorder_add(struct alsa_conformance_recorder *recorder,
 	if (diff < ARRAY_SIZE) {
 		recorder->step_counter[diff]++;
 	} else {
-		fprintf(stderr,
-		        "[Notice] frame_diff %ld >= %d.\n", diff, ARRAY_SIZE);
+		fprintf(stderr, "[Notice] frame_diff %ld >= %d.\n", diff,
+			ARRAY_SIZE);
 	}
 	recorder->frames = frames;
 	recorder->time = time;

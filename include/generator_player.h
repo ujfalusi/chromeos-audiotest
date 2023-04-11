@@ -19,10 +19,10 @@ class GeneratorPlayer {
  public:
   GeneratorPlayer(size_t buf_size,
                   int num_channels,
-                  const std::set<int> &active_channels,
+                  const std::set<int>& active_channels,
                   SampleFormat format,
-                  PlayClient *player);
-  void Play(ToneGenerator *generator);
+                  PlayClient* player);
+  void Play(ToneGenerator* generator);
   void Stop();
 
  private:
@@ -30,12 +30,12 @@ class GeneratorPlayer {
   int num_channels_;
   const std::set<int> active_channels_;
   SampleFormat format_;
-  PlayClient *player_;
+  PlayClient* player_;
   std::thread thread_;
   bool is_stopped_;
   std::unique_ptr<uint8_t[]> buffer_;
 
-  void Run(ToneGenerator *generator);
+  void Run(ToneGenerator* generator);
 };
 
 #endif  // INCLUDE_GENERATOR_PLAYER_H_

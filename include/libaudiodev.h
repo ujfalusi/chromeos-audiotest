@@ -12,7 +12,7 @@
 #define MAX_HWNAME_SIZE 16
 
 typedef struct audio_device_s {
-  snd_pcm_t *handle;
+  snd_pcm_t* handle;
   snd_pcm_stream_t direction;
   char hwdevname[MAX_HWNAME_SIZE];
 } audio_device_t;
@@ -21,14 +21,14 @@ typedef struct audio_device_info_s {
   audio_device_t audio_device;
   unsigned int card;
   unsigned int dev_no;
-  const char *dev_id;
-  const char *dev_name;
-  const char *pcm_id;
-  const char *pcm_name;
+  const char* dev_id;
+  const char* dev_name;
+  const char* pcm_id;
+  const char* pcm_name;
 } audio_device_info_t;
 
 typedef struct audio_device_info_list_s {
-  audio_device_info_t *devs;
+  audio_device_info_t* devs;
   int count;
 } audio_device_info_list_t;
 
@@ -37,12 +37,12 @@ extern unsigned int chunk_size;
 /*
  * Get the list of devices in the direction specified by |direction|
  */
-audio_device_info_list_t *get_device_list(snd_pcm_stream_t direction);
+audio_device_info_list_t* get_device_list(snd_pcm_stream_t direction);
 
 /*
  * Free the list of audio devices. Avoiding memory leaks is good.
  */
-void free_device_list(audio_device_info_list_t *list);
+void free_device_list(audio_device_info_list_t* list);
 
 /*
  * Open a sound handle for |device| and set required hardware and software
@@ -51,12 +51,12 @@ void free_device_list(audio_device_info_list_t *list);
  * |buffer_size| is the buffer size intended for use with this handle.
  *
  */
-int create_sound_handle(audio_device_t *device, int buffer_size);
+int create_sound_handle(audio_device_t* device, int buffer_size);
 
 /*
  * Close the sound handle acquired for |device|.
  */
-void close_sound_handle(audio_device_t *device);
+void close_sound_handle(audio_device_t* device);
 
 /*
  *
@@ -68,6 +68,6 @@ void close_sound_handle(audio_device_t *device);
  *
  * returns the number of bytes successfully written/read.
  */
-ssize_t pcm_io(audio_device_t *device, unsigned char *data, size_t count);
+ssize_t pcm_io(audio_device_t* device, unsigned char* data, size_t count);
 
 #endif  // INCLUDE_LIBAUDIODEV_H_
