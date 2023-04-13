@@ -12,6 +12,7 @@
 enum class FrequencySampleStrategy {
   kSerial,
   kRandom,
+  kStep,
   kUnknown,
 };
 
@@ -59,6 +60,23 @@ class RandomFrequencyGenerator : public FrequencyGenerator {
  private:
   std::mt19937 rng;
   std::uniform_int_distribution<int> bin_distribution;
+};
+
+class StepRandomFrequencyGenerator : public FrequencyGenerator {
+ public:
+  StepRandomFrequencyGenerator(int min_frequency,
+                               int max_frequency,
+                               int test_rounds,
+                               double frequency_resolution);
+
+  int GetBin(int round) override;
+
+ private:
+  int min_bin;
+  int max_bin;
+  int bin_interval;
+  std::mt19937 rng;
+  std::uniform_int_distribution<int> step_distribution;
 };
 
 std::unique_ptr<FrequencyGenerator> make_frequency_generator(
