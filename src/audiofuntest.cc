@@ -17,7 +17,7 @@
 #include "include/tone_generators.h"
 
 constexpr static const char* short_options =
-    "a:m:d:n:o:w:p:P:f:R:F:r:I:O:t:c:C:T:l:g:i:x:y:Y:hv";
+    "a:m:d:n:o:w:p:P:f:R:F:r:I:O:t:c:C:T:l:g:i:x:y:Y:s:hv";
 
 constexpr static const struct option long_options[] = {
     {"active-speaker-channels", 1, NULL, 'a'},
@@ -44,6 +44,7 @@ constexpr static const struct option long_options[] = {
     {"max-frequency", 1, NULL, 'x'},
     {"played-file-path", 1, NULL, 'y'},
     {"recorded-file-path", 1, NULL, 'Y'},
+    {"frequency-sample-strategy", 1, NULL, 's'},
 
     // Other helper args.
     {"help", 0, NULL, 'h'},
@@ -173,6 +174,14 @@ bool ParseOptions(int argc, char *const argv[], AudioFunTestConfig *config) {
         break;
       case 'Y':
         config->recorded_file_path = std::string(optarg);
+        break;
+      case 's':
+        config->frequency_sample_strategy = from_string_view(optarg);
+        if (config->frequency_sample_strategy ==
+            FrequencySampleStrategy::kUnknown) {
+          fprintf(stderr, "Unknown FrequencySampleStrategy: %s\n", optarg);
+          return false;
+        }
         break;
       default:
         fprintf(stderr, "Unknown arguments %c\n", opt);
@@ -330,6 +339,13 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "\t-Y, --recorded-file-path\n"
           "\t\tThe path of the recorded audio file."
           "(def %s)\n", default_config.recorded_file_path.c_str());
+  auto sv = to_string_view(default_config.frequency_sample_strategy);
+  fprintf(fd,
+          "\t-s, --frequency-sample-strategy\n"
+          "\t\tIf it's \"serial\" then play with frequency from low to high.\n"
+          "\t\tIf it's \"random\" then play with random frequency.\n"
+          "\t\t(def %*s)\n",
+          static_cast<int>(sv.size()), sv.data());
 
   fprintf(fd,
           "\t-v, --verbose: Show debugging information.\n");
@@ -396,9 +412,6 @@ void ControlLoop(const AudioFunTestConfig &config,
                  RecordClient *recorder) {
   const double frequency_resolution =
       static_cast<double>(config.input_rate) / config.fft_size;
-  const int min_bin = config.min_frequency / frequency_resolution;
-  const int max_bin = config.max_frequency / frequency_resolution;
-  const int bin_interval = (max_bin - min_bin) / (config.test_rounds - 1);
 
   std::vector<int> passes(config.num_mic_channels);
   std::vector<bool> single_round_pass(config.num_mic_channels);
@@ -414,9 +427,14 @@ void ControlLoop(const AudioFunTestConfig &config,
       config.sample_format,
       player);
 
+  std::unique_ptr<FrequencyGenerator> frequencyGenerator =
+      make_frequency_generator(config.frequency_sample_strategy,
+                               config.min_frequency, config.max_frequency,
+                               config.test_rounds, frequency_resolution);
+
   for (int round = 1; round <= config.test_rounds; ++round) {
     std::fill(single_round_pass.begin(), single_round_pass.end(), false);
-    int bin = min_bin + (round - 1) * bin_interval;
+    int bin = frequencyGenerator->GetBin(round);
     double frequency = bin * frequency_resolution;
 
     generator.Reset(frequency);

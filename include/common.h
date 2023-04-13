@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 
+#include "include/frequency_sample_strategy.h"
 #include "include/sample_format.h"
 
 struct TestConfig {
@@ -62,6 +63,7 @@ struct AudioFunTestConfig {
         max_frequency(10000),
         played_file_path(),
         recorded_file_path(),
+        frequency_sample_strategy(FrequencySampleStrategy::kSerial),
         verbose(false) {}
 
   std::set<int> active_speaker_channels;
@@ -88,6 +90,7 @@ struct AudioFunTestConfig {
   int max_frequency;
   std::string played_file_path;
   std::string recorded_file_path;
+  FrequencySampleStrategy frequency_sample_strategy;
   bool verbose;
 };
 

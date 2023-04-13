@@ -17,6 +17,7 @@ CXX_BINARY(src/audiofuntest): \
 	src/common.o \
 	src/binary_client.o \
 	src/evaluator.o \
+	src/frequency_sample_strategy.o \
 	src/generator_player.o \
 	src/sample_format.o \
 	src/tone_generators.o
