@@ -14,6 +14,7 @@ constexpr std::array<std::string_view,
     kFrequencySampleStrategyStrings{
         "serial",
         "random",
+        "step",
     };
 void SeedMt19937(std::mt19937& rng) {
   /* TODO(cyueh): Log seed for reproducing errors. */
@@ -57,6 +58,23 @@ int RandomFrequencyGenerator::GetBin(int round) {
   return bin_distribution(rng);
 }
 
+StepRandomFrequencyGenerator::StepRandomFrequencyGenerator(
+    int min_frequency,
+    int max_frequency,
+    int test_rounds,
+    double frequency_resolution)
+    : min_bin(min_frequency / frequency_resolution),
+      max_bin(max_frequency / frequency_resolution),
+      bin_interval((max_bin + 1 - min_bin) / test_rounds),
+      rng{},
+      step_distribution{0, bin_interval - 1} {
+  SeedMt19937(rng);
+}
+
+int StepRandomFrequencyGenerator::GetBin(int round) {
+  return min_bin + (round - 1) * bin_interval + step_distribution(rng);
+}
+
 std::unique_ptr<FrequencyGenerator> make_frequency_generator(
     FrequencySampleStrategy s,
     int min_frequency,
@@ -70,6 +88,9 @@ std::unique_ptr<FrequencyGenerator> make_frequency_generator(
     default:
     case FrequencySampleStrategy::kSerial:
       return std::make_unique<SerialFrequencyGenerator>(
+          min_frequency, max_frequency, test_rounds, frequency_resolution);
+    case FrequencySampleStrategy::kStep:
+      return std::make_unique<StepRandomFrequencyGenerator>(
           min_frequency, max_frequency, test_rounds, frequency_resolution);
   }
 }

@@ -345,6 +345,8 @@ void PrintUsage(const char *name, FILE *fd = stderr) {
           "\t-s, --frequency-sample-strategy\n"
           "\t\tIf it's \"serial\" then play with frequency from low to high.\n"
           "\t\tIf it's \"random\" then play with random frequency.\n"
+          "\t\tIf it's \"step\" then play with frequency from low to high with"
+          " some randomization.\n"
           "\t\t(def %*s)\n",
           static_cast<int>(sv.size()), sv.data());
 

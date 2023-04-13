@@ -63,7 +63,7 @@ struct AudioFunTestConfig {
         max_frequency(10000),
         played_file_path(),
         recorded_file_path(),
-        frequency_sample_strategy(FrequencySampleStrategy::kSerial),
+        frequency_sample_strategy(FrequencySampleStrategy::kStep),
         verbose(false) {}
 
   std::set<int> active_speaker_channels;
