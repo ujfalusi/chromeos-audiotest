@@ -88,6 +88,97 @@ def get_number_of_cpu() -> int:
     return -1
 
 
+def parse_hetero_cpu_range_from_cpuinfo_cpu_part(
+    cpuinfo_lines: typing.List[str],
+) -> typing.List[str]:
+    """Parse cpuinfo to get the hetero cpu range using CPU part line.
+
+    Intel does not have any 'CPU part' line. ARM does, and when it's
+    big.LITTLE, it has two different CPU parts (e.g. 0xd03 and 0xd09).
+
+    Returns:
+      If parsed successfully, the list of CPU range. For example: ["0-5", "6-7"].
+      Currently assume that the order will be [small cores, big cores].
+      Otherwise, return empty list.
+    """
+
+    cpu_part_re = r"^CPU part\s+:\s+(0x[0-9a-f]+)$"
+
+    previous_cpu_part = ""
+    start_cpu_id = 0
+    cpu_id = -1
+
+    cpu_ranges = []
+    for line in cpuinfo_lines:
+        match = re.fullmatch(cpu_part_re, line)
+        if match is None:
+            continue
+        cpu_part = match.group(1)
+        cpu_id += 1
+        if cpu_part != previous_cpu_part:
+            if previous_cpu_part != "":
+                cpu_ranges.append(f"{start_cpu_id}-{cpu_id - 1}")
+            previous_cpu_part = cpu_part
+            start_cpu_id = cpu_id
+    if previous_cpu_part == "":
+        # Parse failed
+        return []
+    cpu_ranges.append(f"{start_cpu_id}-{cpu_id}")
+    return cpu_ranges
+
+
+def parse_hetero_cpu_range_from_cpuinfo_smt(
+    cpuinfo_lines: typing.List[str],
+) -> typing.List[str]:
+    """Parse cpuinfo to get the hetero cpu range using SMT info.
+
+    On 12th gen Intel CPU with P-Cores and E-Cores, P-Cores support Hyperthreading while E-Cores do not.
+    If the core supports Hyperthreading (SMT) then there will be multiple cpu ids with the same core id.
+
+    We assume that cores with and without SMT are separated into 2 contiguous cpu ids range.
+
+    Returns:
+        If parsed successfully, the list of CPU range. For example: ["0-3", "4-7"].
+        Note that CPU without SMT come first, follows by CPU with SMT.
+        Otherwise, return empty list.
+    """
+    cpu_core_id_re = r"^core id\s+:\s+(\d+)$"
+
+    cpu_id = -1
+    cpu_cores: typing.Dict[
+        int, typing.List[int]
+    ] = {}  # Mapping between core id to list of cpu id on that core
+    for line in cpuinfo_lines:
+        match = re.fullmatch(cpu_core_id_re, line)
+        if match is None:
+            continue
+        core_id = int(match.group(1))
+        cpu_id += 1
+        if core_id not in cpu_cores:
+            cpu_cores[core_id] = []
+        cpu_cores[core_id].append(cpu_id)
+
+    smt_cpu_id = []
+    non_smt_cpu_id = []
+    for cpu_ids in cpu_cores.values():
+        if len(cpu_ids) > 1:
+            smt_cpu_id.extend(cpu_ids)
+        else:
+            non_smt_cpu_id.extend(cpu_ids)
+
+    if not smt_cpu_id or not non_smt_cpu_id:
+        # Only found one (or zero) type of CPU, treat as failed
+        return []
+
+    smt_cpu_id.sort()
+    non_smt_cpu_id.sort()
+
+    return [
+        f"{non_smt_cpu_id[0]}-{non_smt_cpu_id[-1]}",
+        f"{smt_cpu_id[0]}-{smt_cpu_id[-1]}",
+    ]
+
+
 def get_hetero_cpu_range() -> typing.List[str]:
     """Returns a list of heterogeneous cpu ranges.
 
@@ -104,33 +195,22 @@ def get_hetero_cpu_range() -> typing.List[str]:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding="utf8",
+        check=False,
     )
 
-    # Intel does not have any 'CPU part' line. ARM does, and when it's
-    # big.LITTLE, it has two different CPU parts (e.g. 0xd03 and 0xd09).
-    cpu_part_re = "^CPU part\s+:\s+(0x[0-9a-f]+)$"
+    cpuinfo_lines = cpuinfo.stdout.splitlines()
 
-    previous_cpu_part = ""
-    start_cpu_id = 0
-    cpu_id = -1
-
-    cpu_ranges = []
-    for line in cpuinfo.stdout.splitlines():
-        match = re.fullmatch(cpu_part_re, line)
-        if match == None:
-            continue
-        cpu_part = match.group(1)
-        cpu_id += 1
-        if cpu_part != previous_cpu_part:
-            if previous_cpu_part != "":
-                cpu_ranges.append("{}-{}".format(start_cpu_id, cpu_id - 1))
-            previous_cpu_part = cpu_part
-            start_cpu_id = cpu_id
-    if previous_cpu_part == "":
-        logging.fatal("Failed to get cpu ranges.")
-        return []
-    cpu_ranges.append("{}-{}".format(start_cpu_id, cpu_id - 1))
-    return cpu_ranges
+    # Try parsing with CPU Part
+    cpu_ranges = parse_hetero_cpu_range_from_cpuinfo_cpu_part(cpuinfo_lines)
+    if cpu_ranges:
+        return cpu_ranges
+    # Try parsing with SMT info
+    cpu_ranges = parse_hetero_cpu_range_from_cpuinfo_smt(cpuinfo_lines)
+    if cpu_ranges:
+        return cpu_ranges
+    # Failed to parse heterogeneous CPU range
+    logging.fatal("Failed to get cpu ranges.")
+    return []
 
 
 class CyclicTestRunner(object):

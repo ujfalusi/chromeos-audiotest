@@ -9,6 +9,8 @@ import unittest
 
 from cyclic_bench import CyclicTestRunner
 from cyclic_bench import CyclicTestStat
+from cyclic_bench import parse_hetero_cpu_range_from_cpuinfo_cpu_part
+from cyclic_bench import parse_hetero_cpu_range_from_cpuinfo_smt
 
 
 class CyclicTestRunnerTest(unittest.TestCase):
@@ -89,6 +91,72 @@ Thread 1 Interval: 1000
                 self._EXPECTED_LATENCIES[test_no]
             )
             self.assertEqual(stats, self._EXPECTED_STATS[test_no])
+
+
+class TestParseHeteroCPURange(unittest.TestCase):
+    """Unit tests for parse hetereo CPU range from different information"""
+
+    def test_parse_hetero_cpu_range_from_cpuinfo_cpu_part(self):
+        # 2 CPU parts
+        cpuinfo = [
+            "CPU part : 0xd05",
+            "SKIP",  # Should correctly skip this line
+            "CPU part : 0xd05",
+            "CPU part : 0xd0b",
+            "CPU part : 0xd0b",
+        ]
+        self.assertEqual(
+            parse_hetero_cpu_range_from_cpuinfo_cpu_part(cpuinfo),
+            ["0-1", "2-3"],
+        )
+
+        # Only 1 CPU part
+        cpuinfo = [
+            "CPU part : 0xd0b",
+            "CPU part : 0xd0b",
+        ]
+        self.assertEqual(
+            parse_hetero_cpu_range_from_cpuinfo_cpu_part(cpuinfo), ["0-1"]
+        )
+
+        # No CPU part field
+        cpuinfo = [
+            "core id : 0",
+        ]
+        self.assertEqual(
+            parse_hetero_cpu_range_from_cpuinfo_cpu_part(cpuinfo), []
+        )
+
+    def test_parse_hetero_cpu_range_from_cpuinfo_smt(self):
+        # 2 SMT cores (4 cpu ids), 2 normal cores
+        cpuinfo = [
+            "core id : 0",
+            "SKIP",  # Should correctly skip this line
+            "core id : 0",
+            "core id : 1",
+            "core id : 1",
+            "core id : 2",
+            "core id : 3",
+        ]
+        self.assertEqual(
+            parse_hetero_cpu_range_from_cpuinfo_smt(cpuinfo), ["4-5", "0-3"]
+        )
+
+        # Only normal cores
+        cpuinfo = [
+            "core id : 0",
+            "core id : 1",
+            "core id : 2",
+            "core id : 3",
+        ]
+        self.assertEqual(parse_hetero_cpu_range_from_cpuinfo_smt(cpuinfo), [])
+
+        # Only SMT cores
+        cpuinfo = [
+            "core id : 0",
+            "core id : 0",
+        ]
+        self.assertEqual(parse_hetero_cpu_range_from_cpuinfo_smt(cpuinfo), [])
 
 
 if __name__ == "__main__":
