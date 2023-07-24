@@ -45,7 +45,7 @@ static const char *output_mixer_name_filter(const char *mixer_name)
 {
 	const char *output_mixer_names[] = {
 		"Headphone", "Headset", "Headset Earphone", "Speaker",
-		"PCM",	     "Master",	"Digital"
+		"PCM",	     "Master",	"Digital",	    "Speaker Volume"
 	};
 
 	for (int i = 0; i < ARRAY_SIZE(output_mixer_names); i++) {
@@ -58,8 +58,9 @@ static const char *output_mixer_name_filter(const char *mixer_name)
 
 static const char *input_mixer_name_filter(const char *mixer_name)
 {
-	const char *input_mixer_names[] = { "Capture", "Digital Capture", "Mic",
-					    "Microphone", "Headset" };
+	const char *input_mixer_names[] = { "Capture", "Digital Capture",
+					    "Mic",     "Microphone",
+					    "Headset", "Mic Volume" };
 
 	for (int i = 0; i < ARRAY_SIZE(input_mixer_names); i++) {
 		if (!strcmp(mixer_name, input_mixer_names[i])) {

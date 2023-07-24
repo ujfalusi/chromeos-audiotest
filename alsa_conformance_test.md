@@ -173,6 +173,7 @@ The following are the requirements for the USB audio mixer control name for play
 * PCM
 * Master
 * Digital
+* Speaker Volume
 
 The following are the requirements for the USB audio mixer control name for capture:
 
@@ -181,6 +182,7 @@ The following are the requirements for the USB audio mixer control name for capt
 * Mic
 * Microphone
 * Headset
+* Mic Volume
 
 #### Number of mixers
 Device can only have one playback/capture mixer control system can recognize. Otherwise system will fail to know which control should be select in the system.
