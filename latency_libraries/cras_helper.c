@@ -11,6 +11,7 @@
 #include "args.h"
 #include "common.h"
 #include "cras_client.h"
+#include "dolphin.h"
 
 #define TTY_OUTPUT_SIZE 1024
 
@@ -22,6 +23,8 @@ static struct timeval* cras_play_time = NULL;
 static struct timeval* cras_cap_time = NULL;
 
 static pthread_cond_t terminate_test;
+
+static struct dolphin* teensy_dev = NULL;
 
 static int cras_capture_tone(struct cras_client* client,
                              cras_stream_id_t stream_id,
@@ -92,10 +95,13 @@ static int cras_play_tone(struct cras_client* client,
     memset(samples, 0, sample_bytes * frames * g_channels);
   } else if (g_playback_count > PLAYBACK_TIMEOUT_COUNT) {
     // Timeout, terminate test.
-    pthread_mutex_lock(&g_latency_test_mutex);
-    g_terminate_capture = 1;
-    pthread_cond_signal(&terminate_test);
-    pthread_mutex_unlock(&g_latency_test_mutex);
+    // Teensy latency test is always in loop mode for a set duration.
+    if (!teensy_dev) {
+      pthread_mutex_lock(&g_latency_test_mutex);
+      g_terminate_capture = 1;
+      pthread_cond_signal(&terminate_test);
+      pthread_mutex_unlock(&g_latency_test_mutex);
+    }
 
     /* for loop mode: to avoid underrun */
     memset(samples, 0, sample_bytes * frames * g_channels);
@@ -113,6 +119,12 @@ static int cras_play_tone(struct cras_client* client,
       if (tty_output) {
         fwrite(tty_zeros_block, sizeof(char), TTY_OUTPUT_SIZE, tty_output);
         fflush(tty_output);
+      }
+      if (teensy_dev) {
+        int rc = send_teensy_capture_start(teensy_dev);
+        if (rc < 0) {
+          return rc;
+        }
       }
     }
   }
@@ -278,4 +290,58 @@ again:
     free(cras_play_time);
   if (cras_cap_time)
     free(cras_cap_time);
+}
+
+void teensy_cras_test_latency(struct dolphin* d) {
+  int rc;
+  struct cras_client* client = NULL;
+  struct cras_stream_params* playback_params = NULL;
+
+  struct timespec playback_latency;
+
+  teensy_dev = d;
+
+  rc = cras_client_create(&client);
+  if (rc < 0) {
+    fprintf(stderr, "Create client fail.\n");
+    exit(1);
+  }
+  rc = cras_client_connect(client);
+  if (rc < 0) {
+    fprintf(stderr, "Connect to server fail.\n");
+    cras_client_destroy(client);
+    exit(1);
+  }
+
+  cras_client_run_thread(client);
+
+  fprintf(stderr, "Create playback stream.\n");
+  rc = cras_add_stream(client, playback_params, CRAS_STREAM_OUTPUT,
+                       &playback_latency);
+  if (rc < 0) {
+    fprintf(stderr, "Fail to add playback stream.\n");
+    exit(1);
+  }
+  // Delay 3s for sound to play
+  struct timespec delay = {.tv_sec = 3, .tv_nsec = 0};
+  nanosleep(&delay, NULL);
+
+  if (cras_play_time) {
+    unsigned long playback_latency_us;
+
+    playback_latency_us =
+        (playback_latency.tv_sec * 1000000) + (playback_latency.tv_nsec / 1000);
+
+    fprintf(stdout, "Reported Latency: %lu uS.\n", playback_latency_us);
+    fflush(stdout);
+  } else {
+    fprintf(stdout, "Audio not played.\n");
+  }
+
+  /* Destruct things. */
+  teensy_dev = NULL;
+  cras_client_stop(client);
+  cras_client_stream_params_destroy(playback_params);
+  if (cras_play_time)
+    free(cras_play_time);
 }

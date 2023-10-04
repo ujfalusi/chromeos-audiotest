@@ -4,8 +4,12 @@
 
 #ifndef LOOPBACK_LATENCY_ALSA_HELPER_H_
 #define LOOPBACK_LATENCY_ALSA_HELPER_H_
-
+#include "common.h"
+#include "dolphin.h"
 /* Measure latency from play_dev to cap_dev */
 void alsa_test_latency(char* play_dev, char* cap_dev);
+
+/* Measure latency from play_dev to Teensy device teensy_dev */
+void teensy_alsa_test_latency(char* play_dev, struct dolphin* teensy_dev);
 
 #endif  // LOOPBACK_LATENCY_ALSA_HELPER_H_
