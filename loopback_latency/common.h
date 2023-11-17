@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef LATENCY_LIBRARIES_COMMON_H_
-#define LATENCY_LIBRARIES_COMMON_H_
+#ifndef LOOPBACK_LATENCY_COMMON_H_
+#define LOOPBACK_LATENCY_COMMON_H_
 
 #define CAPTURE_MORE_COUNT 50
 #define PLAYBACK_COUNT 50
@@ -25,13 +25,6 @@ extern int g_sine_started;
 extern int g_capture_count;
 extern int g_playback_count;
 
-enum BACKEND {
-  ALSA = 0,
-#ifdef WITH_CRAS
-  CRAS
-#endif
-};
-
 void generate_sine(const snd_pcm_channel_area_t* areas,
                    snd_pcm_uframes_t offset,
                    int count,
@@ -45,6 +38,4 @@ int check_for_noise(short* buf, unsigned len, unsigned channels);
 unsigned long subtract_timevals(const struct timeval* end,
                                 const struct timeval* beg);
 
-void set_format(const char* format_str);
-
-#endif  // LATENCY_LIBRARIES_COMMON_H_
+#endif  // LOOPBACK_LATENCY_COMMON_H_

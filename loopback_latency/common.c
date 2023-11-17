@@ -8,7 +8,6 @@
 #include <stdint.h>
 
 #include "args.h"
-#include "common.h"
 
 double g_phase = M_PI / 2;
 pthread_mutex_t g_latency_test_mutex;
@@ -116,12 +115,4 @@ unsigned long subtract_timevals(const struct timeval* end,
     }
   }
   return diff.tv_sec * 1000000 + diff.tv_usec;
-}
-
-void set_format(const char* format_str) {
-  g_format = snd_pcm_format_value(format_str);
-  if (g_format == SND_PCM_FORMAT_UNKNOWN) {
-    fprintf(stderr, "unknown format: %s\n", format_str);
-    exit(EXIT_FAILURE);
-  }
 }

@@ -4,7 +4,6 @@
 
 include common.mk
 
-DEF += CC_LIBRARY(latency_libraries/latency_libraries)
 CPPFLAGS += -I$(SRC)
 LDLIBS += -lm -lpthread
 
@@ -13,16 +12,11 @@ ALSA_LIBS := $(shell $(PKG_CONFIG) --libs alsa)
 CRAS_CFLAGS := $(shell $(PKG_CONFIG) --cflags libcras)
 CRAS_LIBS := $(shell $(PKG_CONFIG) --libs libcras)
 
-objects = latency_libraries/alsa_helper.o \
-	latency_libraries/args.o \
-	latency_libraries/common.o \
-	latency_libraries/dolphin.o \
-	teensy_latency_test/main.o
+objects = teensy_latency_test/main.o
 
 WITH_CRAS ?= false
 ifeq ($(WITH_CRAS),true)
 CPPFLAGS += -DWITH_CRAS
-objects += latency_libraries/cras_helper.o
 endif
 
 CC_BINARY(teensy_latency_test/teensy_latency_test): \

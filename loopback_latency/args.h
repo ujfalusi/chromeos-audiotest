@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef LATENCY_LIBRARIES_ARGS_H_
-#define LATENCY_LIBRARIES_ARGS_H_
+#ifndef LOOPBACK_LATENCY_ARGS_H_
+#define LOOPBACK_LATENCY_ARGS_H_
 
 #define PIN_DEVICE_UNSET -1
 
@@ -20,4 +20,4 @@ extern int g_loop;
 extern int g_cold;
 extern int g_pin_capture_device;
 
-#endif  // LATENCY_LIBRARIES_ARGS_H_
+#endif  // LOOPBACK_LATENCY_ARGS_H_

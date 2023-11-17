@@ -22,13 +22,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../latency_libraries/alsa_helper.h"
-#include "../latency_libraries/args.h"
-#include "../latency_libraries/common.h"
+#include "alsa_helper.h"
+#include "args.h"
+#include "common.h"
 
 #ifdef WITH_CRAS
-#include "../latency_libraries/cras_helper.h"
+#include "cras_helper.h"
 #endif
+
+enum BACKEND {
+  ALSA = 0,
+#ifdef WITH_CRAS
+  CRAS
+#endif
+};
 
 int main(int argc, char* argv[]) {
   enum BACKEND backend = ALSA;

@@ -8,7 +8,6 @@
 
 #include "args.h"
 #include "common.h"
-#include "dolphin.h"
 
 static snd_pcm_sframes_t playback_delay_frames;
 static struct timeval sine_start_tv;
@@ -136,7 +135,7 @@ static int capture_some(snd_pcm_t* pcm,
   return (int)frames;
 }
 
-static void* alsa_play(void* arg, struct dolphin* teensy_dev) {
+static void* alsa_play(void* arg) {
   snd_pcm_t* handle = (snd_pcm_t*)arg;
   short* play_buf;
   snd_pcm_channel_area_t* areas;
@@ -151,13 +150,10 @@ static void* alsa_play(void* arg, struct dolphin* teensy_dev) {
     areas[chn].first = chn * snd_pcm_format_physical_width(g_format);
     areas[chn].step = g_channels * snd_pcm_format_physical_width(g_format);
   }
-  int avail_frames;
 
-  int playback_silent_count = teensy_dev ? 1 : PLAYBACK_SILENT_COUNT;
-  for (num_buffers = 0; num_buffers < playback_silent_count; num_buffers++) {
-    avail_frames = snd_pcm_avail(handle);
-    if ((err = snd_pcm_writei(handle, play_buf, avail_frames)) !=
-        avail_frames) {
+  for (num_buffers = 0; num_buffers < PLAYBACK_SILENT_COUNT; num_buffers++) {
+    if ((err = snd_pcm_writei(handle, play_buf, g_period_size)) !=
+        g_period_size) {
       fprintf(stderr,
               "write %dth silent block to audio interface \
                     failed (%s)\n",
@@ -166,34 +162,24 @@ static void* alsa_play(void* arg, struct dolphin* teensy_dev) {
     }
   }
 
+  generate_sine(areas, 0, g_period_size, &g_phase);
   snd_pcm_delay(handle, &playback_delay_frames);
   gettimeofday(&sine_start_tv, NULL);
 
   num_buffers = 0;
+  int avail_frames;
 
   /* Play a sine wave and look for it on capture thread.
    * This will fail for latency > 500mS. */
   while (!g_terminate_playback && num_buffers < PLAYBACK_COUNT) {
     avail_frames = snd_pcm_avail(handle);
     if (avail_frames >= g_period_size) {
-      if (!teensy_dev) {
-        pthread_mutex_lock(&g_latency_test_mutex);
-      }
-      generate_sine(areas, 0, g_period_size, &g_phase);
+      pthread_mutex_lock(&g_latency_test_mutex);
       if (!g_sine_started) {
         g_sine_started = 1;
-        if (!teensy_dev) {
-          pthread_cond_signal(&g_sine_start);
-        } else {
-          err = send_teensy_capture_start(teensy_dev);
-          if (err < 0) {
-            exit(1);
-          }
-        }
+        pthread_cond_signal(&g_sine_start);
       }
-      if (!teensy_dev) {
-        pthread_mutex_unlock(&g_latency_test_mutex);
-      }
+      pthread_mutex_unlock(&g_latency_test_mutex);
       if ((err = snd_pcm_writei(handle, play_buf, g_period_size)) !=
           g_period_size) {
         fprintf(stderr, "write to audio interface failed (%s)\n",
@@ -204,13 +190,8 @@ static void* alsa_play(void* arg, struct dolphin* teensy_dev) {
   }
   g_terminate_playback = 1;
 
-  if (num_buffers == PLAYBACK_COUNT && !teensy_dev)
+  if (num_buffers == PLAYBACK_COUNT)
     fprintf(stdout, "Audio not detected.\n");
-
-  if (teensy_dev) {
-    unsigned long latency_us = playback_delay_frames * 1000000 / g_rate;
-    printf("Reported latency: %luus\n", latency_us);
-  }
 
   free(play_buf);
   free(areas);
@@ -318,21 +299,4 @@ void alsa_test_latency(char* play_dev, char* cap_dev) {
 
   snd_pcm_close(playback_handle);
   snd_pcm_close(capture_handle);
-}
-
-void teensy_alsa_test_latency(char* play_dev, struct dolphin* teensy_dev) {
-  int err;
-  snd_pcm_t* playback_handle;
-
-  if ((err = snd_pcm_open(&playback_handle, play_dev, SND_PCM_STREAM_PLAYBACK,
-                          0)) < 0) {
-    fprintf(stderr, "cannot open audio device %s (%s)\n", play_dev,
-            snd_strerror(err));
-    exit(1);
-  }
-  config_pcm_hw_params(playback_handle, g_rate, g_channels, g_format,
-                       &g_buffer_frames, &g_period_size);
-  printf("%lu %ld\n", g_buffer_frames, g_period_size);
-  alsa_play(playback_handle, teensy_dev);
-  snd_pcm_close(playback_handle);
 }
