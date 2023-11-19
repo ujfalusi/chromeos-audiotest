@@ -246,12 +246,14 @@ class Parser(object):
 class DeviceInfoParser(Parser):
     """Object which can parse device info from alsa_conformance_test."""
 
-    def __init__(self, allow_rates=None):
+    def __init__(self, allow_rates=None, allow_formats=None):
         """
         Args:
           allow_rates: Restrict the sample rates to be tested if specified.
+          allow_formats: Restrict the formats to be tested if specified.
         """
         self.allow_rates = set(allow_rates) if allow_rates else None
+        self.allow_formats = set(allow_formats) if allow_formats else None
 
     def _parse_mixer(self):
         """
@@ -372,12 +374,18 @@ class DeviceInfoParser(Parser):
         if self.allow_rates:
             valid_rates = [r for r in valid_rates if r in self.allow_rates]
 
+        valid_formats = self._get_list("available formats")
+        if self.allow_formats:
+            valid_formats = [
+                f for f in valid_formats if f in self.allow_formats
+            ]
+
         return DataDevInfo(
             self._get_value("PCM handle name"),
             self._get_pair("card"),
             self._get_pair("device"),
             self._get_value("stream"),
-            self._get_list("available formats"),
+            valid_formats,
             valid_rates,
             list(map(int, self._get_list("available channels"))),
             self._get_range("period size range"),
@@ -587,7 +595,9 @@ class USBMixerChecker:
 class AlsaConformanceTester(object):
     """Object which can set params and run alsa_conformance_test."""
 
-    def __init__(self, name, stream, criteria, threshold, allow_rates):
+    def __init__(
+        self, name, stream, criteria, threshold, allow_rates, allow_formats
+    ):
         """Initializes an AlsaConformanceTester.
 
         Args:
@@ -595,6 +605,7 @@ class AlsaConformanceTester(object):
           stream: The stream type. (PLAYBACK or CAPTURE)
           criteria: A Criteria object for pass criteria.
           allow_rates: Restrict the sample rates to be tested if specified.
+          allow_formats: Restrict the formats to be tested if specified.
         """
         self.name = name
         self.stream = stream
@@ -610,7 +621,9 @@ class AlsaConformanceTester(object):
             print("Fail - {}".format(output.err))
             exit()
 
-        self.dev_info = DeviceInfoParser(allow_rates).parse(output.out)
+        self.dev_info = DeviceInfoParser(allow_rates, allow_formats).parse(
+            output.out
+        )
 
     def init_params(self):
         """Sets the device params to the default values.
@@ -1144,6 +1157,13 @@ def main():
         "used to reduce test run time when there are too many sample rates "
         "supported by the device.",
     )
+    parser.add_argument(
+        "--allow-formats",
+        nargs="+",
+        help="Restrict the data formats to be tested if specified. This should "
+        "only be used for temporary workarounds, e.g. b/244418775; otherwise "
+        "all available formats obtained from device info should be respected.",
+    )
 
     args = parser.parse_args()
 
@@ -1169,6 +1189,7 @@ def main():
             criteria,
             args.merge_thld_size,
             args.allow_rates,
+            args.allow_formats,
         )
 
     if args.output_device:
@@ -1178,6 +1199,7 @@ def main():
             criteria,
             args.merge_thld_size,
             args.allow_rates,
+            args.allow_formats,
         )
 
     tester.test(args.test_suites, args.json, args.json_file)
