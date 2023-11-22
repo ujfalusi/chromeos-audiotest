@@ -50,7 +50,7 @@ static void config_pcm_hw_params(snd_pcm_t* handle,
     exit(1);
   }
 
-  if ((err = snd_pcm_hw_params_set_channels(handle, hw_params, 2)) < 0) {
+  if ((err = snd_pcm_hw_params_set_channels(handle, hw_params, channels)) < 0) {
     fprintf(stderr, "cannot set channel count (%s)\n", snd_strerror(err));
     exit(1);
   }
