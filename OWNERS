@@ -1,3 +1,4 @@
+include chromiumos/owners:v1:/audio/OWNERS.all
+
 cychiang@chromium.org
 yuhsuan@chromium.org
-louiscollard@chromium.org
