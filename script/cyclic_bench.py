@@ -24,6 +24,7 @@ DEFAULT_STRESS_PRIORITY = 20
 DEFAULT_INTERVAL = 10000
 DEFAULT_LOOPS = 6000
 DEFAULT_STRESS_WORKERS = 2
+DEFAULT_THRESHOLD = 3000
 
 
 class SchedPolicy(enum.Enum):
@@ -54,6 +55,7 @@ class CyclicTestConfig(typing.NamedTuple):
     threads: int  # Number of threads.
     loops: int  # Number of times.
     affinity: Affinity  # Run cyclictest threads on which sets of processors.
+    breaktrace: int  # Breaktrace interval time.
 
 
 class StressConfig(typing.NamedTuple):
@@ -252,7 +254,7 @@ class CyclicTestRunner(object):
         logging.error("Unsupported affinity.")
         return "0"
 
-    def _get_cyclic_test_cmd(self) -> typing.List[str]:
+    def _get_cyclic_test_cmd(self, tracemark) -> typing.List[str]:
         """Returns the command to run `cyclictest`.
 
         Returns:
@@ -271,7 +273,10 @@ class CyclicTestRunner(object):
             "--interval={}".format(config.interval_us),
             "--threads={}".format(config.threads),
             "--loops={}".format(config.loops),
+            "--breaktrace={}".format(config.breaktrace),
         ]
+        if tracemark:
+            cmd += ["--tracemark"]
         if config.affinity != Affinity.Default:
             cmd += [
                 "--affinity={}".format(
@@ -306,13 +311,16 @@ class CyclicTestRunner(object):
             cmd = ["nice", "-n", str(config.scheduler.priority)] + cmd
         return cmd
 
-    def run(self, output_file: typing.TextIO, json_format: bool):
+    def run(
+        self, output_file: typing.TextIO, json_format: bool, tracemark: bool
+    ):
         """Runs the cyclictest with stress if specified and writes the results to `output_file`.
 
         Args:
           output_file: file to write the cyclictest results.
           json_format: write results in json format if true otherwise in human
             readable format.
+          tracemark: whether to trace or not.
         """
         # Set the timeout of stress to be 10% more of the expected time
         # of cyclic test in case the stress-ng failed to be killed.
@@ -327,7 +335,7 @@ class CyclicTestRunner(object):
             1,
         )
 
-        cyclic_test_cmd = self._get_cyclic_test_cmd()
+        cyclic_test_cmd = self._get_cyclic_test_cmd(tracemark)
         stress_cmd = self._get_stress_cmd(timeout)
 
         logging.info("Execute command: %s", " ".join(stress_cmd))
@@ -405,8 +413,15 @@ class CyclicTestRunner(object):
                0:       7:      16
                0:       8:      15
                0:       9:      14
-        ...
         ```
+        If --breaktrace and --tracemark and used, there will be the following
+        segment in the log:
+        ```
+        # Thread Ids: 15142
+        # Break thread: 15142
+        # Break value: 115
+        ```
+        The break value will not be in the regular logs, so add it separately.
 
         Args:
           log: string of the raw log.
@@ -418,15 +433,29 @@ class CyclicTestRunner(object):
         """
         latencies: typing.List[typing.List[int]] = [[] for i in range(threads)]
         data_re = "^[ \t]+\d+:[ \t]+\d+:[ \t]+\d+$"
+        thread_ids_re = "^# Thread Ids: .*$"
+        thread_ids = []
+        breakthread_re = "^# Break thread: \d+$"
+        breakvalue_re = "^# Break value: \d+$"
+        break_thread_id = None
         for line in log.splitlines():
-            if re.fullmatch(data_re, line) == None:
-                continue
-            ints = re.findall("\d+", line)
-            if len(ints) != 3:
-                logging.error("Failed to parse latency: {}".format(line))
-            tid = int(ints[0])
-            latency = int(ints[2])
-            latencies[tid].append(latency)
+            if re.fullmatch(data_re, line) != None:
+                ints = re.findall("\d+", line)
+                if len(ints) != 3:
+                    logging.error("Failed to parse latency: {}".format(line))
+                tid = int(ints[0])
+                latency = int(ints[2])
+                latencies[tid].append(latency)
+            if re.fullmatch(thread_ids_re, line) != None:
+                ints = re.findall("\d+", line)
+                thread_ids = [int(x) for x in ints]
+            if re.fullmatch(breakthread_re, line) != None:
+                ints = re.findall("\d+", line)
+                break_thread_id = thread_ids.index(int(ints[0]))
+            if re.fullmatch(breakvalue_re, line) != None:
+                ints = re.findall("\d+", line)
+                latency = int(ints[0])
+                latencies[break_thread_id].append(latency)
         return latencies
 
     def calculate_stats(
@@ -469,6 +498,7 @@ def get_cyclictest_config(args) -> CyclicTestConfig:
         args.threads,
         args.loops,
         args.affinity,
+        args.breaktrace,
     )
 
 
@@ -571,6 +601,17 @@ def main():
         action="store_true",
         help="Output in json format for easier parsing.",
     )
+    parser.add_argument(
+        "--tracemark",
+        action="store_true",
+        help="write a trace mark when --breaktrace latency is exceeded",
+    )
+    parser.add_argument(
+        "--breaktrace",
+        type=int,
+        default=DEFAULT_THRESHOLD,
+        help="send break trace command when latency > USEC",
+    )
 
     args = parser.parse_args()
 
@@ -578,7 +619,7 @@ def main():
     stress_config = get_stress_config(args)
 
     runner = CyclicTestRunner(cyclic_test_config, stress_config)
-    runner.run(args.output_file, args.json_format)
+    runner.run(args.output_file, args.json_format, args.tracemark)
 
 
 if __name__ == "__main__":
