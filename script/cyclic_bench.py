@@ -432,7 +432,7 @@ class CyclicTestRunner(object):
           thread will be latencies[i][:].
         """
         latencies: typing.List[typing.List[int]] = [[] for i in range(threads)]
-        data_re = "^[ \t]+\d+:[ \t]+\d+:[ \t]+\d+$"
+        data_re = "^[ \t]+\d+:[ \t]+\d+:[ \t]*\d+$"
         thread_ids_re = "^# Thread Ids: .*$"
         thread_ids = []
         breakthread_re = "^# Break thread: \d+$"
@@ -609,7 +609,6 @@ def main():
     parser.add_argument(
         "--breaktrace",
         type=int,
-        default=DEFAULT_THRESHOLD,
         help="send break trace command when latency > USEC",
     )
 
