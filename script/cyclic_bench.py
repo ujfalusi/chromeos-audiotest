@@ -24,7 +24,6 @@ DEFAULT_STRESS_PRIORITY = 20
 DEFAULT_INTERVAL = 10000
 DEFAULT_LOOPS = 6000
 DEFAULT_STRESS_WORKERS = 2
-DEFAULT_THRESHOLD = 3000
 
 
 class SchedPolicy(enum.Enum):
@@ -273,10 +272,11 @@ class CyclicTestRunner(object):
             "--interval={}".format(config.interval_us),
             "--threads={}".format(config.threads),
             "--loops={}".format(config.loops),
-            "--breaktrace={}".format(config.breaktrace),
         ]
         if tracemark:
             cmd += ["--tracemark"]
+        if config.breaktrace:
+            cmd += ["--breaktrace={}".format(config.breaktrace)]
         if config.affinity != Affinity.Default:
             cmd += [
                 "--affinity={}".format(
@@ -609,6 +609,7 @@ def main():
     parser.add_argument(
         "--breaktrace",
         type=int,
+        default=None,
         help="send break trace command when latency > USEC",
     )
 
