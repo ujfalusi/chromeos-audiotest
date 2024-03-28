@@ -23,7 +23,7 @@ STRESS_BINARY = "stress-ng"
 DEFAULT_STRESS_PRIORITY = 20
 DEFAULT_INTERVAL = 10000
 DEFAULT_LOOPS = 6000
-DEFAULT_STRESS_WORKERS = 2
+DEFAULT_STRESS_WORKERS = 4
 
 
 class SchedPolicy(enum.Enum):
@@ -59,7 +59,7 @@ class CyclicTestConfig(typing.NamedTuple):
 
 class StressConfig(typing.NamedTuple):
     scheduler: SchedConfig  # The schedule config of the stress process.
-    workers_per_cpu: int  # Number of workers of stress per cpu.
+    workers: int  # Number of workers of stress.
 
 
 class CyclicTestStat(typing.NamedTuple):
@@ -302,7 +302,7 @@ class CyclicTestRunner(object):
         cmd = [
             STRESS_BINARY,
             "--timeout={}s".format(timeout),
-            "--cpu={}".format(config.workers_per_cpu * get_number_of_cpu()),
+            "--cpu={}".format(config.workers),
             "--sched={}".format(str(config.scheduler.policy)),
         ]
         if config.scheduler.policy == SchedPolicy.RRSched:
@@ -515,7 +515,7 @@ def get_stress_config(args) -> typing.Optional[StressConfig]:
         return None
     return StressConfig(
         SchedConfig(args.stress_policy, args.stress_priority),
-        args.workers_per_cpu,
+        args.workers,
     )
 
 
@@ -583,10 +583,10 @@ def main():
         ),
     )
     parser.add_argument(
-        "--workers_per_cpu",
+        "--workers",
         type=int,
         default=DEFAULT_STRESS_WORKERS,
-        help="Number of workers per cpu for the stress",
+        help="Number of workers for the stress",
     )
     parser.add_argument(
         "-o",
