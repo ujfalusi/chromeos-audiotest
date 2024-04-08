@@ -238,6 +238,7 @@ void dev_thread_start_playback(struct dev_thread *thread,
 	snd_pcm_uframes_t block_size;
 	snd_pcm_uframes_t frames_to_write;
 	snd_pcm_sframes_t frames_avail;
+	snd_pcm_sframes_t frames_delay;
 	snd_pcm_sframes_t frames_written;
 	snd_pcm_sframes_t frames_left;
 	snd_pcm_sframes_t frames_played;
@@ -299,8 +300,8 @@ void dev_thread_start_playback(struct dev_thread *thread,
 
 	if (DEBUG_MODE) {
 		prev = ori;
-		logger("%-13s %10s %10s %10s %18s\n", "TIME_DIFF(s)",
-		       "HW_LEVEL", "PLAYED", "DIFF", "RATE");
+		logger("%-13s %10s %10s %10s %10s %18s\n", "TIME_DIFF(s)",
+		       "HW_LEVEL", "PLAYED", "DELAY", "DIFF", "RATE");
 	}
 
 	/*
@@ -309,17 +310,28 @@ void dev_thread_start_playback(struct dev_thread *thread,
      * multithread test in the future.
      */
 	while (1) {
-		frames_avail = alsa_helper_avail(timer, handle);
+		if (alsa_helper_avail_delay(timer, handle, &frames_avail,
+					    &frames_delay))
+			exit(EXIT_FAILURE);
 
 		frames_left = buffer_size - frames_avail;
 
 		/*
          * Add a point into recorder when number of frames been played changes.
          */
-		if (frames_played != frames_written - frames_left) {
+		if (frames_played != frames_written - frames_delay) {
 			frames_diff =
-				frames_written - frames_left - frames_played;
-			frames_played = frames_written - frames_left;
+				frames_written - frames_delay - frames_played;
+
+			/*
+			 * On start (frames_played == 0) it is possible that
+			 * the delay is longer than what the DMA already
+			 * copied. In this case we should keep recording 0
+			 * since no valid frames actually left the system.
+			 */
+			if (frames_played || frames_written > frames_delay)
+				frames_played = frames_written - frames_delay;
+
 			clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 			relative_ts = now;
 			subtract_timespec(&relative_ts, &ori);
@@ -333,14 +345,14 @@ void dev_thread_start_playback(struct dev_thread *thread,
 				rate = (double)frames_diff /
 				       timespec_to_s(&time_diff);
 				if (!merged) {
-					logger("%-13s %10ld %10ld %10ld %18lf\n",
+					logger("%-13s %10ld %10ld %10ld %10ld %18lf\n",
 					       time_str, frames_left,
-					       frames_played, frames_diff,
+					       frames_played, frames_delay, frames_diff,
 					       rate);
 				} else {
-					logger("%-13s %10ld %10ld %10ld %18lf [Merged]\n",
+					logger("%-13s %10ld %10ld %10ld %10ld %18lf [Merged]\n",
 					       time_str, frames_left,
-					       frames_played, frames_diff,
+					       frames_played, frames_delay, frames_diff,
 					       rate);
 				}
 				free(time_str);
