@@ -21,6 +21,7 @@ CYCLICTEST_BINARY = "cyclictest"
 STRESS_BINARY = "stress-ng"
 
 DEFAULT_STRESS_PRIORITY = 20
+DEFAULT_CPU_LOAD = 100
 DEFAULT_INTERVAL = 10000
 DEFAULT_LOOPS = 6000
 DEFAULT_STRESS_WORKERS = 4
@@ -60,6 +61,7 @@ class CyclicTestConfig(typing.NamedTuple):
 class StressConfig(typing.NamedTuple):
     scheduler: SchedConfig  # The schedule config of the stress process.
     workers: int  # Number of workers of stress.
+    cpu_load: int  # Percentage of CPU load.
 
 
 class CyclicTestStat(typing.NamedTuple):
@@ -304,6 +306,7 @@ class CyclicTestRunner(object):
             "--timeout={}s".format(timeout),
             "--cpu={}".format(config.workers),
             "--sched={}".format(str(config.scheduler.policy)),
+            "--cpu-load={}".format(config.cpu_load),
         ]
         if config.scheduler.policy == SchedPolicy.RRSched:
             cmd += ["--sched-prio={}".format(config.scheduler.priority)]
@@ -516,6 +519,7 @@ def get_stress_config(args) -> typing.Optional[StressConfig]:
     return StressConfig(
         SchedConfig(args.stress_policy, args.stress_priority),
         args.workers,
+        args.cpu_load,
     )
 
 
@@ -611,6 +615,15 @@ def main():
         type=int,
         default=None,
         help="send break trace command when latency > USEC",
+    )
+    parser.add_argument(
+        "--cpu_load",
+        type=int,
+        default=DEFAULT_CPU_LOAD,
+        help=(
+            "load CPU with P percent loading for the CPU stress workers."
+            "0 is effectively a sleep (no load) and 100 is full loading"
+        ),
     )
 
     args = parser.parse_args()
