@@ -586,12 +586,22 @@ def main():
             "priority will be taken as nice value."
         ),
     )
-    parser.add_argument(
+
+    # Parse either --workers or --workers_per_cpu for the number of stress
+    # workers.
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "--workers",
         type=int,
         default=DEFAULT_STRESS_WORKERS,
         help="Number of workers for the stress",
     )
+    group.add_argument(
+        "--workers_per_cpu",
+        type=int,
+        help="Number of workers per CPU for the stress",
+    )
+
     parser.add_argument(
         "-o",
         "--output_file",
@@ -627,6 +637,11 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # If workers_per_cpu is set, calculate and store the number of workers in
+    # args.workers
+    if args.workers_per_cpu is not None:
+        args.workers = args.workers_per_cpu * get_number_of_cpu()
 
     cyclic_test_config = get_cyclictest_config(args)
     stress_config = get_stress_config(args)
