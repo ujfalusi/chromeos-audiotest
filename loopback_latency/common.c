@@ -87,6 +87,37 @@ void generate_sine(const snd_pcm_channel_area_t* areas,
   *_phase = phase;
 }
 
+void read_pcm_file(const char* filename, short** pcm_data) {
+  FILE* file = fopen(filename, "rb");
+  if (!file) {
+    fprintf(stderr, "Failed to open file %s\n", filename);
+    exit(EXIT_FAILURE);
+  }
+
+  // Get the file size
+  fseek(file, 0, SEEK_END);
+  long file_size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  // Allocate memory to store the PCM data
+  *pcm_data = (short*)malloc(file_size);
+  if (!pcm_data) {
+    fclose(file);
+    fprintf(stderr, "Failed to allocate memory for PCM data\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // Read the PCM data from the file
+  size_t num_read = fread(*pcm_data, sizeof(short), file_size, file);
+  if (num_read <= 0) {
+    fclose(file);
+    fprintf(stderr, "Failed to read PCM data from file\n");
+    exit(EXIT_FAILURE);
+  }
+
+  fclose(file);
+}
+
 /* Looks for the first sample in buffer whose absolute value exceeds
  * noise_threshold. Returns the index of found sample in frames, -1
  * if not found. */

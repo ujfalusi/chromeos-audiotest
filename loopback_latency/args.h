@@ -19,5 +19,6 @@ extern int g_noise_threshold;
 extern int g_loop;
 extern int g_cold;
 extern int g_pin_capture_device;
+extern char* g_playback_file;
 
 #endif  // LOOPBACK_LATENCY_ARGS_H_

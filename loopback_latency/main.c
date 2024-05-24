@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
   char* cap_dev = NULL;
 
   int arg;
-  while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:l:CP:s:")) != -1) {
+  while ((arg = getopt(argc, argv, "b:i:o:n:r:p:ct:l:CP:s:f:")) != -1) {
     switch (arg) {
       case 'b':
         g_buffer_frames = atoi(optarg);
@@ -87,6 +87,9 @@ int main(int argc, char* argv[]) {
         break;
       case 's':
         g_start_threshold = atoi(optarg);
+        break;
+      case 'f':
+        g_playback_file = optarg;
         break;
       default:
         return 1;

@@ -162,7 +162,12 @@ static void* alsa_play(void* arg) {
     }
   }
 
-  generate_sine(areas, 0, g_period_size, &g_phase);
+  int use_playback_file = g_playback_file != NULL;
+  if (use_playback_file) {
+    read_pcm_file(g_playback_file, &play_buf);
+  } else {
+    generate_sine(areas, 0, g_period_size, &g_phase);
+  }
   snd_pcm_delay(handle, &playback_delay_frames);
   gettimeofday(&sine_start_tv, NULL);
 
@@ -180,8 +185,12 @@ static void* alsa_play(void* arg) {
         pthread_cond_signal(&g_sine_start);
       }
       pthread_mutex_unlock(&g_latency_test_mutex);
-      if ((err = snd_pcm_writei(handle, play_buf, g_period_size)) !=
-          g_period_size) {
+      if ((err = snd_pcm_writei(
+               handle,
+               play_buf + (use_playback_file
+                               ? num_buffers * g_period_size * g_channels
+                               : 0),
+               g_period_size)) != g_period_size) {
         fprintf(stderr, "write to audio interface failed (%s)\n",
                 snd_strerror(err));
       }

@@ -74,6 +74,11 @@ static int cras_play_tone(struct cras_client* client,
   int chn;
   size_t sample_bytes;
 
+  if (g_playback_file != NULL) {
+    fprintf(stderr, "Using playback file is not supproted for CRAS yet\n");
+    exit(EXIT_FAILURE);
+  }
+
   sample_bytes = snd_pcm_format_physical_width(g_format) / 8;
 
   areas = calloc(g_channels, sizeof(snd_pcm_channel_area_t));

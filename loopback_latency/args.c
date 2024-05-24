@@ -17,3 +17,4 @@ int g_noise_threshold = 0x4000;
 int g_loop;
 int g_cold;
 int g_pin_capture_device = PIN_DEVICE_UNSET;
+char* g_playback_file;

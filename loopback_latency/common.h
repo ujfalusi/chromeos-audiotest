@@ -30,6 +30,12 @@ void generate_sine(const snd_pcm_channel_area_t* areas,
                    int count,
                    double* _phase);
 
+/* read_pcm_file is an alternative of generate_sine. The pcm data
+ * that is returned can be used for playback. It is useful when
+ * testing with noise cancellation on. The file format must be raw,
+ * and the audio format muust matches the format for the playback. */
+void read_pcm_file(const char* filename, short** pcm_data);
+
 /* Looks for the first sample in buffer whose absolute value exceeds
  * noise_threshold. Returns the index of found sample in frames, -1
  * if not found. */
