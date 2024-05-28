@@ -164,7 +164,7 @@ static void* alsa_play(void* arg) {
 
   int use_playback_file = g_playback_file != NULL;
   if (use_playback_file) {
-    read_pcm_file(g_playback_file, &play_buf);
+    read_wav_file(g_playback_file, &play_buf);
   } else {
     generate_sine(areas, 0, g_period_size, &g_phase);
   }

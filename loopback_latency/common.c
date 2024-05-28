@@ -87,7 +87,8 @@ void generate_sine(const snd_pcm_channel_area_t* areas,
   *_phase = phase;
 }
 
-void read_pcm_file(const char* filename, short** pcm_data) {
+void read_wav_file(const char* filename, short** pcm_data) {
+  const int header_size = 44;
   FILE* file = fopen(filename, "rb");
   if (!file) {
     fprintf(stderr, "Failed to open file %s\n", filename);
@@ -96,8 +97,8 @@ void read_pcm_file(const char* filename, short** pcm_data) {
 
   // Get the file size
   fseek(file, 0, SEEK_END);
-  long file_size = ftell(file);
-  fseek(file, 0, SEEK_SET);
+  long file_size = ftell(file) - header_size;
+  fseek(file, header_size, SEEK_SET);
 
   // Allocate memory to store the PCM data
   *pcm_data = (short*)malloc(file_size);
