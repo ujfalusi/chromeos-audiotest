@@ -39,6 +39,7 @@ class Affinity(enum.Enum):
     Default = "default"  # use all the processors in round-robin order.
     SmallCore = "small_core"  # run all the threads on small cores.
     BigCore = "big_core"  # run all the threads on big cores.
+    NoCpu0 = "no_cpu_0"  # Use all processors except CPU 0
 
     def __str__(self):
         return self.value
@@ -252,6 +253,8 @@ class CyclicTestRunner(object):
             return cpu_ranges[0]
         elif affinity == Affinity.BigCore:
             return cpu_ranges[1]
+        elif affinity == Affinity.NoCpu0:
+            return "1-" + str(get_number_of_cpu() - 1)
         logging.error("Unsupported affinity.")
         return "0"
 
