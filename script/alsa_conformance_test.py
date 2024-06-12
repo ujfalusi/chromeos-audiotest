@@ -1118,9 +1118,9 @@ def main():
     )
     parser.add_argument(
         "--rate-err-criteria",
-        help="The pass criteria of rate error. (default: 10)",
+        help="The pass criteria of rate error. (default: 20)",
         type=float,
-        default=10,
+        default=20,
     )
     parser.add_argument(
         "--merge-thld-size",

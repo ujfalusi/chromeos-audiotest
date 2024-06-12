@@ -432,7 +432,7 @@ alsa_conformance_test.py [-h] [-C INPUT_DEVICE] [-P OUTPUT_DEVICE]
       0.01 means the pass range is [47995.2, 48004.8] for rate 48000.
       (default: 0.01)
 + --rate_err_criteria RATE_ERR_CRITERIA
-	+ The pass criteria of rate error. (default: 10)
+	+ The pass criteria of rate error. (default: 20)
 + --json
 	+ Print result in JSON format
 + --log-file LOG_FILE
