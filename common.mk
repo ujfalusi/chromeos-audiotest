@@ -7,7 +7,7 @@
 #
 # NOTE NOTE NOTE
 #  The authoritative common.mk is located in:
-#    https://chromium.googlesource.com/chromiumos/platform/common-mk.git
+#    https://chromium.googlesource.com/chromiumos/platform2/+/HEAD/common-mk
 #  Please make all changes there, then copy into place in other repos.
 # NOTE NOTE NOTE
 #
@@ -51,9 +51,9 @@
 # compiling the objects.  This can be done by adding one of the following
 # to the Makefile:
 #   - For C source files
-#     $(eval $(call add_object_rules,sub/dir/gen_a.o sub/dir/gen_b.o,CC,c))
+#   $(eval $(call add_object_rules,sub/dir/gen_a.o sub/dir/b.o,CC,c,CFLAGS))
 #   - For C++ source files
-#     $(eval $(call add_object_rules,sub/dir/gen_a.o sub/dir/gen_b.o,CXX,cc))
+#   $(eval $(call add_object_rules,sub/dir/gen_a.o sub/dir/b.o,CXX,cc,CXXFLAGS))
 #
 # Exported targets meant to have prerequisites added to:
 #  - all - Your desired targets should be given
@@ -63,7 +63,7 @@
 #
 # Possible command line variables:
 #   - COLOR=[0|1] to set ANSI color output (default: 1)
-#   - VERBOSE=[0|1] to hide/show commands (default: 0)
+#   - VERBOSE=[0|1] V=[0|1] to hide/show commands (default: 0)
 #   - MODE=[opt|dbg|profiling] (default: opt)
 #          opt - Enable optimizations for release builds
 #          dbg - Turn down optimization for debugging
@@ -87,7 +87,7 @@
 # Caveats:
 # - Directories or files with spaces in them DO NOT get along with GNU Make.
 #   If you need them, all uses of dir/notdir/etc will need to have magic
-#   wrappers.  Proceed at risk to your own judgement.
+#   wrappers.  Proceed at risk to your own sanity.
 # - External CXXFLAGS and CFLAGS should be passed via the environment since
 #   this file does not use 'override' to control them.
 # - Our version of GNU Make doesn't seem to support the 'private' variable
@@ -98,11 +98,12 @@ SPLITDEBUG ?= 0
 NOSTRIP ?= 1
 VALGRIND ?= 0
 COLOR ?= 1
-VERBOSE ?= 0
+V ?= 0
+VERBOSE ?= $(V)
 MODE ?= opt
+CXXEXCEPTIONS ?= 0
+RUN_TESTS ?= 1
 ARCH ?= $(shell uname -m)
-NEEDS_ROOT = 0
-NEEDS_MOUNTS = 0
 
 # Put objects in a separate tree based on makefile locations
 # This means you can build a tree without touching it:
@@ -259,13 +260,13 @@ $(eval $(call override_var,STRIP,strip))
 RMDIR ?= rmdir
 ECHO = /bin/echo -e
 
-ifeq ($(lastword $(subst /, ,$(CC))),clang)
+ifeq ($(filter clang,$(subst -, ,$(notdir $(CC)))),clang)
 CDRIVER = clang
 else
 CDRIVER = gcc
 endif
 
-ifeq ($(lastword $(subst /, ,$(CXX))),clang++)
+ifeq ($(filter clang++,$(subst -, ,$(notdir $(CXX)))),clang++)
 CXXDRIVER = clang
 else
 CXXDRIVER = gcc
@@ -311,12 +312,33 @@ endif
 #  CXXFLAGS := $(filter-out badflag,$(CXXFLAGS)) # Filter out a value
 # The same goes for CFLAGS.
 COMMON_CFLAGS-gcc := -fvisibility=internal -ggdb3 -Wa,--noexecstack
-COMMON_CFLAGS-clang := -fvisibility=hidden -ggdb
-COMMON_CFLAGS := -Wall -Werror -fno-strict-aliasing $(SSP_CFLAGS) -O1 -Wformat=2
-CXXFLAGS += $(COMMON_CFLAGS) $(COMMON_CFLAGS-$(CXXDRIVER))
-CFLAGS += $(COMMON_CFLAGS) $(COMMON_CFLAGS-$(CDRIVER))
+# audiotest: Disable -Wimplicit-fallthrough to unbreak compilation.
+COMMON_CFLAGS-clang := -fvisibility=hidden -ggdb \
+  -Wstring-plus-int
+# When a class is exported through __attribute__((visibility("default"))), we
+# still want to eliminate symbols from inline class member functions to reduce
+# symbol resolution overhead. Therefore, pass -fvisibility-inlines-hidden in
+# addition to -fvisibility=hidden. (go/cros-symbol-slimming)
+COMMON_CFLAGS := -Wall -Wunused -Wno-unused-parameter -Wunreachable-code \
+  -Wbool-operation -Wstring-compare -Wxor-used-as-pow \
+  -Wint-in-bool-context -Wfree-nonheap-object \
+  -Werror -Wformat=2 -fno-strict-aliasing -fvisibility-inlines-hidden \
+  $(SSP_CFLAGS) -O1
+CXXFLAGS += $(COMMON_CFLAGS) $(COMMON_CFLAGS-$(CXXDRIVER)) -std=gnu++20
+CFLAGS += $(COMMON_CFLAGS) $(COMMON_CFLAGS-$(CDRIVER)) -std=gnu17
+# We undefine _FORTIFY_SOURCE because some distros enable it by default in
+# their toolchains.  This makes the compiler issue warnings about redefines
+# and our -Werror usage breaks it all.
 CPPFLAGS += -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3
 
+# Enable large file support.
+CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
+
+# Disable exceptions based on the CXXEXCEPTIONS setting.
+ifeq ($(CXXEXCEPTIONS),0)
+  CXXFLAGS := $(CXXFLAGS) -fno-exceptions -fno-unwind-tables \
+    -fno-asynchronous-unwind-tables
+endif
 
 ifeq ($(MODE),opt)
   # Up the optimizations.
@@ -336,7 +358,11 @@ ifeq ($(MODE),profiling)
   LDFLAGS := $(LDFLAGS) --coverage
 endif
 
-LDFLAGS := $(LDFLAGS) -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now
+# Pass -Bsymbolic-non-weak which pre-binds symbols in the same DSO to improve
+# startup performance. We don't support interposing non-weak symbols.
+# (go/cros-symbol-slimming)
+LDFLAGS := $(LDFLAGS) -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now \
+  -Wl,-Bsymbolic-non-weak
 
 # Fancy helpers for color if a prompt is defined
 ifeq ($(COLOR),1)
@@ -506,8 +532,11 @@ CC_STATIC_LIBARY(%):
 	$(error Typo alert! LIBARY != LIBRARY)
 
 
-TEST(%): % qemu_chroot_install
+TEST(%): %
 	$(call TEST_implementation)
+ifneq ($(RUN_TESTS),0)
+TEST(%): qemu_chroot_install
+endif
 .PHONY: TEST
 
 # multiple targets with a wildcard need to share an directory.
@@ -573,13 +602,12 @@ $(1): %.o: %.pic.o %.pie.o
 	$$(QUIET)touch "$$@"
 endef
 
+# Wrap all the deps in $$(wildcard) so a missing header won't cause weirdness.
+# First we remove newlines and \, then wrap it.
 define OBJECT_PATTERN_implementation
   @$(ECHO) "$(1)		$(subst $(SRC)/,,$<) -> $(2).o"
   $(call auto_mkdir,$@)
   $(QUIET)$($(1)) -c -MD -MF $(2).d $(3) -o $(2).o $<
-  $(QUIET)# Wrap all the deps in $$(wildcard) so a missing header
-  $(QUIET)# won't cause weirdness.  First we remove newlines and \,
-  $(QUIET)# then wrap it.
   $(QUIET)sed -i -e :j -e '$$!N;s|\\\s*\n| |;tj' \
     -e 's|^\(.*\s*:\s*\)\(.*\)$$|\1 $$\(wildcard \2\)|' $(2).d
 endef
@@ -639,6 +667,11 @@ else
   USE_QEMU ?= 0
 endif
 
+# Normally we don't need to run as root or do bind mounts, so only
+# enable it by default when we're using QEMU.
+NEEDS_ROOT ?= $(USE_QEMU)
+NEEDS_MOUNTS ?= $(USE_QEMU)
+
 SYSROOT_OUT = $(OUT)
 ifneq ($(SYSROOT),)
   SYSROOT_OUT = $(subst $(SYSROOT),,$(OUT))
@@ -646,6 +679,15 @@ else
   # Default to / when all the empty-sysroot logic is done.
   SYSROOT = /
 endif
+
+QEMU_NAME = qemu-$(QEMU_ARCH)
+QEMU_PATH = /build/bin/$(QEMU_NAME)
+QEMU_SYSROOT_PATH = $(SYSROOT)$(QEMU_PATH)
+QEMU_SRC_PATH = /usr/bin/$(QEMU_NAME)
+QEMU_BINFMT_PATH = /proc/sys/fs/binfmt_misc/$(QEMU_NAME)
+QEMU_REGISTER_PATH = /proc/sys/fs/binfmt_misc/register
+
+QEMU_MAGIC_arm = ":$(QEMU_NAME):M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/build/bin/qemu-arm:"
 
 
 #
@@ -662,8 +704,12 @@ ifneq ($(MAKECMDGOALS),clean)
   $(info - NOSTRIP=$(NOSTRIP))
   $(info - VALGRIND=$(VALGRIND))
   $(info - COLOR=$(COLOR))
+  $(info - CXXEXCEPTIONS=$(CXXEXCEPTIONS))
   $(info - ARCH=$(ARCH))
   $(info - QEMU_ARCH=$(QEMU_ARCH))
+  $(info - USE_QEMU=$(USE_QEMU))
+  $(info - NEEDS_ROOT=$(NEEDS_ROOT))
+  $(info - NEEDS_MOUNTS=$(NEEDS_MOUNTS))
   $(info - SYSROOT=$(SYSROOT))
   $(info )
 endif
@@ -700,16 +746,43 @@ ifeq ($(MODE),profiling)
 		fi
 	@$(ECHO) "COVERAGE [$(COLOR_YELLOW)FINISHED$(COLOR_RESET)]"
 endif
-.PHONY: tests
-
-qemu_clean:
-	$(call if_qemu,$(call silent_rm,$(OUT)/qemu-$(QEMU_ARCH)))
+# Standard name everyone else uses.
+check: tests
+.PHONY: check tests
 
 qemu_chroot_install:
 ifeq ($(USE_QEMU),1)
-	$(QUIET)$(ECHO) "QEMU   Preparing qemu-$(QEMU_ARCH)"
-	$(QUIET)cp -fu /usr/bin/qemu-$(QEMU_ARCH) $(OUT)/qemu-$(QEMU_ARCH)
-	$(QUIET)chmod a+rx $(OUT)/qemu-$(QEMU_ARCH)
+	$(QUIET)$(ECHO) "QEMU   Preparing $(QEMU_NAME)"
+	@# Copying strategy
+	@# Compare /usr/bin/qemu inode to /build/$board/build/bin/qemu, if different
+	@# hard link to a temporary file, then rename temp to target. This should
+	@# ensure that once $QEMU_SYSROOT_PATH exists it will always exist, regardless
+	@# of simultaneous test setups.
+	$(QUIET)if [[ ! -e $(QEMU_SYSROOT_PATH) || \
+	    `stat -c %i $(QEMU_SRC_PATH)` != `stat -c %i $(QEMU_SYSROOT_PATH)` \
+	    ]]; then \
+	  $(ROOT_CMD) ln -Tf $(QEMU_SRC_PATH) $(QEMU_SYSROOT_PATH).$$$$; \
+	  $(ROOT_CMD) mv -Tf $(QEMU_SYSROOT_PATH).$$$$ $(QEMU_SYSROOT_PATH); \
+	fi
+
+	@# Prep the binfmt handler. First mount if needed, then unregister any bad
+	@# mappings and then register our mapping.
+	@# There may still be some race conditions here where one script de-registers
+	@# and another script starts executing before it gets re-registered, however
+	@# it should be rare.
+	-$(QUIET)[[ -e $(QEMU_REGISTER_PATH) ]] || \
+	  $(ROOT_CMD) mount binfmt_misc -t binfmt_misc \
+	    /proc/sys/fs/binfmt_misc
+
+	-$(QUIET)if [[ -e $(QEMU_BINFMT_PATH) && \
+	      `awk '$$1 == "interpreter" {print $$NF}' $(QEMU_BINFMT_PATH)` != \
+	      "$(QEMU_PATH)" ]]; then \
+	  echo -1 | $(ROOT_CMD) tee $(QEMU_BINFMT_PATH) >/dev/null; \
+	fi
+
+	-$(if $(QEMU_MAGIC_$(ARCH)),$(QUIET)[[ -e $(QEMU_BINFMT_PATH) ]] || \
+	  echo $(QEMU_MAGIC_$(ARCH)) | $(ROOT_CMD) tee $(QEMU_REGISTER_PATH) \
+	    >/dev/null)
 endif
 .PHONY: qemu_clean qemu_chroot_install
 
@@ -727,10 +800,10 @@ ROOT_CMD_LDPATH := $(ROOT_CMD_LDPATH):$(SYSROOT)/lib:$(SYSROOT)/usr/lib64:
 ROOT_CMD_LDPATH := $(ROOT_CMD_LDPATH):$(SYSROOT)/usr/lib
 ifeq ($(USE_QEMU),1)
   export QEMU_CMD = \
-   $(SUDO_CMD) chroot $(SYSROOT) $(SYSROOT_OUT)qemu-$(QEMU_ARCH) \
+   $(SUDO_CMD) chroot $(SYSROOT) $(QEMU_PATH) \
    -drop-ld-preload \
    -E LD_LIBRARY_PATH="$(QEMU_LDPATH):$(patsubst $(OUT),,$(LD_DIRS))" \
-   -E HOME="$(HOME)" --
+   -E HOME="$(HOME)" -E SRC="$(SRC)" --
   # USE_QEMU conditional function
   define if_qemu
     $(1)
@@ -748,12 +821,17 @@ ifeq ($(VALGRIND),1)
   VALGRIND_CMD = /usr/bin/valgrind --tool=memcheck $(VALGRIND_ARGS) --
 endif
 
+ifneq ($(RUN_TESTS),0)
 define TEST_implementation
   $(QUIET)$(call TEST_setup)
   $(QUIET)$(call TEST_run)
   $(QUIET)$(call TEST_teardown)
   $(QUIET)exit $$(cat $(OUT)$(TARGET_OR_MEMBER).status.test)
 endef
+else
+define TEST_implementation
+endef
+endif
 
 define TEST_setup
   @$(ECHO) -n "TEST		$(TARGET_OR_MEMBER) "
@@ -765,7 +843,12 @@ define TEST_setup
   $(QUIET)# No setup if we are not using QEMU
   $(QUIET)# TODO(wad) this is racy until we use a vfs namespace
   $(call if_qemu,\
-    $(QUIET)(echo "mkdir -p '$(SYSROOT)/proc' '$(SYSROOT)/dev'" \
+    $(QUIET)(echo "mkdir -p '$(SYSROOT)/proc' '$(SYSROOT)/dev' \
+                            '$(SYSROOT)/mnt/host/source'" \
+             >> "$(OUT)$(TARGET_OR_MEMBER).setup.test"))
+  $(call if_qemu,\
+    $(QUIET)(echo "$(MOUNT_CMD) --bind /mnt/host/source \
+             '$(SYSROOT)/mnt/host/source'" \
              >> "$(OUT)$(TARGET_OR_MEMBER).setup.test"))
   $(call if_qemu,\
     $(QUIET)(echo "$(MOUNT_CMD) --bind /proc '$(SYSROOT)/proc'" \
@@ -789,7 +872,7 @@ define TEST_run
   @$(ECHO) -n "TEST		$(TARGET_OR_MEMBER) "
   @$(ECHO) "[$(COLOR_GREEN)RUN$(COLOR_RESET)]"
   $(QUIET)(echo 1 > "$(OUT)$(TARGET_OR_MEMBER).status.test")
-  $(QUIET)(echo $(ROOT_CMD) $(QEMU_CMD) $(VALGRIND_CMD) \
+  $(QUIET)(echo $(ROOT_CMD) SRC="$(SRC)" $(QEMU_CMD) $(VALGRIND_CMD) \
     "$(strip $(call if_qemu, $(SYSROOT_OUT),$(OUT))$(TARGET_OR_MEMBER))" \
       $(if $(filter-out 0,$(words $(GTEST_ARGS.real))),$(GTEST_ARGS.real),\
            $(GTEST_ARGS)) >> "$(OUT)$(TARGET_OR_MEMBER).setup.test")
