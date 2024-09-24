@@ -21,8 +21,6 @@ CXX_BINARY(src/audiofuntest): \
 	src/generator_player.o \
 	src/sample_format.o \
 	src/tone_generators.o
-CXX_BINARY(src/audiofuntest): \
-	CPPFLAGS += -std=c++17
 clean: CLEAN(src/audiofuntest)
 all: CXX_BINARY(src/audiofuntest)
 
@@ -33,7 +31,7 @@ CXX_BINARY(src/test_tones): \
 	src/test_tones.o \
 	src/tone_generators.o
 CXX_BINARY(src/test_tones): \
-	CPPFLAGS += $(ALSA_CFLAGS) -std=c++17
+	CPPFLAGS += $(ALSA_CFLAGS)
 CXX_BINARY(src/test_tones): \
 	LDLIBS += $(ALSA_LIBS)
 clean: CLEAN(src/test_tones)
