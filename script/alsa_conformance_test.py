@@ -187,7 +187,7 @@ class Parser(object):
           ValueError: Can find the key in context, but format is incorrect.
         """
         content = self._get_value(key)
-        match = re.match("(?P<_0>.*) \[(?P<_1>.*)\]", content)
+        match = re.match(r"(?P<_0>.*) \[(?P<_1>.*)\]", content)
         if not match:
             msg = "Wrong format of content:{}".format(content)
             raise ValueError(msg)
@@ -295,7 +295,7 @@ class DeviceInfoParser(Parser):
         for raw in re.finditer("mixer: (.*)", self._context):
             mixer = {}
             result = re.match(
-                "name:(?P<_0>.+) index:(?P<_1>.+) has_volume:(?P<_2>.+) db_range:\[(?P<_3>.+), (?P<_4>.+)\] volume_range:\[(?P<_5>.+), (?P<_6>.+)\]",
+                r"name:(?P<_0>.+) index:(?P<_1>.+) has_volume:(?P<_2>.+) db_range:\[(?P<_3>.+), (?P<_4>.+)\] volume_range:\[(?P<_5>.+), (?P<_6>.+)\]",
                 raw.group(1),
             )
             mixer["name"] = result.group(1)
