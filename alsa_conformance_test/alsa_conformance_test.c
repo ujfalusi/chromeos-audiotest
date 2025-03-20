@@ -22,6 +22,7 @@
 int DEBUG_MODE = false;
 int SINGLE_THREAD;
 int STRICT_MODE = false;
+int AVAIL_DELAY_FLAG = false; // 0: snd_pcm_avail, 1: snd_pcm_avail_delay
 
 void show_usage(const char *name)
 {
@@ -76,6 +77,7 @@ void show_usage(const char *name)
 	       "\t\teg: hw:0,0 PLAYBACK 2 S16_LE 48000 240 240 10 # Example\n");
 	printf("\t--merge_threshold_sz: "
 	       "Set frame merge threadhold size, auto computed if not set\n");
+	printf("\t--avail-delay: Use snd_pcm_avail_delay instead of snd_pcm_avail.\n");
 }
 
 void set_dev_thread_args(struct dev_thread *thread,
@@ -92,6 +94,7 @@ void set_dev_thread_args(struct dev_thread *thread,
 					 args_get_merge_threshold(args));
 	dev_thread_set_merge_threshold_size(thread,
 					    args_get_merge_threshold_sz(args));
+	dev_thread_set_avail_delay_flag(thread, AVAIL_DELAY_FLAG);
 }
 
 struct dev_thread *create_playback_thread(struct alsa_conformance_args *args)
@@ -178,6 +181,7 @@ size_t parse_device_file(struct alsa_conformance_args *args,
 		dev_thread_set_block_size(thread, block_size);
 		dev_thread_set_duration(thread, duration);
 		dev_thread_set_iterations(thread, args_get_iterations(args));
+		dev_thread_set_avail_delay_flag(thread, AVAIL_DELAY_FLAG);
 
 		thread_list[thread_count++] = thread;
 	}
@@ -264,7 +268,8 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 		OPT_DEV_INFO_ONLY,
 		OPT_ITERATIONS,
 		OPT_MERGE_THRESHOLD,
-		OPT_MERGE_THRESHOLD_SZ
+		OPT_MERGE_THRESHOLD_SZ,
+		OPT_AVAIL_DELAY
 	};
 	int c;
 	const char *short_opt = "hP:C:c:f:r:p:B:d:D";
@@ -287,6 +292,7 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 		  OPT_MERGE_THRESHOLD },
 		{ "merge_threshold_sz", required_argument, NULL,
 		  OPT_MERGE_THRESHOLD_SZ },
+		{"avail-delay", no_argument, NULL, OPT_AVAIL_DELAY},
 		{ 0, 0, 0, 0 }
 	};
 	while (1) {
@@ -364,6 +370,10 @@ void parse_arguments(struct alsa_conformance_args *test_args, int argc,
 		case OPT_MERGE_THRESHOLD_SZ:
 			args_set_merge_threshold_sz(test_args,
 						    (int)atof(optarg));
+			break;
+		case OPT_AVAIL_DELAY:
+			AVAIL_DELAY_FLAG = 1;
+			fprintf(stdout, "Enable snd_pcm_avail_delay.");
 			break;
 		case ':':
 		case '?':

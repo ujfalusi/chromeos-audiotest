@@ -73,4 +73,7 @@ void dev_thread_set_merge_threshold_t(struct dev_thread *thread,
 void dev_thread_set_merge_threshold_size(struct dev_thread *thread,
 					 snd_pcm_sframes_t merge_threshold_sz);
 
+/* Set avail delay flag to determine avail or avail_delay function usage. */
+void dev_thread_set_avail_delay_flag(struct dev_thread *thread, int flag);
+
 #endif /* INCLUDE_ALSA_CONFORMANCE_THREAD_H_ */

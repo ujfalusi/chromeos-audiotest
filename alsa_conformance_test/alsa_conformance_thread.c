@@ -46,6 +46,7 @@ struct dev_thread {
 
 	struct alsa_conformance_timer *timer;
 	struct alsa_conformance_recorder_list *recorder_list;
+	int avail_delay_flag; // flag for snd_pcm_avail_delay
 };
 
 struct dev_thread *dev_thread_create()
@@ -71,6 +72,7 @@ struct dev_thread *dev_thread_create()
 	thread->recorder_list = recorder_list_create();
 	thread->merge_threshold_t = 0;
 	thread->merge_threshold_sz = 0;
+	thread->avail_delay_flag = 0;
 
 	for (i = 0; i < CHANNELS_MAX; i++)
 		thread->zero_channels[i] = true;
@@ -158,6 +160,11 @@ void dev_thread_set_duration(struct dev_thread *thread, double duration)
 void dev_thread_set_iterations(struct dev_thread *thread, int iterations)
 {
 	thread->iterations = iterations;
+}
+
+void dev_thread_set_avail_delay_flag(struct dev_thread *thread, int flag)
+{
+	thread->avail_delay_flag = flag;
 }
 
 /* Open device and initialize params. */
@@ -310,10 +317,16 @@ void dev_thread_start_playback(struct dev_thread *thread,
      * multithread test in the future.
      */
 	while (1) {
-		if (alsa_helper_avail_delay(timer, handle, &frames_avail,
-					    &frames_delay))
-			exit(EXIT_FAILURE);
-
+		if (thread->avail_delay_flag) {
+			if (alsa_helper_avail_delay(timer, handle, &frames_avail,
+						&frames_delay) < 0)
+				exit(EXIT_FAILURE);
+		} else {
+			frames_avail = snd_pcm_avail(handle);
+			if (frames_avail < 0)
+				exit(EXIT_FAILURE);
+			frames_delay = buffer_size - frames_avail;
+		}
 		frames_left = buffer_size - frames_avail;
 
 		/*
