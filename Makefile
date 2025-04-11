@@ -4,6 +4,9 @@
 
 include common.mk
 
+# TODO: Re-enable these warnings.
+CFLAGS += -Wno-implicit-fallthrough
+
 all: CC_BINARY(src/alsa_api_test) \
      CC_BINARY(alsa_conformance_test/alsa_conformance_test) \
      CC_BINARY(src/alsa_helpers) \
