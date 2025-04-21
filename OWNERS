@@ -2,3 +2,6 @@ include chromiumos/owners:v1:/audio/OWNERS.all
 
 cychiang@chromium.org
 yuhsuan@chromium.org
+
+# Robots.
+per-file common.mk = file:chromiumos/owners:v1:/bots/OWNERS.copybara
