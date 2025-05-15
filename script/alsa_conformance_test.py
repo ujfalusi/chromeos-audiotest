@@ -596,7 +596,7 @@ class AlsaConformanceTester(object):
     """Object which can set params and run alsa_conformance_test."""
 
     def __init__(
-        self, name, stream, criteria, threshold, allow_rates, allow_formats
+        self, name, stream, criteria, threshold, allow_rates, allow_formats, avail_delay
     ):
         """Initializes an AlsaConformanceTester.
 
@@ -606,6 +606,7 @@ class AlsaConformanceTester(object):
           criteria: A Criteria object for pass criteria.
           allow_rates: Restrict the sample rates to be tested if specified.
           allow_formats: Restrict the formats to be tested if specified.
+          avail_delay: use snd_pcm_avail_delay().
         """
         self.name = name
         self.stream = stream
@@ -615,6 +616,7 @@ class AlsaConformanceTester(object):
         self.period_size = None
         self.merge_thld_size = threshold
         self.criteria = criteria
+        self.avail_delay = avail_delay
 
         output = self.run(["--dev_info_only"])
         if output.rc != 0:
@@ -704,6 +706,8 @@ class AlsaConformanceTester(object):
             cmd += ["-p", str(self.period_size)]
         if self.merge_thld_size is not None:
             cmd += ["--merge_threshold_sz", str(self.merge_thld_size)]
+        if self.avail_delay is True:
+            cmd += ["--avail-delay"]
 
         logging.info("Execute command: %s", " ".join(cmd))
         # Replace stdout/stderr with capture_output=True when Python 3.7 is
@@ -1164,6 +1168,12 @@ def main():
         "only be used for temporary workarounds, e.g. b/244418775; otherwise "
         "all available formats obtained from device info should be respected.",
     )
+    parser.add_argument(
+        "--avail-delay",
+        action='store_true',
+        help="Use snd_pcm_avail_delay() instead of snd_pcm_avail() to take the"
+        "driver reported delay value into account.",
+    )
 
     args = parser.parse_args()
 
@@ -1190,6 +1200,7 @@ def main():
             args.merge_thld_size,
             args.allow_rates,
             args.allow_formats,
+            args.avail_delay,
         )
 
     if args.output_device:
@@ -1200,6 +1211,7 @@ def main():
             args.merge_thld_size,
             args.allow_rates,
             args.allow_formats,
+            args.avail_delay,
         )
 
     tester.test(args.test_suites, args.json, args.json_file)
