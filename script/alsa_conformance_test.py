@@ -596,7 +596,7 @@ class AlsaConformanceTester(object):
     """Object which can set params and run alsa_conformance_test."""
 
     def __init__(
-        self, name, stream, criteria, threshold, allow_rates, allow_formats, avail_delay
+        self, name, stream, criteria, threshold, block_size, allow_rates, allow_formats, avail_delay
     ):
         """Initializes an AlsaConformanceTester.
 
@@ -615,6 +615,7 @@ class AlsaConformanceTester(object):
         self.rate = None
         self.period_size = None
         self.merge_thld_size = threshold
+        self.block_size = block_size
         self.criteria = criteria
         self.avail_delay = avail_delay
 
@@ -706,6 +707,8 @@ class AlsaConformanceTester(object):
             cmd += ["-p", str(self.period_size)]
         if self.merge_thld_size is not None:
             cmd += ["--merge_threshold_sz", str(self.merge_thld_size)]
+        if self.block_size is not None:
+            cmd += ["-B", str(self.block_size)]
         if self.avail_delay is True:
             cmd += ["--avail-delay"]
 
@@ -1135,6 +1138,14 @@ def main():
         type=int,
     )
     parser.add_argument(
+        "--block-size",
+        help=(
+            "Override the default block_size of 240. "
+            "See the Underrun and Overrun in the doc for details."
+        ),
+        type=int,
+    )
+    parser.add_argument(
         "--json", action="store_true", help="Print result in JSON format"
     )
     parser.add_argument(
@@ -1198,6 +1209,7 @@ def main():
             "CAPTURE",
             criteria,
             args.merge_thld_size,
+            args.block_size,
             args.allow_rates,
             args.allow_formats,
             args.avail_delay,
@@ -1209,6 +1221,7 @@ def main():
             "PLAYBACK",
             criteria,
             args.merge_thld_size,
+            args.block_size,
             args.allow_rates,
             args.allow_formats,
             args.avail_delay,
